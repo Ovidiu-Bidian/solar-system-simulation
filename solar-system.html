@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orrery — a solar system you can stand anywhere in</title>
+<style>
+  :root {
+    --accent: #ffd27a;
+    --panel: rgba(13, 17, 30, .58);
+    --line: rgba(255, 255, 255, .09);
+    --text: #e8ecf6;
+    --dim: #8f9ab4;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #03050b; color: var(--text);
+    font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; cursor: grab; }
+  canvas#scene:active { cursor: grabbing; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  kbd { font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; padding: 3px 5px; border-radius: 5px;
+    background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); border-bottom-width: 2px; color: #dfe5f5; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .35); }
+
+  /* labels */
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .label { position: absolute; left: 0; top: 0; padding: 2px 7px; border-radius: 999px; white-space: nowrap; pointer-events: auto;
+    font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #cfd7ea; cursor: pointer;
+    text-shadow: 0 1px 6px #000, 0 0 2px #000; transition: opacity .25s, color .2s; will-change: transform; }
+  .label:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+  .label.on { color: var(--accent); font-weight: 600; }
+  .label.hid { opacity: 0; pointer-events: none; }
+
+  /* top left: focus card */
+  #card { position: fixed; top: 16px; left: 16px; width: 252px; padding: 14px 16px 12px; }
+  .brand { font-size: 10px; letter-spacing: .32em; color: var(--dim); text-transform: uppercase; }
+  #fname { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; font-size: 24px; font-weight: 650; letter-spacing: .01em; }
+  #fname i { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, var(--accent) 45%, #0000 130%);
+    box-shadow: 0 0 14px var(--accent); flex: none; }
+  #ftag { color: var(--dim); margin: 2px 0 10px; }
+  #frame { font-size: 11.5px; color: var(--accent); margin-bottom: 10px; opacity: .92; }
+  .stats { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .stats span:nth-child(odd) { color: var(--dim); }
+  .stats span:nth-child(even), #dist b { font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; }
+  #disthead { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); padding: 9px 0 5px; border-top: 1px solid var(--line); }
+  #dist button { display: grid; grid-template-columns: 14px 1fr auto; align-items: center; width: 100%; padding: 2px 4px; margin: 0 -4px;
+    border-radius: 6px; text-align: left; }
+  #dist button:hover { background: rgba(255, 255, 255, .07); }
+  #dist i { width: 7px; height: 7px; border-radius: 50%; }
+
+  /* top right: clock */
+  #clock { position: fixed; top: 16px; right: 16px; padding: 12px 16px; text-align: right; min-width: 190px; }
+  #date { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+  #time, #speed, #gridinfo { color: var(--dim); font-variant-numeric: tabular-nums; }
+  #speed { color: var(--accent); }
+
+  /* bottom bar */
+  #bar { position: fixed; left: 16px; right: 16px; bottom: 16px; display: flex; gap: 10px; align-items: flex-end; justify-content: space-between;
+    pointer-events: none; }
+  #bar > * { pointer-events: auto; }
+  .group { display: flex; align-items: center; gap: 2px; padding: 5px; }
+  .group button { height: 34px; min-width: 34px; padding: 0 10px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center;
+    gap: 7px; color: #c9d2e8; transition: background .15s, color .15s; white-space: nowrap; }
+  .group button:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+  .group button[aria-pressed="true"] { background: rgba(255, 255, 255, .11); color: var(--accent); }
+  .group button svg { width: 14px; height: 14px; fill: currentColor; }
+  .group .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+  #dock { overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  #dock::-webkit-scrollbar { display: none; }
+  #dock button { flex-direction: column; height: 52px; min-width: 58px; gap: 4px; padding: 0 8px; font-size: 11px; position: relative; }
+  #dock button i { width: 16px; height: 16px; border-radius: 50%; flex: none; transition: transform .2s; }
+  #dock button:hover i { transform: scale(1.15); }
+  #dock button.on { background: rgba(255, 255, 255, .12); color: #fff; }
+  #dock button.on::after { content: ""; position: absolute; bottom: 3px; left: 30%; right: 30%; height: 2px; border-radius: 2px; background: var(--accent); }
+  #dock button kbd { position: absolute; top: 3px; right: 4px; padding: 1px 3px; font-size: 9px; border-bottom-width: 1px; opacity: .55; }
+  #helpbtn { font-weight: 700; font-size: 15px; }
+
+  /* toast */
+  #toast { position: fixed; left: 50%; bottom: 96px; transform: translate(-50%, 8px); padding: 8px 14px; border-radius: 999px; opacity: 0;
+    pointer-events: none; transition: opacity .3s, transform .3s; white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* help overlay */
+  #help { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(2, 4, 10, .6); opacity: 0; pointer-events: none;
+    transition: opacity .2s; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); z-index: 10; padding: 16px; }
+  #help.open { opacity: 1; pointer-events: auto; }
+  #help .sheet { width: min(760px, 100%); max-height: 100%; overflow: auto; padding: 24px 28px; transform: translateY(10px) scale(.985); transition: transform .2s; }
+  #help.open .sheet { transform: none; }
+  #help h2 { margin: 0; font-size: 20px; }
+  #help .lead { color: #b8c2da; margin: 6px 0 16px; }
+  #help .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 4px 32px; }
+  #help h3 { margin: 14px 0 6px; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
+  #help .row { display: grid; grid-template-columns: 112px 1fr; gap: 10px; align-items: center; padding: 4px 0; color: #c7d0e6; }
+  #help .row > span:first-child { display: flex; gap: 4px; align-items: center; color: var(--dim); }
+  #help .note { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+  #help .x { float: right; width: 30px; height: 30px; border-radius: 8px; font-size: 18px; color: var(--dim); }
+  #help .x:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+
+  #boot { position: fixed; inset: 0; display: grid; place-items: center; color: var(--dim); letter-spacing: .2em; text-transform: uppercase;
+    font-size: 11px; text-align: center; padding: 20px; }
+
+  @media (max-width: 1100px) { #bar { flex-wrap: wrap; justify-content: center; } #dock { order: 3; } }
+  @media (max-width: 720px), (max-height: 620px) { #disthead, #dist { display: none; } #card { width: 216px; } #toast { bottom: 170px; } }
+  @media (max-width: 520px) { #clock { top: auto; bottom: 170px; right: 16px; } .stats { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="scene" tabindex="0" aria-label="Solar system view"></canvas>
+<div id="labels"></div>
+<div id="boot">Loading the heavens…</div>
+
+<section id="card" class="panel">
+  <div class="brand">Orrery</div>
+  <h1 id="fname"><i></i><span></span></h1>
+  <div id="ftag"></div>
+  <div id="frame"></div>
+  <div class="stats" id="stats"></div>
+  <div id="disthead"></div>
+  <div id="dist"></div>
+</section>
+
+<section id="clock" class="panel">
+  <div id="date">—</div>
+  <div id="time"></div>
+  <div id="speed"></div>
+  <div id="gridinfo"></div>
+</section>
+
+<div id="bar">
+  <div class="group panel" id="transport">
+    <button id="b-slow" title="Slower (↓)" aria-label="Slower"><svg viewBox="0 0 16 16"><path d="M8 3v10L1 8zM15 3v10L8 8z"/></svg></button>
+    <button id="b-play" title="Play / pause (Space)" aria-label="Play or pause"><svg viewBox="0 0 16 16"><path id="playpath" d="M3 2h4v12H3zM9 2h4v12H9z"/></svg></button>
+    <button id="b-fast" title="Faster (↑)" aria-label="Faster"><svg viewBox="0 0 16 16"><path d="M1 3l7 5-7 5zM8 3l7 5-7 5z"/></svg></button>
+    <span class="sep"></span>
+    <button id="b-rev" title="Reverse time (R)" aria-pressed="false">Reverse</button>
+    <button id="b-now" title="Jump to today (N)">Now</button>
+  </div>
+
+  <nav class="group panel" id="dock" aria-label="Choose the centre body"></nav>
+
+  <div class="group panel" id="toggles">
+    <button id="b-grid" title="Grid: square / polar / off (G)" aria-pressed="true">Grid</button>
+    <button id="b-trails" title="Relative-motion trails (T)" aria-pressed="true">Trails</button>
+    <button id="b-orbits" title="Orbits around the Sun (O)" aria-pressed="true">Orbits</button>
+    <button id="b-labels" title="Labels (L)" aria-pressed="true">Labels</button>
+    <button id="b-squash" title="Compress distances so everything fits (D)" aria-pressed="false">Compact</button>
+    <span class="sep"></span>
+    <button id="b-top" title="Top-down view (V)">Top</button>
+    <button id="b-fit" title="Close-up / overview (F)">Zoom</button>
+    <button id="helpbtn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+  </div>
+</div>
+
+<div id="toast" class="panel" role="status"></div>
+
+<div id="help" role="dialog" aria-modal="true" aria-labelledby="helptitle">
+  <div class="sheet panel">
+    <button class="x" id="helpclose" aria-label="Close">×</button>
+    <h2 id="helptitle">How to use the orrery</h2>
+    <p class="lead">Pick any body and it becomes the still centre of the view. The glowing trails are the paths every other body traces
+      <em>relative to it</em> — from Earth, Mars draws its retrograde loops and Venus a five-petalled rose (lengthen trails with <kbd>]</kbd> to see all 8 years of it).</p>
+    <div class="cols">
+      <div>
+        <h3>Choose the centre</h3>
+        <div class="row"><span><kbd>0</kbd>–<kbd>9</kbd></span><span>Sun, Mercury … Neptune, Moon</span></div>
+        <div class="row"><span><kbd>←</kbd><kbd>→</kbd></span><span>Previous / next body</span></div>
+        <div class="row"><span>Click</span><span>A planet, its label, or the dock</span></div>
+        <h3>Camera</h3>
+        <div class="row"><span>Drag</span><span>Orbit around the centre body</span></div>
+        <div class="row"><span>Scroll / pinch</span><span>Zoom</span></div>
+        <div class="row"><span><kbd>F</kbd></span><span>Close-up ↔ overview</span></div>
+        <div class="row"><span><kbd>V</kbd></span><span>Top-down ↔ tilted view</span></div>
+      </div>
+      <div>
+        <h3>Time</h3>
+        <div class="row"><span><kbd>Space</kbd></span><span>Play / pause</span></div>
+        <div class="row"><span><kbd>↑</kbd><kbd>↓</kbd></span><span>Faster / slower</span></div>
+        <div class="row"><span><kbd>R</kbd></span><span>Reverse time</span></div>
+        <div class="row"><span><kbd>N</kbd></span><span>Jump to today</span></div>
+        <h3>Display</h3>
+        <div class="row"><span><kbd>G</kbd></span><span>Grid: square → polar → off</span></div>
+        <div class="row"><span><kbd>T</kbd> <kbd>[</kbd><kbd>]</kbd></span><span>Trails on/off, shorter / longer</span></div>
+        <div class="row"><span><kbd>O</kbd></span><span>Orbits around the Sun</span></div>
+        <div class="row"><span><kbd>L</kbd></span><span>Labels</span></div>
+        <div class="row"><span><kbd>D</kbd></span><span>Compact distances (√ scale)</span></div>
+        <div class="row"><span><kbd>?</kbd> <kbd>Esc</kbd></span><span>Open / close this help</span></div>
+      </div>
+    </div>
+    <div class="note">Positions use JPL's approximate Keplerian elements (most accurate 1800–2050), so the sky you see for today's date is the real one.
+      Distances are true to scale unless Compact is on; planet sizes and the Moon's distance from Earth are exaggerated so you can see them.
+      The grid lies in the ecliptic plane through the centre body.</div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script>
+  setTimeout(() => { const b = document.getElementById('boot');
+    if (b) b.textContent = 'Could not load Three.js — this page needs an internet connection the first time it opens.'; }, 9000);
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const DEG = Math.PI / 180, TAU = Math.PI * 2, AU_KM = 149597870.7;
+const $ = id => document.getElementById(id);
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const sat = x => clamp(x, 0, 1);
+const sstep = (a, b, x) => { const t = sat((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+const ease = t => t * t * (3 - 2 * t);
+
+// ───────────────────────── bodies ─────────────────────────
+// el/rt: a [AU], e, I, L, long. of perihelion, long. of node [deg] and their rates per Julian century
+// (JPL "Approximate Positions of the Planets", J2000 ecliptic, valid 1800–2050).
+// r is the exaggerated display radius in AU; the Moon's a is exaggerated too (realA is the true one).
+const BODIES = [
+  { id: 'sun', name: 'Sun', color: '#ffd27a', r: .11, minPx: 6, km: 695700, tilt: 7.25, rot: 25.4, tag: 'G-type star · 99.86% of the system’s mass' },
+  { id: 'mercury', name: 'Mercury', color: '#c0b8ad', r: .013, km: 2439.7, tilt: .03, rot: 58.65, tag: 'Smallest planet · fastest orbit',
+    el: [.38709927, .20563593, 7.00497902, 252.2503235, 77.45779628, 48.33076593],
+    rt: [.00000037, .00001906, -.00594749, 149472.67411175, .16047689, -.12534081] },
+  { id: 'venus', name: 'Venus', color: '#f0d9a0', r: .019, km: 6051.8, tilt: 177.4, rot: 243.02, atmo: '#ffdf9e', tag: 'Runaway greenhouse · spins backwards',
+    el: [.72333566, .00677672, 3.39467605, 181.9790995, 131.60246718, 76.67984255],
+    rt: [.0000039, -.00004107, -.0007889, 58517.81538729, .00268329, -.27769418] },
+  { id: 'earth', name: 'Earth', color: '#6fa8ff', r: .02, km: 6371, tilt: 23.44, rot: .9973, atmo: '#5aa2ff', tag: 'Third planet · home',
+    el: [1.00000261, .01671123, -.00001531, 100.46457166, 102.93768193, 0],
+    rt: [.00000562, -.00004392, -.01294668, 35999.37244981, .32327364, 0] },
+  { id: 'mars', name: 'Mars', color: '#ff7d55', r: .015, km: 3389.5, tilt: 25.19, rot: 1.026, atmo: '#ff9a70', tag: 'The red planet · thin CO₂ air',
+    el: [1.52371034, .0933941, 1.84969142, -4.55343205, -23.94362959, 49.55953891],
+    rt: [.00001847, .00007882, -.00813131, 19140.30268499, .44441088, -.29257343] },
+  { id: 'jupiter', name: 'Jupiter', color: '#e6b98a', r: .059, km: 69911, tilt: 3.13, rot: .4135, tag: 'Gas giant · 318 Earth masses',
+    el: [5.202887, .04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909],
+    rt: [-.00011607, -.00013253, -.00183714, 3034.74612775, .21252668, .20469106] },
+  { id: 'saturn', name: 'Saturn', color: '#f1dca0', r: .055, km: 58232, tilt: 26.73, rot: .444, rings: true, tag: 'Ringed gas giant · less dense than water',
+    el: [9.53667594, .05386179, 2.48599187, 49.95424423, 92.59887831, 113.66242448],
+    rt: [-.0012506, -.00050991, .00193609, 1222.49362201, -.41897216, -.28867794] },
+  { id: 'uranus', name: 'Uranus', color: '#9fe8ec', r: .037, km: 25362, tilt: 97.77, rot: .718, atmo: '#a8f0f2', tag: 'Ice giant · rolls on its side',
+    el: [19.18916464, .04725744, .77263783, 313.23810451, 170.9542763, 74.01692503],
+    rt: [-.00196176, -.00004397, -.00242939, 428.48202785, .40805281, .04240589] },
+  { id: 'neptune', name: 'Neptune', color: '#6d8dff', r: .037, km: 24622, tilt: 28.32, rot: .671, atmo: '#6f93ff', tag: 'Ice giant · supersonic winds',
+    el: [30.06992276, .00859048, 1.77004347, -55.12002969, 44.96476227, 131.78422574],
+    rt: [.00026291, .00005105, .00035372, 218.45945325, -.32241464, -.00508664] },
+  { id: 'moon', name: 'Moon', color: '#d6d6dc', r: .0075, minPx: 2, km: 1737.4, tilt: 6.68, rot: 27.32, parent: 'earth', realA: .00257, tag: 'Earth’s companion · distance exaggerated ×31',
+    el: [.08, .0549, 5.145, 218.316, 83.353, 125.045],
+    rt: [0, 0, 0, 13.176396 * 36525, .111404 * 36525, -.052954 * 36525] },
+];
+const byId = Object.fromEntries(BODIES.map(b => [b.id, b]));
+const SUN = byId.sun, EARTH = byId.earth, MOON = byId.moon;
+for (const b of BODIES) {
+  b.parent = b.parent ? byId[b.parent] : null;
+  b.period = b.el ? 360 * 36525 / b.rt[3] : Infinity;   // sidereal period, days
+  b.k = { a: 0, b: 0, e: 0, M: 0, n: 0, v: new Float64Array(6) };
+  b.off = { x: 0, y: 0, z: 0 };
+  b.minPx ??= 3.5;
+}
+
+// ───────────────────────── orbital mechanics ─────────────────────────
+// Elements are evaluated once per frame; within a frame only the mean anomaly advances (k.n per day),
+// which keeps the thousands of trail samples cheap. Output is in three.js axes: ecliptic (x, y, z) → (x, z, −y).
+function prep(b, t) {
+  const T = t / 36525, e = b.el, r = b.rt, k = b.k;
+  const a = e[0] + r[0] * T, ec = e[1] + r[1] * T, I = (e[2] + r[2] * T) * DEG;
+  const L = e[3] + r[3] * T, w = e[4] + r[4] * T, O = e[5] + r[5] * T;
+  const om = (w - O) * DEG, Om = O * DEG;
+  k.a = a; k.e = ec; k.b = a * Math.sqrt(1 - ec * ec);
+  k.M = ((L - w) % 360) * DEG; k.n = (r[3] - r[4]) * DEG / 36525;
+  const cO = Math.cos(Om), sO = Math.sin(Om), ci = Math.cos(I), si = Math.sin(I), cw = Math.cos(om), sw = Math.sin(om);
+  const v = k.v;
+  v[0] = cO * cw - sO * sw * ci; v[1] = sw * si; v[2] = -(sO * cw + cO * sw * ci);
+  v[3] = -cO * sw - sO * cw * ci; v[4] = cw * si; v[5] = -(-sO * sw + cO * cw * ci);
+}
+function kepler(b, dt, o) {
+  const k = b.k, e = k.e, M = k.M + k.n * dt, v = k.v;
+  let E = M + e * Math.sin(M);
+  E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+  E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+  E -= (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+  const x = k.a * (Math.cos(E) - e), y = k.b * Math.sin(E);
+  o.x = x * v[0] + y * v[3]; o.y = x * v[1] + y * v[4]; o.z = x * v[2] + y * v[5];
+  return o;
+}
+
+// ───────────────────────── state ─────────────────────────
+const SPEEDS = [
+  { d: 1 / 86400, n: 'Real time' }, { d: 1 / 24, n: '1 hour / s' }, { d: 1, n: '1 day / s' }, { d: 7, n: '1 week / s' },
+  { d: 30.4375, n: '1 month / s' }, { d: 91.3125, n: '3 months / s' }, { d: 365.25, n: '1 year / s' },
+  { d: 1826.25, n: '5 years / s' }, { d: 7305, n: '20 years / s' },
+];
+const TRAILS = [.25, .5, 1, 2, 4, 8];
+const nowT = () => Date.now() / 864e5 - 10957.5;   // days since J2000.0
+const S = {
+  t: nowT(), playing: true, dir: 1, si: 4, ti: 2,
+  focus: SUN, prev: SUN, blend: 1,
+  squash: 0, squashTo: 0,
+  grid: 0, trails: true, orbits: true, labels: true,
+};
+
+// display-space heliocentric position at t + dt (distances optionally compressed: r → r^(1 − squash/2))
+const tM = { x: 0, y: 0, z: 0 }, tB = { x: 0, y: 0, z: 0 };
+function squashVec(o) {
+  if (S.squash > 0) { const s = Math.pow(o.x * o.x + o.y * o.y + o.z * o.z, -.25 * S.squash); o.x *= s; o.y *= s; o.z *= s; }
+  return o;
+}
+function disp(b, dt, o) {
+  if (!b.el) { o.x = o.y = o.z = 0; return o; }
+  if (b.parent) { disp(b.parent, dt, o); kepler(b, dt, tM); o.x += tM.x; o.y += tM.y; o.z += tM.z; return o; }
+  return squashVec(kepler(b, dt, o));
+}
+// Path of a body used as the frame centre. A moon rides its parent's path with its *current* offset, so its
+// (exaggerated) wobble does not smear into every other trail.
+function centre(b, dt, o) {
+  if (b.parent) { disp(b.parent, dt, o); o.x += b.off.x; o.y += b.off.y; o.z += b.off.z; return o; }
+  return disp(b, dt, o);
+}
+function originAt(dt, o) {
+  centre(S.focus, dt, o);
+  if (S.blend < 1) { centre(S.prev, dt, tB); const k = ease(S.blend); o.x = tB.x + (o.x - tB.x) * k; o.y = tB.y + (o.y - tB.y) * k; o.z = tB.z + (o.z - tB.z) * k; }
+  return o;
+}
+// true (unscaled) heliocentric position, for the distance read-outs
+function real(b, o) {
+  if (!b.el) { o.x = o.y = o.z = 0; return o; }
+  if (b.parent) { real(b.parent, o); kepler(b, 0, tM); const s = b.realA / b.el[0]; o.x += tM.x * s; o.y += tM.y * s; o.z += tM.z * s; return o; }
+  return kepler(b, 0, o);
+}
+
+// ───────────────────────── renderer ─────────────────────────
+const canvas = $('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x03050b);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, .01, 2000);
+camera.position.setFromSpherical(new THREE.Spherical(9.5, 1.0, .6));
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = .08; controls.enablePan = false;
+controls.rotateSpeed = .55; controls.zoomSpeed = .9; controls.maxDistance = 220;
+
+scene.add(new THREE.AmbientLight(0x8fa3d0, .22));
+const sunLight = new THREE.PointLight(0xfff3df, 3.6, 0, 0);
+scene.add(sunLight);
+
+// ───────────────────────── procedural textures ─────────────────────────
+function h3(x, y, z) {
+  let n = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(z, 1440662683)) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+function vn(x, y, z) {
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  let fx = x - xi, fy = y - yi, fz = z - zi;
+  fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy); fz = fz * fz * (3 - 2 * fz);
+  const a = h3(xi, yi, zi), b = h3(xi + 1, yi, zi), c = h3(xi, yi + 1, zi), d = h3(xi + 1, yi + 1, zi);
+  const e = h3(xi, yi, zi + 1), f = h3(xi + 1, yi, zi + 1), g = h3(xi, yi + 1, zi + 1), h = h3(xi + 1, yi + 1, zi + 1);
+  const p = a + (b - a) * fx, q = c + (d - c) * fx, r = e + (f - e) * fx, s = g + (h - g) * fx;
+  const u = p + (q - p) * fy, w = r + (s - r) * fy;
+  return u + (w - u) * fz;
+}
+function fbm(x, y, z, oct = 5) {
+  let s = 0, a = .5, n = 0;
+  for (let i = 0; i < oct; i++) { s += a * vn(x, y, z); n += a; x *= 2.03; y *= 2.03; z *= 2.03; a *= .5; }
+  return s / n;
+}
+const C = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
+const mix = (o, a, b, t) => { o[0] = a[0] + (b[0] - a[0]) * t; o[1] = a[1] + (b[1] - a[1]) * t; o[2] = a[2] + (b[2] - a[2]) * t; return o; };
+const mul = (o, k) => { o[0] *= k; o[1] *= k; o[2] *= k; return o; };
+const grey = (o, g, r = 1, gg = 1, b = 1) => { o[0] = g * r; o[1] = g * gg; o[2] = g * b; return o; };
+function bands(o, pal, p) {
+  const i = Math.floor(p), n = pal.length;
+  return mix(o, pal[((i % n) + n) % n], pal[(((i + 1) % n) + n) % n], ease(p - i));
+}
+function spot(o, lat, lon, lat0, lon0, w, h, col, k = 1) {
+  const dx = ((((lon - lon0 + Math.PI) % TAU) + TAU) % TAU - Math.PI) * Math.cos(lat), dy = lat - lat0;
+  const e = (dx / w) ** 2 + (dy / h) ** 2;
+  if (e < 1) mix(o, o, col, Math.pow(1 - e, .6) * k);
+}
+const P = {
+  sunA: C('#ff8a1f'), sunB: C('#fff2bd'),
+  venA: C('#b98a44'), venB: C('#f6e6bd'),
+  seaA: C('#071f52'), seaB: C('#1f66bb'), landA: C('#2f6b2f'), landB: C('#96864f'), rock: C('#857c6c'), ice: C('#eef4fa'), white: C('#ffffff'),
+  marA: C('#74290f'), marB: C('#e39b6c'), marIce: C('#f4ece6'),
+  jup: ['#a86c3c', '#e9d6b6', '#c78f58', '#f3e7d0', '#9a5a34'].map(C), grs: C('#b2452b'),
+  satp: ['#d8bd84', '#efe2ba', '#c9aa72', '#e6d3a0'].map(C),
+  uraA: C('#86d0da'), uraB: C('#c4f2f2'), nepA: C('#2444b8'), nepB: C('#6a95f2'), nepSpot: C('#16277a'),
+};
+const PAINT = {
+  sun(x, y, z, lat, lon, o) {
+    const n = fbm(x * 5, y * 5, z * 5, 5), m = fbm(x * 20, y * 20, z * 20, 3);
+    mix(o, P.sunA, P.sunB, sat((n - .3) * 2.2 + (m - .5) * .5));
+  },
+  mercury(x, y, z, lat, lon, o) {
+    const n = fbm(x * 4, y * 4, z * 4, 5), c = vn(x * 22, y * 22, z * 22);
+    grey(o, .36 + .42 * n - (c > .72 ? (c - .72) * .9 : 0), 1.03, .97, .91);
+  },
+  venus(x, y, z, lat, lon, o) {
+    const w = fbm(x * 2, y * 2, z * 2, 3), n = fbm(x * 2.5 + w * 2, y * 6 + w, z * 2.5, 5);
+    mix(o, P.venA, P.venB, sstep(.3, .7, n));
+  },
+  earth(x, y, z, lat, lon, o) {
+    const h = fbm(x * 1.9 + 3.1, y * 1.9 + 1.7, z * 1.9 + 5.3, 6), d = fbm(x * 5, y * 5, z * 5, 4);
+    if (h < .53) mix(o, P.seaA, P.seaB, sat((h - .3) / .23));
+    else { mix(o, P.landA, P.landB, sat((d - .42) * 2.6 + (.5 - Math.abs(lat)) * .5)); mix(o, o, P.rock, sstep(.62, .72, h)); }
+    mix(o, o, P.ice, sstep(1.16, 1.26, Math.abs(lat) + (d - .5) * .5));
+    const c = fbm(x * 3.5 + 9, y * 5 + 2, z * 3.5 + 4, 5);
+    mix(o, o, P.white, sstep(.54, .72, c) * .85);
+  },
+  mars(x, y, z, lat, lon, o) {
+    const n = fbm(x * 2.6, y * 2.6, z * 2.6, 6), d = fbm(x * 7 + 4, y * 7, z * 7 + 1, 4);
+    mul(mix(o, P.marA, P.marB, sat((n - .28) * 2.1)), .8 + .4 * d);
+    mix(o, o, P.marIce, sstep(1.3, 1.38, Math.abs(lat) + (d - .5) * .3));
+  },
+  jupiter(x, y, z, lat, lon, o) {
+    const t = fbm(x * 3, y * 9, z * 3, 4);
+    bands(o, P.jup, (lat / Math.PI + .5) * 9 + (t - .5) * 1.7);
+    mul(o, .88 + .24 * fbm(x * 14, y * 40, z * 14, 3));
+    spot(o, lat, lon, -.38, 2.2, .27, .13, P.grs);
+  },
+  saturn(x, y, z, lat, lon, o) {
+    const t = fbm(x * 3, y * 10, z * 3, 4);
+    bands(o, P.satp, (lat / Math.PI + .5) * 12 + (t - .5) * .9);
+    mul(o, .93 + .14 * fbm(x * 10, y * 40, z * 10, 3));
+  },
+  uranus(x, y, z, lat, lon, o) {
+    mix(o, P.uraA, P.uraB, sat(.5 + .3 * Math.sin(lat * 5) + (fbm(x * 2, y * 8, z * 2, 3) - .5) * .5));
+  },
+  neptune(x, y, z, lat, lon, o) {
+    mix(o, P.nepA, P.nepB, sat(.45 + .3 * Math.sin(lat * 7 + 1) + (fbm(x * 3, y * 9, z * 3, 4) - .5) * .9));
+    spot(o, lat, lon, -.35, 4, .3, .16, P.nepSpot, .8);
+  },
+  moon(x, y, z, lat, lon, o) {
+    const n = fbm(x * 3.2, y * 3.2, z * 3.2, 5), mare = fbm(x * 1.6 + 7, y * 1.6, z * 1.6 + 2, 4), c = vn(x * 26, y * 26, z * 26);
+    grey(o, (.5 + .36 * n) * (1 - .45 * sstep(.53, .62, mare)) - (c > .74 ? (c - .74) * .8 : 0), 1, .98, .95);
+  },
+};
+function makeTexture(fn, w = 384, h = 192) {
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const g = cv.getContext('2d'), im = g.createImageData(w, h), d = im.data, o = [0, 0, 0];
+  for (let y = 0; y < h; y++) {
+    const lat = (.5 - (y + .5) / h) * Math.PI, cl = Math.cos(lat), sl = Math.sin(lat);
+    for (let x = 0; x < w; x++) {
+      const lon = (x + .5) / w * TAU;
+      fn(cl * Math.cos(lon), sl, cl * Math.sin(lon), lat, lon, o);
+      const i = (y * w + x) * 4;
+      d[i] = o[0] * 255; d[i + 1] = o[1] * 255; d[i + 2] = o[2] * 255; d[i + 3] = 255;
+    }
+  }
+  g.putImageData(im, 0, 0);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
+function ringTexture() {
+  const w = 512, cv = document.createElement('canvas'); cv.width = w; cv.height = 4;
+  const g = cv.getContext('2d'), im = g.createImageData(w, 4), d = im.data;
+  for (let x = 0; x < w; x++) {
+    const u = x / (w - 1), n = fbm(u * 60, 1.3, 2.1, 4), f = vn(u * 240, 4.2, .7);
+    let a = u < .2 ? .12 + u * 1.2 : u < .6 ? .78 + .2 * n : u < .66 ? .04 : u < .95 ? .58 + .15 * n : .3;
+    a *= (.72 + .5 * f) * sstep(0, .03, u) * (1 - sstep(.96, 1, u));
+    const s = .78 + .32 * n;
+    for (let y = 0; y < 4; y++) { const i = (y * w + x) * 4; d[i] = 226 * s; d[i + 1] = 206 * s; d[i + 2] = 160 * s; d[i + 3] = sat(a) * 255; }
+  }
+  g.putImageData(im, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function glowTexture() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 256;
+  const g = cv.getContext('2d'), gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  [[0, 'rgba(255,246,222,1)'], [.14, 'rgba(255,214,130,.8)'], [.3, 'rgba(255,160,60,.26)'], [.6, 'rgba(255,120,40,.06)'], [1, 'rgba(255,100,30,0)']]
+    .forEach(([s, c]) => gr.addColorStop(s, c));
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// ───────────────────────── scene objects ─────────────────────────
+const sphereGeo = new THREE.SphereGeometry(1, 64, 32);
+const atmoVert = `varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`;
+const atmoFrag = `uniform vec3 uColor; uniform vec3 uSun; varying vec3 vN;
+  void main(){ float rim = pow(clamp(-vN.z / .5, 0., 1.), 2.2); float lit = smoothstep(-.35, .45, dot(vN, uSun));
+    gl_FragColor = vec4(uColor * rim * (.1 + .9 * lit), 1.); }`;
+const MAXN = 3073, ORBN = 512;
+
+for (const b of BODIES) {
+  const map = makeTexture(PAINT[b.id]);
+  b.group = new THREE.Group();
+  const tilt = new THREE.Group(); tilt.rotation.z = b.tilt * DEG; b.group.add(tilt);
+  b.mesh = new THREE.Mesh(sphereGeo, b === SUN
+    ? new THREE.MeshBasicMaterial({ map, toneMapped: false })
+    : new THREE.MeshStandardMaterial({ map, roughness: 1, metalness: 0, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: .06 }));
+  tilt.add(b.mesh);
+  if (b === SUN) {
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
+    glow.scale.setScalar(9); b.group.add(glow);
+  }
+  if (b.atmo) {
+    b.atmoMat = new THREE.ShaderMaterial({ vertexShader: atmoVert, fragmentShader: atmoFrag, side: THREE.BackSide, blending: THREE.AdditiveBlending,
+      transparent: true, depthWrite: false, uniforms: { uColor: { value: new THREE.Color(b.atmo) }, uSun: { value: new THREE.Vector3(1, 0, 0) } } });
+    const shell = new THREE.Mesh(sphereGeo, b.atmoMat); shell.scale.setScalar(1.16); b.group.add(shell);
+  }
+  if (b.rings) {
+    const g = new THREE.RingGeometry(1.24, 2.3, 160, 1), p = g.attributes.position, uv = g.attributes.uv;
+    for (let i = 0; i < p.count; i++) uv.setXY(i, (Math.hypot(p.getX(i), p.getY(i)) - 1.24) / 1.06, .5);
+    const ring = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: ringTexture(), transparent: true, side: THREE.DoubleSide, depthWrite: false, color: 0xd9d2c4 }));
+    ring.rotation.x = -Math.PI / 2; tilt.add(ring);
+  }
+  scene.add(b.group);
+
+  // trail: the path this body traces relative to the centre body (additive, fading with age)
+  const tg = new THREE.BufferGeometry();
+  tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXN * 3), 3).setUsage(THREE.DynamicDrawUsage));
+  tg.setAttribute('color', new THREE.BufferAttribute(new Float32Array(MAXN * 3), 3));
+  b.trail = new THREE.Line(tg, new THREE.LineBasicMaterial({ vertexColors: true, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false }));
+  b.trail.frustumCulled = false; b.trailN = 0; b.lin = new THREE.Color(b.color);
+  scene.add(b.trail);
+
+  // heliocentric orbit ellipse
+  if (b.el && !b.parent) {
+    const og = new THREE.BufferGeometry();
+    og.setAttribute('position', new THREE.BufferAttribute(new Float32Array(ORBN * 3), 3).setUsage(THREE.DynamicDrawUsage));
+    b.orbit = new THREE.LineLoop(og, new THREE.LineBasicMaterial({ color: b.color, transparent: true, opacity: .2, depthWrite: false }));
+    b.orbit.frustumCulled = false; scene.add(b.orbit);
+  }
+}
+
+// stars (with a denser band for a hint of the Milky Way)
+const stars = (() => {
+  const n = 5200, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n);
+  const tint = [[1, .95, .9], [.8, .87, 1], [1, .84, .7], [1, 1, 1], [.72, .8, 1]];
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(1.05, .4, .3)), v = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    const band = i % 5 < 2, lon = Math.random() * TAU;
+    const sl = band ? clamp((Math.random() + Math.random() + Math.random() - 1.5) * .28, -1, 1) : Math.random() * 2 - 1, cl = Math.sqrt(1 - sl * sl);
+    v.set(cl * Math.cos(lon), sl, cl * Math.sin(lon)); if (band) v.applyQuaternion(q);
+    pos.set([v.x, v.y, v.z], i * 3);
+    const m = Math.pow(Math.random(), 5), k = (band ? .3 : .42) + .58 * m, c = tint[i % tint.length];
+    col.set([c[0] * k, c[1] * k, c[2] * k], i * 3);
+    size[i] = 1.1 + 2.6 * m;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+  g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uPR: { value: renderer.getPixelRatio() } }, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true,
+    vertexShader: `attribute vec3 aColor; attribute float aSize; uniform float uPR; varying vec3 vC;
+      void main(){ vC = aColor; gl_PointSize = aSize * uPR; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
+    fragmentShader: `varying vec3 vC; void main(){ float a = smoothstep(.5, .05, length(gl_PointCoord - .5)); gl_FragColor = vec4(vC * a, 1.); }`,
+  });
+  const p = new THREE.Points(g, m); p.frustumCulled = false; p.renderOrder = -10; scene.add(p);
+  return p;
+})();
+
+// reference grid: ecliptic plane through the centre body, spacing adapts to zoom in powers of ten
+const grid = (() => {
+  const m = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, side: THREE.DoubleSide, extensions: { derivatives: true },
+    uniforms: { uDist: { value: 10 }, uMode: { value: 0 }, uColor: { value: new THREE.Color(.42, .6, 1) } },
+    vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `
+      uniform float uDist, uMode; uniform vec3 uColor; varying vec3 vW;
+      float keep(float px, float s){ return 1. - smoothstep(.2, .55, px / s); }
+      float sq(vec2 p, float s, vec2 fw, float px){ vec2 g = abs(fract(p / s - .5) - .5) * s / fw; return (1. - min(min(g.x, g.y), 1.)) * keep(px, s); }
+      float ring(float r, float s, float px){ return (1. - min(abs(fract(r / s - .5) - .5) * s / px, 1.)) * keep(px, s); }
+      float spoke(float a, float r, float st, float px){ return 1. - min(abs(fract(a / st - .5) - .5) * st * r / px, 1.); }
+      void main(){
+        vec2 p = vW.xz; vec2 fw = max(fwidth(p), 1e-7) * 1.15; float px = max(fw.x, fw.y); float r = length(p);
+        float L = log(uDist * .35) / log(10.), f = fract(L), s = pow(10., floor(L));
+        const float m = .15, M = .4;
+        float a;
+        if (uMode < .5) {
+          a = max(max(sq(p, s, fw, px) * m * (1. - f), sq(p, s * 10., fw, px) * mix(M, m, f)), sq(p, s * 100., fw, px) * M);
+        } else {
+          a = max(max(ring(r, s, px) * m * (1. - f), ring(r, s * 10., px) * mix(M, m, f)), ring(r, s * 100., px) * M);
+          float ang = atan(p.y, p.x), inner = smoothstep(s * .5, s * 4., r);
+          a = max(a, max(spoke(ang, r, 0.5235988, px) * m, spoke(ang, r, 1.5707963, px) * M) * inner);
+        }
+        a *= 1. - smoothstep(uDist * 1.1, uDist * 4.5, r);
+        if (a < .003) discard;
+        gl_FragColor = vec4(uColor, a);
+      }`,
+  });
+  const g = new THREE.PlaneGeometry(1, 1); g.rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(g, m); mesh.renderOrder = -1; mesh.frustumCulled = false; scene.add(mesh);
+  return mesh;
+})();
+
+// ───────────────────────── UI ─────────────────────────
+const labelsEl = $('labels'), dock = $('dock');
+BODIES.forEach((b, i) => {
+  const l = document.createElement('div'); l.className = 'label hid'; l.textContent = b.name;
+  l.addEventListener('click', () => setFocus(b)); labelsEl.appendChild(l);
+  b.label = l; b.labelW = l.offsetWidth || b.name.length * 8 + 14;
+  const d = document.createElement('button');
+  d.innerHTML = `<i style="background:radial-gradient(circle at 35% 30%,#fff,${b.color} 45%,#0000 130%);box-shadow:0 0 10px ${b.color}66"></i><span>${b.name}</span><kbd>${i}</kbd>`;
+  d.title = `Centre the view on ${b.name === 'Sun' || b.name === 'Moon' ? 'the ' : ''}${b.name} (${i})`;
+  d.addEventListener('click', () => setFocus(b)); dock.appendChild(d); b.dockBtn = d;
+  const r = document.createElement('button');
+  r.innerHTML = `<i style="background:${b.color}"></i><span>${b.name}</span><b></b>`;
+  r.addEventListener('click', () => setFocus(b)); $('dist').appendChild(r); b.distRow = r; b.distVal = r.lastChild;
+});
+
+let toastTimer;
+function toast(msg, ms = 1500) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+const the = b => (b === SUN || b === MOON ? 'the ' : '') + b.name;
+const fmtDist = d => d < .01 ? Math.round(d * AU_KM).toLocaleString('en-US') + ' km' : d.toFixed(d < 10 ? 3 : 2) + ' AU';
+const fmtPeriod = p => p < 800 ? p.toFixed(p < 100 ? 2 : 1) + ' days' : (p / 365.25).toFixed(2) + ' years';
+const fmtRot = r => r < 2 ? (r * 24).toFixed(1) + ' hours' : r.toFixed(1) + ' days';
+
+function setFocus(b) {
+  if (b === S.focus) return;
+  const wasClose = camera.position.length() < closeR(S.focus) * 2.2;
+  S.prev = S.focus; S.focus = b; S.blend = 0;
+  if (wasClose) tweenCam(closeR(b));
+  else if (camera.position.length() < b.r * 3.2) tweenCam(closeR(b));
+  refreshCard();
+  toast(`Centred on ${the(b)}`);
+}
+function refreshCard() {
+  const b = S.focus;
+  document.documentElement.style.setProperty('--accent', b.color);
+  $('fname').lastElementChild.textContent = b.name;
+  $('ftag').textContent = b.tag;
+  $('frame').textContent = b === SUN ? 'Heliocentric view — the Sun stands still.' : `${b.name}-centred view — everything moves relative to ${the(b)}.`;
+  $('stats').innerHTML =
+    (b === SUN ? '' : `<span>${b.parent ? 'From ' + b.parent.name : 'From the Sun'}</span><span id="s-sun">—</span>`) +
+    (b.el ? `<span>Orbital period</span><span>${fmtPeriod(b.period)}</span>` : '') +
+    `<span>Rotation</span><span>${fmtRot(b.rot)}</span><span>Radius</span><span>${b.km.toLocaleString('en-US')} km</span>`;
+  $('disthead').textContent = `Distance from ${the(b)}`;
+  for (const o of BODIES) { o.dockBtn.classList.toggle('on', o === b); o.label.classList.toggle('on', o === b); o.distRow.style.display = o === b ? 'none' : ''; }
+}
+function setPressed() {
+  $('b-grid').setAttribute('aria-pressed', S.grid < 2); $('b-grid').textContent = S.grid === 1 ? 'Polar' : 'Grid';
+  $('b-trails').setAttribute('aria-pressed', S.trails); $('b-orbits').setAttribute('aria-pressed', S.orbits);
+  $('b-labels').setAttribute('aria-pressed', S.labels); $('b-squash').setAttribute('aria-pressed', S.squashTo > 0);
+  $('b-rev').setAttribute('aria-pressed', S.dir < 0);
+  $('playpath').setAttribute('d', S.playing ? 'M3 2h4v12H3zM9 2h4v12H9z' : 'M4 2l10 6-10 6z');
+  labelsEl.style.display = S.labels ? '' : 'none';
+}
+
+const A = {
+  play() { S.playing = !S.playing; toast(S.playing ? 'Playing' : 'Paused'); },
+  speed(d) { S.si = clamp(S.si + d, 0, SPEEDS.length - 1); S.playing = true; toast(SPEEDS[S.si].n); },
+  reverse() { S.dir *= -1; S.playing = true; toast(S.dir < 0 ? 'Time running backwards' : 'Time running forwards'); },
+  now() { S.t = nowT(); S.dir = 1; toast('Jumped to today'); },
+  grid() { S.grid = (S.grid + 1) % 3; toast(['Square grid', 'Polar grid', 'Grid off'][S.grid]); },
+  trails() { S.trails = !S.trails; toast(S.trails ? 'Trails on' : 'Trails off'); },
+  trailLen(d) { S.ti = clamp(S.ti + d, 0, TRAILS.length - 1); S.trails = true; toast(`Trail length ×${TRAILS[S.ti]}`); },
+  orbits() { S.orbits = !S.orbits; toast(S.orbits ? 'Orbits on' : 'Orbits off'); },
+  labels() { S.labels = !S.labels; toast(S.labels ? 'Labels on' : 'Labels off'); },
+  squash() { S.squashTo = S.squashTo ? 0 : 1; toast(S.squashTo ? 'Distances compressed (√ scale)' : 'True distances'); },
+  step(d) { setFocus(BODIES[(BODIES.indexOf(S.focus) + d + BODIES.length) % BODIES.length]); },
+  fit() { const c = closeR(S.focus); tweenCam(camera.position.length() > c * 1.6 ? c : overviewR(S.focus)); },
+  top() { const phi = new THREE.Spherical().setFromVector3(camera.position).phi; tweenCam(null, phi < .2 ? 1.0 : .02); },
+  help(open) { const h = $('help'); h.classList.toggle('open', open ?? !h.classList.contains('open')); },
+};
+const wire = (id, fn) => $(id).addEventListener('click', e => { fn(); setPressed(); e.currentTarget.blur(); });
+wire('b-play', A.play); wire('b-slow', () => A.speed(-1)); wire('b-fast', () => A.speed(1)); wire('b-rev', A.reverse); wire('b-now', A.now);
+wire('b-grid', A.grid); wire('b-trails', A.trails); wire('b-orbits', A.orbits); wire('b-labels', A.labels); wire('b-squash', A.squash);
+wire('b-top', A.top); wire('b-fit', A.fit); wire('helpbtn', () => A.help()); wire('helpclose', () => A.help(false));
+$('help').addEventListener('click', e => { if (e.target === e.currentTarget) A.help(false); });
+dock.addEventListener('click', e => e.target.closest('button')?.blur());
+
+addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const onButton = e.target instanceof HTMLButtonElement;
+  if (onButton && (e.key === ' ' || e.key === 'Enter')) return;
+  const digit = /^(Digit|Numpad)(\d)$/.exec(e.code);
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (k === '?' || k === 'h') A.help();
+  else if (k === 'Escape') A.help(false);
+  else if (digit && !e.shiftKey) setFocus(BODIES[+digit[2]]);
+  else if (k === ' ') A.play();
+  else if (k === 'ArrowUp' || k === '+' || k === '=') A.speed(1);
+  else if (k === 'ArrowDown' || k === '-') A.speed(-1);
+  else if (k === 'ArrowRight') A.step(1);
+  else if (k === 'ArrowLeft') A.step(-1);
+  else if (k === 'r') A.reverse();
+  else if (k === 'n') A.now();
+  else if (k === 'g') A.grid();
+  else if (k === 't') A.trails();
+  else if (k === '[') A.trailLen(-1);
+  else if (k === ']') A.trailLen(1);
+  else if (k === 'o') A.orbits();
+  else if (k === 'l') A.labels();
+  else if (k === 'd') A.squash();
+  else if (k === 'f') A.fit();
+  else if (k === 'v') A.top();
+  else return;
+  e.preventDefault(); setPressed();
+});
+
+// click a body in the 3D view to centre on it
+let downX = 0, downY = 0;
+canvas.addEventListener('pointerdown', e => { downX = e.clientX; downY = e.clientY; });
+canvas.addEventListener('pointerup', e => {
+  if (Math.hypot(e.clientX - downX, e.clientY - downY) > 5) return;
+  let best = null, bd = Infinity;
+  for (const b of BODIES) {
+    if (!b.group.visible || !b.onScreen) continue;
+    const d = Math.hypot(e.clientX - b.sx, e.clientY - b.sy);
+    if (d < Math.max(b.sr + 6, 14) && d < bd) { bd = d; best = b; }
+  }
+  if (best) setFocus(best);
+});
+
+// ───────────────────────── camera helpers ─────────────────────────
+const sph = new THREE.Spherical();
+let camTween = null;
+const dispA = b => Math.pow((b.parent || b).el ? (b.parent || b).el[0] : 0, 1 - .5 * S.squashTo);
+const closeR = b => b === EARTH ? .34 : b.r * 9;
+const overviewR = b => b === SUN ? 9.5 : Math.max(7, dispA(b) * 4);
+function tweenCam(r, phi) {
+  sph.setFromVector3(camera.position);
+  camTween = { r0: sph.radius, r1: r ?? sph.radius, p0: sph.phi, p1: phi ?? sph.phi, t: 0 };
+}
+controls.addEventListener('start', () => { camTween = null; });
+
+function resize() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+// ───────────────────────── per-frame updates ─────────────────────────
+const O0 = { x: 0, y: 0, z: 0 }, pa = { x: 0, y: 0, z: 0 }, pb = { x: 0, y: 0, z: 0 }, v3 = new THREE.Vector3();
+
+function updateTrail(b) {
+  const line = b.trail, f = S.focus;
+  if (!S.trails || b === f || !b.group.visible) { line.visible = false; return; }
+  const tf = TRAILS[S.ti], Pf = (f.parent || f).period, Pb = b.period;
+  let D, loops, mode = 0;
+  if (b.parent) { D = .94 * Math.min(tf, 1) * Pb; loops = 1.5; mode = 1; }                       // moon: ring around its parent
+  else if (f.parent === b && S.blend >= 1) { D = .94 * Math.min(tf, 1) * f.period; loops = 1.5; mode = 2; }   // parent seen from its moon
+  else {
+    const fast = Math.min(Pf, Pb), slow = Math.max(Pf, Pb);
+    if (!isFinite(fast)) { line.visible = false; return; }
+    D = isFinite(slow) ? Math.min(2 * tf * slow, 32 * fast) : .94 * tf * fast;
+    loops = D / fast;
+  }
+  const N = clamp(Math.ceil(loops * 96), 256, MAXN - 1);
+  const pos = line.geometry.attributes.position.array;
+  let ox = 0, oy = 0, oz = 0;
+  if (mode === 1) { disp(b.parent, 0, pa); ox = pa.x - O0.x; oy = pa.y - O0.y; oz = pa.z - O0.z; }
+  for (let j = 0, i = 0; j <= N; j++, i += 3) {
+    const dt = -D * (1 - j / N);
+    if (mode === 1) { kepler(b, dt, pa); pos[i] = pa.x + ox; pos[i + 1] = pa.y + oy; pos[i + 2] = pa.z + oz; }
+    else if (mode === 2) { kepler(f, dt, pa); pos[i] = -pa.x; pos[i + 1] = -pa.y; pos[i + 2] = -pa.z; }
+    else { disp(b, dt, pa); originAt(dt, pb); pos[i] = pa.x - pb.x; pos[i + 1] = pa.y - pb.y; pos[i + 2] = pa.z - pb.z; }
+  }
+  line.geometry.attributes.position.needsUpdate = true;
+  if (b.trailN !== N) {
+    const col = line.geometry.attributes.color.array, c = b.lin;
+    for (let j = 0, i = 0; j <= N; j++, i += 3) { const k = Math.pow(j / N, 1.7) * .95; col[i] = c.r * k; col[i + 1] = c.g * k; col[i + 2] = c.b * k; }
+    line.geometry.attributes.color.needsUpdate = true; b.trailN = N;
+  }
+  line.geometry.setDrawRange(0, N + 1); line.visible = true;
+}
+
+function updateOrbit(b) {
+  if (!(b.orbit.visible = S.orbits)) return;
+  const pos = b.orbit.geometry.attributes.position.array, k = b.k, v = k.v;
+  for (let j = 0, i = 0; j < ORBN; j++, i += 3) {
+    const E = j / ORBN * TAU, x = k.a * (Math.cos(E) - k.e), y = k.b * Math.sin(E);
+    pa.x = x * v[0] + y * v[3]; pa.y = x * v[1] + y * v[4]; pa.z = x * v[2] + y * v[5]; squashVec(pa);
+    pos[i] = pa.x - O0.x; pos[i + 1] = pa.y - O0.y; pos[i + 2] = pa.z - O0.z;
+  }
+  b.orbit.geometry.attributes.position.needsUpdate = true;
+}
+
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const setText = (el, s) => { if (el && el.textContent !== s) el.textContent = s; };
+let hudClock = 1;
+function updateHud(dt, camDist) {
+  const d = new Date((S.t + 10957.5) * 864e5);
+  if (isNaN(d)) { setText($('date'), '—'); return; }
+  const y = d.getUTCFullYear();
+  setText($('date'), `${String(d.getUTCDate()).padStart(2, '0')} ${MON[d.getUTCMonth()]} ${y > 0 ? y : 1 - y + ' BC'}`);
+  setText($('time'), !S.playing || S.si < 3 ? `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')} UTC` : '');
+  setText($('speed'), S.playing ? SPEEDS[S.si].n + (S.dir < 0 ? ' · reversed' : '') : 'Paused');
+  const L = Math.log10(camDist * .35), s = Math.pow(10, Math.floor(L) + (L - Math.floor(L) > .7 ? 1 : 0));
+  setText($('gridinfo'), S.grid === 2 ? '' : S.squashTo ? 'Grid: compressed scale' : `Grid: ${+s.toPrecision(1)} AU`);
+  if ((hudClock += dt) < .12) return;
+  hudClock = 0;
+  real(S.focus, pb);
+  for (const b of BODIES) {
+    if (b === S.focus) continue;
+    real(b, pa); setText(b.distVal, fmtDist(Math.hypot(pa.x - pb.x, pa.y - pb.y, pa.z - pb.z)));
+  }
+  if (S.focus !== SUN) { real(S.focus.parent || SUN, pa); setText($('s-sun'), fmtDist(Math.hypot(pa.x - pb.x, pa.y - pb.y, pa.z - pb.z))); }
+}
+
+function updateLabels() {
+  const placed = [], w = innerWidth, h = innerHeight;
+  const order = [S.focus, ...BODIES.filter(b => b !== S.focus)];
+  for (const b of order) {
+    let show = b.group.visible && b.onScreen;
+    const x = b.sx + b.sr + 5, y = b.sy - 9;
+    if (show) for (const r of placed) if (x < r.x + r.w && x + b.labelW > r.x && y < r.y + 18 && y + 18 > r.y) { show = false; break; }
+    b.label.classList.toggle('hid', !show);
+    if (show) { placed.push({ x, y, w: b.labelW }); b.label.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0)`; }
+  }
+}
+
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = clamp((now - last) / 1000, 0, .1); last = now;
+  const dDays = S.playing ? S.dir * SPEEDS[S.si].d * dt : 0;
+  S.t += dDays;
+  S.blend = Math.min(1, S.blend + dt / 1.3);
+  S.squash += (S.squashTo - S.squash) * Math.min(1, dt * 5);
+  if (Math.abs(S.squashTo - S.squash) < 1e-3) S.squash = S.squashTo;
+
+  // positions in the chosen frame
+  for (const b of BODIES) if (b.el) prep(b, S.t);
+  for (const b of BODIES) if (b.parent) kepler(b, 0, b.off);
+  originAt(0, O0);
+  for (const b of BODIES) {
+    disp(b, 0, pa); b.group.position.set(pa.x - O0.x, pa.y - O0.y, pa.z - O0.z);
+    b.mesh.rotation.y += clamp(dDays / b.rot * TAU, -.02, .02);
+  }
+  sunLight.position.copy(SUN.group.position);
+
+  // camera
+  if (camTween) {
+    camTween.t = Math.min(1, camTween.t + dt / .9);
+    const k = ease(camTween.t);
+    sph.setFromVector3(camera.position);
+    sph.radius = camTween.r0 * Math.pow(camTween.r1 / camTween.r0, k);
+    sph.phi = camTween.p0 + (camTween.p1 - camTween.p0) * k;
+    camera.position.setFromSpherical(sph);
+    if (camTween.t >= 1) camTween = null;
+  }
+  controls.minDistance = S.focus.r * 2.4;
+  controls.update();
+  const camDist = camera.position.length();
+  camera.near = camDist * .01; camera.far = Math.max(camDist * 1000, 600); camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  stars.position.copy(camera.position); stars.scale.setScalar(camera.far * .5);
+
+  // keep every body at least a few pixels across, and project for labels / picking
+  const wpp = 2 * Math.tan(camera.fov * DEG / 2) / innerHeight;
+  const moonSep = MOON.el[0] / (wpp * camera.position.distanceTo(EARTH.group.position));
+  MOON.group.visible = moonSep > 16 || S.focus === MOON || (S.prev === MOON && S.blend < 1);
+  for (const b of BODIES) {
+    const d = camera.position.distanceTo(b.group.position), rad = Math.max(b.r, b.minPx * wpp * d);
+    b.group.scale.setScalar(rad);
+    v3.copy(b.group.position).project(camera);
+    b.onScreen = v3.z > -1 && v3.z < 1 && Math.abs(v3.x) < 1.1 && Math.abs(v3.y) < 1.1;
+    b.sx = (v3.x * .5 + .5) * innerWidth; b.sy = (-v3.y * .5 + .5) * innerHeight; b.sr = rad / (wpp * d);
+    if (b.atmoMat) b.atmoMat.uniforms.uSun.value.copy(SUN.group.position).sub(b.group.position).normalize().transformDirection(camera.matrixWorldInverse);
+  }
+
+  for (const b of BODIES) { updateTrail(b); if (b.orbit) updateOrbit(b); }
+
+  grid.visible = S.grid < 2;
+  grid.scale.setScalar(camDist * 12);
+  grid.material.uniforms.uDist.value = camDist; grid.material.uniforms.uMode.value = S.grid;
+
+  if (S.labels) updateLabels();
+  updateHud(dt, camDist);
+  renderer.render(scene, camera);
+}
+
+refreshCard(); setPressed();
+$('boot').remove();
+requestAnimationFrame(frame);
+setTimeout(() => toast('Drag to look around · scroll to zoom · press ? for all keys', 6000), 600);
+</script>
+</body>
+</html>
