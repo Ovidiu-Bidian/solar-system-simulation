@@ -1,0 +1,77 @@
+REQ-01
+This requirement describes the general functionality of this simulation.
+
+The purpose of the simulation is to present the motion of some celestial bodies of our solar system (the Sun, Mercury, Venus, the Earth, the Earth's satellite the Moon, Mars, Jupiter, Saturn, Uranus, Neptune and Pluto) through absolute space. According to current data, the Sun describes a circle with an enormous radius. For this simulation only a period of approximately 2000 years is considered, so the Sun describes a straight segment.
+
+The absolute space used in this simulation is a parallelepiped with a length of 100 000 AU, a width of 100 AU (slightly larger than Pluto's orbit) and a height of 40 AU. The camera that observes the motion of the celestial bodies can be moved only inside this parallelepiped. When the Sun passes 100 000 AU, it goes back to 0 AU (to the beginning). The planets, the Moon and the camera (when it follows a celestial body) move back together with the Sun, so that the solar system stays intact.
+The way the camera is positioned/moved will be specified in separate requirements.
+
+The ecliptic plane (where the Earth and the Sun always lie) passes through the middle of this parallelepiped. The ecliptic plane has a grid made of squares with sides of 10 AU.
+All planets have the eccentricities known/calculated at present and move relative to the Sun on Keplerian orbits.
+All planets except the Earth move in the planes known/calculated at present relative to the ecliptic.
+All celestial bodies leave a trail of their passage through absolute space covering a period of 200 years; the trail fades out gradually over the following 50 years.
+When the Sun passes from 100 000 AU to 0 AU, the trails are interrupted at that point (they are not connected across this jump).
+
+REQ-01.1
+The following is permanently displayed in the upper right part of the screen:
+  - three buttons arranged horizontally: on the left a button for decreasing the speed, in the centre a start/stop button and on the right a button for increasing the speed. The speed steps are 1, 2, 3, 4, 6 months/sec and 1, 2, 3, 4 and 5 years/sec.
+Above the buttons, the current year (between 0 and 2000) and the current speed are displayed (the speed below the current year and above the buttons).
+  - below the speed and start/stop buttons there is the following information about the current reference system (which can be absolute space, the Sun, one of the planets (Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune or Pluto) or the Earth's natural satellite, the Moon):
+    - the name
+    - a short general description
+    - the position of the observation camera in absolute space (x, y, z) in AU, with 2 decimals. When the camera is closer than 0.01 AU to the centre of a celestial body, the position is also displayed in km (with these small distances the values in AU would show 0.00).
+    - the distance from the Sun (in AU, with 2 decimals, or in km when it is smaller than 0.01 AU)
+    - for planets, the period of revolution around the Sun, in Earth years, with 2 decimals; for the Moon, the period of revolution around the Earth, in Earth days
+The dimensions of the celestial bodies (for example the radius), including those of the Sun, are too small to be expressed in AU; they are displayed in km.
+
+REQ-01.2
+This requirement describes the menu.
+
+The menu is positioned in the upper left part of the screen. In the upper left corner there is a ">" sign (expands the menu). When the menu is expanded, this sign moves to the upper right part of the menu and changes to "<".
+The menu is a rectangle with its long side on the left side of the upper part of the screen and its short side on the left part of the top edge of the screen.
+When the menu is collapsed, a thickened line is visible on the upper left edge of the screen. If the mouse touches this line, the menu expands, and when the mouse leaves the menu area the menu collapses again (it stays expanded only if the ">" button is pressed).
+
+The menu contains the following entries:
+ - reference system. When pressed, a submenu opens on the right, listing vertically: absolute space, the planets, the Moon and the Sun. The reference system used in the simulation is selected from there.
+ - about. When this entry is pressed, the intro opens.
+ - controls. When this entry is pressed, the description of the simulator's controls is displayed.
+
+REQ-01.intro
+The program starts with an "intro". This intro is an automatic presentation of the program, with graphics and text; the user can stop it, go to the next/previous page or "skip intro".
+The text appears on a parchment scroll unrolled horizontally. Initially the characters of the text do not appear; instead some random characters appear, changing rapidly in their positions (random letters and digits). After about 2 sec the first two lines of text settle to the correct characters over a period of one second, after which the following lines settle, at an interval of 0.5 sec from one another.
+
+REQ-02
+This requirement describes the control of the observation camera by keyboard and mouse.
+
+The "yaw" plane of the observation camera will always be parallel to the ecliptic plane. The "roll" angle of the camera remains constant (0) regardless of the camera position in absolute space; in other words, the top and bottom edges of the screen will always be parallel to the ecliptic plane.
+The speed of the camera through absolute space depends on its distance from a celestial body as follows: if the centre of a celestial body is closer than 2 AU to the camera, the camera's travel speed (in any direction) will be 0.4 AU/sec; if the distance is between 2 and 3 AU, the speed is 0.6 AU/sec; if the distance is between 3 and 4 AU, the speed will be 0.8 AU/sec; if it is between 4 and 8 AU, the speed will be 1.8 AU/sec; and if it is greater than 8 AU, the speed is 4 AU/sec.
+
+REQ-02.1
+Camera control in "absolute space reference system" mode
+
+In this mode the camera moves through absolute space only through the user's commands.
+In this case the camera is controlled as follows:
+   - by rolling the mouse wheel forward and backward, the camera moves forward and backward along the depth axis ("dolly move")
+   - by moving the mouse forward and backward, the "pitch" angle of the camera changes. The pitch angle can only be changed between -90 and +90 degrees. When the mouse is moved forward, the view direction goes "down" (towards the bottom edge of the screen), and when it is moved backward, the view direction goes "up" (towards the top edge of the screen).
+   - by moving the mouse left and right, or with the "a" and "d" keys, or the "left arrow" and "right arrow" keys, the "yaw" angle of the camera changes. When the mouse is moved to the right, or the "right arrow" key or the "d" key is pressed, the view direction moves towards the right edge of the screen; when the mouse is moved to the left, or the "left arrow" key or the "a" key is pressed, the view direction moves towards the left edge of the screen.
+   - by pressing the "up" or "down" arrow keys, or "w" or "s", the camera moves away from/closer to the ecliptic plane (a pedestal/crane type of movement is performed).
+With the "up arrow" or "w" keys the camera moves "up" (towards the top of the screen).
+With the "down arrow" or "s" keys the camera moves "down" (towards the bottom of the screen).
+
+REQ-02.2
+Camera control in "celestial body reference system" mode
+
+In this mode the camera moves through absolute space in a combined way, through the user's commands and through the motion of the celestial body.
+In this case the camera's reference system depends on the centre of the celestial body chosen by the user (a celestial body that moves through absolute space).
+
+In this case the camera is controlled as follows:
+   - by rolling the mouse wheel forward and backward, the camera's reference system moves closer to or farther from the centre of the chosen celestial body. The minimum distance of the camera from the centre of the celestial body is 2*R (where R is the radius of the celestial body).
+   - by moving the mouse forward and backward, the "pitch" angle of the camera changes. When the mouse is moved forward, the view direction goes "down" (towards the bottom edge of the screen), and when it is moved backward, the view direction goes "up" (towards the top edge of the screen).
+   - by moving the mouse left and right, the "yaw" angle of the camera changes. When the mouse is moved to the right, the view direction moves towards the right edge of the screen; when it is moved to the left, the view direction moves towards the left edge of the screen.
+   - by pressing the "up arrow" or "w" keys, the centre of the observation camera moves "forward" (in the direction we are looking) on a circle centred on the centre of the reference celestial body, in a plane perpendicular to the ecliptic that contains the centre of the reference celestial body and the centre of the camera. By pressing the "down arrow" or "s" keys, the movement is the same but "backward".
+In this case the "pitch" angle in absolute space will be modified automatically, so that the angle between the segment joining the centre of the celestial body with the camera and the view direction of the camera remains constant.
+This movement is equivalent to moving the camera along a meridian of that celestial body, if its rotation axis were perpendicular to the ecliptic.
+   - by pressing the "right arrow" or "d" keys, the centre of the observation camera moves to the right on a circle centred on the axis that is perpendicular to the ecliptic plane and passes through the centre of the reference celestial body, in a plane parallel to the ecliptic plane. By pressing the "left arrow" or "a" keys, we have the same movement but in the opposite direction.
+In this case the "yaw" angle of the camera in absolute space will be modified automatically, so that the angle between the segment joining the centre of the celestial body with the camera and the view direction of the camera remains constant.
+This movement is equivalent to moving the camera along a parallel of that celestial body, if its rotation axis were perpendicular to the ecliptic.
+   - by pressing the "Home" key, the camera returns to a known (predefined) position and view direction. The details are to be clarified later.
