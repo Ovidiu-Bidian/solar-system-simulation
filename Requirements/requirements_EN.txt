@@ -9,6 +9,7 @@ The way the camera is positioned/moved will be specified in separate requirement
 The ecliptic plane (where the Earth and the Sun always lie) passes through the middle of this parallelepiped. The ecliptic plane has a grid made of squares with sides of 10 AU.
 All planets have the eccentricities known/calculated at present and move relative to the Sun on Keplerian orbits.
 All planets except the Earth move in the planes known/calculated at present relative to the ecliptic.
+Each celestial body displays its rotation axis: a thin light orange line that passes through the poles and goes out of the surface of the body on both sides, up to 1.6 radii from the centre of the body, oriented according to the real axial tilt of the body. The body spins around this axis.
 All celestial bodies leave a trail of their passage through absolute space covering a period of 200 years; the trail fades out gradually over the following 50 years.
 When the Sun passes from 100 000 AU to 0 AU, the trails are interrupted at that point (they are not connected across this jump).
 
@@ -43,20 +44,21 @@ The text appears on a parchment scroll unrolled horizontally. Initially the char
 REQ-02
 This requirement describes the control of the observation camera by keyboard and mouse.
 
-The "yaw" plane of the observation camera will always be parallel to the ecliptic plane. The "roll" angle of the camera remains constant (0) regardless of the camera position in absolute space; in other words, the top and bottom edges of the screen will always be parallel to the ecliptic plane.
+The "yaw" plane of the observation camera will always be parallel to the ecliptic plane. The "roll" angle of the camera remains constant (0) regardless of the camera position in absolute space; in other words, the top and bottom edges of the screen will always be parallel to the ecliptic plane. The mouse sensitivity is 0.081 degrees of "yaw" or "pitch" angle per pixel of mouse movement (the movement is the one reported by the operating system, so the pointer speed settings of the operating system also influence it).
 The speed of the camera through absolute space depends on its distance from a celestial body as follows: if the centre of a celestial body is closer than 2 AU to the camera, the camera's travel speed (in any direction) will be 0.4 AU/sec; if the distance is between 2 and 3 AU, the speed is 0.6 AU/sec; if the distance is between 3 and 4 AU, the speed will be 0.8 AU/sec; if it is between 4 and 8 AU, the speed will be 1.8 AU/sec; and if it is greater than 8 AU, the speed is 4 AU/sec.
 
 REQ-02.1
 Camera control in "absolute space reference system" mode
 
-In this mode the camera moves through absolute space only through the user's commands.
+In this mode the camera moves through absolute space only through the user's commands. In this mode a little cross is displayed in the middle of the screen, in order to be more clear where the camera view points. The cross is made of 4 segments (up, down, left and right) with a little empty space in the middle, so that the exact point the camera looks at remains visible (segments 8 pixels long and 2 pixels thick, empty space of 6 pixels, white with a thin dark outline so that it is visible on light and dark backgrounds).
 In this case the camera is controlled as follows:
-   - by rolling the mouse wheel forward and backward, the camera moves forward and backward along the depth axis ("dolly move")
+   - by rolling the mouse wheel forward, or by pressing the "up arrow" key or "w", the camera moves forward along the depth axis ("dolly move"). By rolling the mouse wheel backward, or by pressing the "down arrow" key or "s", the camera moves backward.
    - by moving the mouse forward and backward, the "pitch" angle of the camera changes. The pitch angle can only be changed between -90 and +90 degrees. When the mouse is moved forward, the view direction goes "down" (towards the bottom edge of the screen), and when it is moved backward, the view direction goes "up" (towards the top edge of the screen).
-   - by moving the mouse left and right, or with the "a" and "d" keys, or the "left arrow" and "right arrow" keys, the "yaw" angle of the camera changes. When the mouse is moved to the right, or the "right arrow" key or the "d" key is pressed, the view direction moves towards the right edge of the screen; when the mouse is moved to the left, or the "left arrow" key or the "a" key is pressed, the view direction moves towards the left edge of the screen.
-   - by pressing the "up" or "down" arrow keys, or "w" or "s", the camera moves away from/closer to the ecliptic plane (a pedestal/crane type of movement is performed).
-With the "up arrow" or "w" keys the camera moves "up" (towards the top of the screen).
-With the "down arrow" or "s" keys the camera moves "down" (towards the bottom of the screen).
+   - by moving the mouse left and right, the "yaw" angle of the camera changes. When the mouse is moved to the right, the view direction moves towards the right edge of the screen; when the mouse is moved to the left, the view direction moves towards the left edge of the screen.
+   - by pressing the "d" or "right arrow" keys the camera moves to the right, and by pressing the "a" or "left arrow" keys the camera moves to the left (a "truck" type of movement, also called "strafe" in games). The movement is parallel to the ecliptic plane and perpendicular to the view direction; the view direction ("yaw" and "pitch" angles) does not change.
+   - by pressing the "PgUp" or "PgDown" keys, the camera moves away from/closer to the ecliptic plane (a pedestal/crane type of movement is performed), depending on the position of the camera (above or below the ecliptic plane).
+With the "PgUp" key the camera moves "up" (towards the top of the screen).
+With the "PgDown" key the camera moves "down" (towards the bottom of the screen).
 
 REQ-02.2
 Camera control in "celestial body reference system" mode
@@ -65,7 +67,7 @@ In this mode the camera moves through absolute space in a combined way, through 
 In this case the camera's reference system depends on the centre of the celestial body chosen by the user (a celestial body that moves through absolute space).
 
 In this case the camera is controlled as follows:
-   - by rolling the mouse wheel forward and backward, the camera's reference system moves closer to or farther from the centre of the chosen celestial body. The minimum distance of the camera from the centre of the celestial body is 2*R (where R is the radius of the celestial body).
+   - by rolling the mouse wheel forward and backward, the camera's reference system moves closer to or farther from the centre of the chosen celestial body. The minimum distance of the camera from the centre of the celestial body is 2*R (where R is the radius of the celestial body). In order to have the celestial bodies visible from big distances, the apparent radius of a body (the angle under which its radius is seen from the camera) does not decrease below about 0.34 degrees (the apparent radius of Pluto seen from 200 000 km). This minimum is the same for all celestial bodies, so from big distances the Sun and all the planets are seen as dots of the same size. This behavior is not real but is very good for simulation purposes.
    - by moving the mouse forward and backward, the "pitch" angle of the camera changes. When the mouse is moved forward, the view direction goes "down" (towards the bottom edge of the screen), and when it is moved backward, the view direction goes "up" (towards the top edge of the screen).
    - by moving the mouse left and right, the "yaw" angle of the camera changes. When the mouse is moved to the right, the view direction moves towards the right edge of the screen; when it is moved to the left, the view direction moves towards the left edge of the screen.
    - by pressing the "up arrow" or "w" keys, the centre of the observation camera moves "forward" (in the direction we are looking) on a circle centred on the centre of the reference celestial body, in a plane perpendicular to the ecliptic that contains the centre of the reference celestial body and the centre of the camera. By pressing the "down arrow" or "s" keys, the movement is the same but "backward".

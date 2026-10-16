@@ -9,6 +9,7 @@ Modul in care va fi pozitionata/deplasata camera va fi indicat in requirement-ur
 Prin mijlocul acestui  paralelipiped o sa treaca planul ecliptic (unde sint in permanenta Pamintul si Soarele). Planul ecliptic are un caroiaj format din patrate cu laturile de 10 UA.
 Toate planetele au excentricitatile cunoscute/calculate in momentul de fata si o sa se deplaseze fata de Soare pe orbitele kepleriene.
 Toate planetele in afara de Pamint o sa se deplaseze in planurile cunoscute/calculate la momentul actual fata de ecliptica.
+Fiecare corp ceresc are afisata axa de rotatie: o linie subtire, de culoare portocaliu deschis, care trece prin poli si iese din suprafata corpului de ambele parti, pina la 1,6 raze de la centrul corpului, orientata conform inclinatiei reale a axei corpului. Corpul se roteste in jurul acestei axe.
 Toate corpurile ceresti o sa lase o urma a trecerii lor prin spatiul absolut, pe o perioada de 200 de ani, urma care dispare treptat dupa urmatorii 50 de ani.
 Cind Soarele trece de la 100 000 UA la 0 UA, urmele sint intrerupte in acel punct (nu se unesc peste acest salt).
 
@@ -43,20 +44,21 @@ Textul apare pe un pergament desfasurat pe orizontala. Initial nu apar caractere
 REQ-02
 Acest requirement descrie controlul camerei de observatie prin tastatura si mouse.
 
-Planul "yaw" al camerei de observatie va fi intotdeauna paralel cu planul eclipticii. Unghiul "roll" al camerei ramine constant (0) indiferent de pozitia camerei in spatiul absolut, cu alte cuvinte laturile de sus si jos ale ecranului vor fi paralele in permanenta cu planul ecliptic.
+Planul "yaw" al camerei de observatie va fi intotdeauna paralel cu planul eclipticii. Unghiul "roll" al camerei ramine constant (0) indiferent de pozitia camerei in spatiul absolut, cu alte cuvinte laturile de sus si jos ale ecranului vor fi paralele in permanenta cu planul ecliptic. Sensibilitatea mouse-ului este de 0,081 grade de unghi "yaw" sau "pitch" pentru fiecare pixel de miscare a mouse-ului (miscarea este cea raportata de sistemul de operare, deci si setarile de viteza a cursorului din sistemul de operare o influenteaza).
 Viteaza camerei prin spatiul absolut depinde de deistanta fata de un corp ceresc astfel: daca centrul unui corp ceresc este mai aproape de 2 UA de camera viteza de deplasare a camerei (in orice directie) va fi de 0,4 UA/sec, daca distanta este intre 2 si 3 UA viteza este de 0,6 UA/sec, daca distanta este intre 3 si 4 UA viteza va fi de 0,8 UA/sec, daca este intre 4 si 8 UA viteza va fi de 1,8 UA/sec si daca va fi mai mare de 8UA viteza este de 4 UA/sec.
 
 REQ-02.1
 Controlul camerei in modul "sistem de referinta spatiul absolut"
 
-In acest mod camera se deplaseaza prin spatiul absolut numai prin comenzile userului.
+In acest mod camera se deplaseaza prin spatiul absolut numai prin comenzile userului. In acest mod in mijlocul ecranului se afiseaza o cruciulita, pentru a fi mai clar unde priveste camera. Cruciulita este formata din 4 segmente (sus, jos, stinga si dreapta) cu un mic spatiu liber in mijloc, astfel incit punctul exact spre care priveste camera sa ramina vizibil (segmente lungi de 8 pixeli si groase de 2 pixeli, spatiu liber de 6 pixeli, de culoare alba cu un contur fin inchis la culoare, ca sa fie vizibila atit pe fond deschis cit si pe fond inchis).
 In acest caz controlul camerei este efectuat astfel:
-   - prin rotita mouse-ului inainte si inapoi camera se deplaseaza inainte si inapoi pe axa de adincime ("dolly move")
+   - prin rotita mouse-ului inainte, prin tasta "sageata sus" sau "w" camera se deplaseaza inainte pe axa de adincime ("dolly move"). Prin rotita mouse-ului inapoi sau prin tasta "sageata jos" sau "s" camera se deplaseaza inapoi.
    - prin miscarea mouse-ului inainte si inapoi se modifica unghiul "pitch" al camerei. Unghiul pitch se poate modifica numai intre -90 - +90 de grade. La mutarea mouse-ului inainte unghiul de vedere se duce in "jos" (spre latura de jos a ecranului) iar la mutarea inapoi unghiul o sa mearga in "sus" (spre latura de sus a ecranului).
-   - prin miscarea mouse-ului in stinga si in dreapta sau prin tastele "a" si "d" sau "sageata stinga" si "sageata dreapta" se modifica unghiul "yaw" al camerei. La mutarea spre dreapta a mouse-ului, apasarea tastei "sageata dreapta" sau a tastei "d" unghiul de vedere se deplaseaza spre latura din dreapta a ecranului iar la mutarea spre stinga, apasarea tastei "sageata stinga" sau a tastei "a" unghiul se duce spre latura stinga a ecranului.
-   - prin apasarea tastelor sageata "sus" sau "jos" sau "w" sau "s" se departeaza/apropie camera de planul ecliptic (se seteaza o miscare de tipul pedestal/crane).
-Tastele "sageata sus" sau "w" camera se muta in "sus" (partea de sus a ecranului).
-Tastele "sageata jos" sau "s" camera se muta in "jos" (partea de jos a ecranului).
+   - prin miscarea mouse-ului in stinga si in dreapta se modifica unghiul "yaw" al camerei. La mutarea spre dreapta a mouse-ului unghiul de vedere se deplaseaza spre latura din dreapta a ecranului iar la mutarea spre stinga unghiul se duce spre latura stinga a ecranului.
+   - prin apasarea tastelor "d" sau "sageata dreapta" camera se deplaseaza spre dreapta, iar prin apasarea tastelor "a" sau "sageata stinga" camera se deplaseaza spre stinga (miscare de tipul "truck", numita si "strafe" in jocuri). Deplasarea este paralela cu planul ecliptic si perpendiculara pe directia de vedere; directia de vedere (unghiurile "yaw" si "pitch") nu se modifica.
+   - prin apasarea tastelor "PgUp" sau "PgDown" camera se departeaza/apropie de planul ecliptic (se seteaza o miscare de tipul pedestal/crane), in functie de pozitia camerei (deasupra sau sub planul ecliptic).
+Cu tasta "PgUp" camera se muta in "sus" (partea de sus a ecranului).
+Cu tasta "PgDown" camera se muta in "jos" (partea de jos a ecranului).
 
 REQ-02.2
 Controlul camerei in modul "sistem de referinta corp ceresc)
@@ -65,7 +67,7 @@ In acest mod camera se deplaseaza prin spatiul absolut combinat, prin comenzile 
 In acest caz sistemul de referinta al camerei depinde de centrul corpului ceresc ales de user (corp ceresc care se deplaseaza prin spatiul absolut).
 
 In acest caz controlul camerei este efectuat astfel:
-   - prin rotita mouse-ului inainte si inapoi sistemul de referinta al camerei se apropie sau se departeaza de centrul corpului ceresc ales. Distanta minima a camerei fata de centrul corpului ceresc este 2*R (unde R este raza corpului ceresc).
+   - prin rotita mouse-ului inainte si inapoi sistemul de referinta al camerei se apropie sau se departeaza de centrul corpului ceresc ales. Distanta minima a camerei fata de centrul corpului ceresc este 2*R (unde R este raza corpului ceresc). Pentru ca corpurile ceresti sa fie vizibile de la distante mari, raza aparenta a unui corp (unghiul sub care se vede raza lui din camera) nu scade sub aproximativ 0,34 grade (raza aparenta a lui Pluto vazut de la 200 000 km). Acest minim este acelasi pentru toate corpurile ceresti, astfel incit de la distante mari Soarele si toate planetele se vad ca niste puncte de aceeasi marime. Acest comportament nu este real, dar este foarte bun pentru simulare.
    - prin miscarea mouse-ului inainte si inapoi se modifica unghiul "pitch" al camerei. La mutarea mouse-ului inainte unghiul de vedere se duce in "jos" (spre latura de jos a ecranului) iar la mutarea inapoi unghiul o sa mearga in "sus" (spre latura de sus a ecranului).
    - prin miscarea mouse-ului in stinga si in dreapta se modifica unghiul "yaw" al camerei. La mutarea spre dreapta a mouse-ului unghiul de vedere se deplaseaza spre latura din dreapta a ecranului iar la mutarea spre stinga unghiul se duce spre latura stinga a ecranului.
    - prin apasarea tastelor sageata "sus" sau "w" centrul camerei de vedere se deplaseaza "inainte" (in directia in care privim) in cerc cu centrul in centrul corpului ceresc de referinta, intr-un plan perpendicular pe ecliptica, care contine centrul corpului ceresc de referinta si centrul camerei. Prin apasarea tastelor "sageata jos" sau "s" deplasarea se face la fel dar "inapoi".
