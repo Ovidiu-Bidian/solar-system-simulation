@@ -549,7 +549,7 @@ const stars = (() => {
   g.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
   g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
   const m = new THREE.ShaderMaterial({
-    uniforms: { uPR: { value: renderer.getPixelRatio() } }, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true,
+    uniforms: { uPR: { value: renderer.getPixelRatio() } }, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
     vertexShader: `attribute vec3 aColor; attribute float aSize; uniform float uPR; varying vec3 vC;
       void main(){ vC = aColor; gl_PointSize = aSize * uPR; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
     fragmentShader: `varying vec3 vC; void main(){ float a = smoothstep(.5, .05, length(gl_PointCoord - .5)); gl_FragColor = vec4(vC * a, 1.); }`,
