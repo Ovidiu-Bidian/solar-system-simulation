@@ -54,9 +54,8 @@
   .rows.body { margin-top: 6px; }
   /* (user, 2026-10-30) "Cam speed" is in the first rows, after the pan and tilt; in absolute space mode it is the first row,
      in place of the speed of the body in absolute space (see updateHud), and the rows of the reference celestial body
-     (the panel's second section) are not shown, nor the name at the arrow (it covered the panel's first line) */
+     (the panel's second section) are not shown; nor is the arrow to the last body (see updatePointer) */
   body.absolute .rows .cam, body.absolute #hud-more .rows { display: none; }
-  body.absolute #pointer span { display: none; }
   .desc { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.2; white-space: pre-line; }
   #hud-more[hidden] { display: none; }
   #hud-ext { display: block; margin: 6px auto 0; width: 34px; height: 16px; padding: 0; line-height: 1; font: inherit; font-weight: 700;
@@ -358,7 +357,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_2.0.3 (30 October 2026)</p>
+  <p>Current version: solar system simulation v_2.0.4 (30 October 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -3323,7 +3322,8 @@ function updatePointer(f, u) {
   // arrow direction: towards Pluto on the screen; straight behind the camera: down
   let x = dr / th, y = (picMirror ? -du : du) / tv;   // (the picture mirrored top to bottom: see picMirror)
   if (!h) { x = 0; y = -1; }
-  if (visible) { pointerEl.style.display = 'none'; return; }
+  // (no arrow in absolute space mode, user 2026-10-30: there is no reference celestial body to point to)
+  if (visible || C.mode === 'absolute') { pointerEl.style.display = 'none'; return; }
   const hw = innerWidth / 2 - POINTER_MARGIN, hh = innerHeight / 2 - POINTER_MARGIN;
   const k = 1 / Math.max(Math.abs(x), Math.abs(y));               // push the point out to the edge of the inset rectangle
   const px = innerWidth / 2 + x * hw * k, py = innerHeight / 2 - y * hh * k, a = Math.atan2(-y * hh, x * hw);
