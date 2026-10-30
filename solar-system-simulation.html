@@ -345,7 +345,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_1.4 (29 October 2026)</p>
+  <p>Current version: solar system simulation v_1.9 (30 October 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -376,6 +376,10 @@
   <h3>What is not real in this simulation:</h3>
   <ul>
     <li>the background stars: placed at random, with random brightness (the real constellations will come later);</li>
+    <li>the look of the Sun: its surface (granules, sunspots, faculae) and its explosions (flares, prominences, coronal mass
+      ejections) are drawn by the program, much faster than in reality (in screen time, as the spin of the celestial
+      bodies); they show what the Sun looks like, not what it does on a given day. The prominences are pink as seen through
+      a hydrogen-alpha filter (in white light they are seen only in a total eclipse);</li>
     <li>the spin of the celestial bodies: every celestial body turns once every 10 seconds, at every simulation speed (Pluto
       really turns once in about 6.4 Earth days);</li>
     <li>the apparent size of the celestial bodies: a minimum apparent radius is set, so that a celestial body can be seen
@@ -615,7 +619,7 @@ const theName = b => b === SUN || b === MOON ? 'the ' + b.name : b.name;   // "t
 // rotation period (Earth days; the planets' from rotH), a short description and the source of its surface map
 const MAP_SSS = 'Solar System Scope (CC BY 4.0)';
 const BODY_INFO = {
-  Sun: { kg: 1.989e30, rotD: 25.38, rotNote: ' (equator)', map: 'none: the Sun is drawn as a plain bright disc',
+  Sun: { kg: 1.989e30, rotD: 25.38, rotNote: ' (equator)', map: 'none: drawn by the program (granules, sunspots, faculae; only its look)',
     text: 'A yellow dwarf star, 99.86% of the mass of the solar system. Being gas, it turns faster at its equator (25 days) than near its poles (about 35 days). With all its planets it goes around the center of the Milky Way at about 230 km/s, one turn in about 230 million years.' },
   Mercury: { kg: 3.301e23, map: MAP_SSS,
     text: 'The smallest planet and the nearest to the Sun. It turns 3 times on its axis for every 2 orbits, so from one sunrise to the next 176 Earth days pass. It has no air: about 430 \u00b0C by day, \u2212180 \u00b0C at night.' },
@@ -1951,10 +1955,306 @@ function plutoTexture() {
 
 // the Sun: real radius, self-lit, with a soft glow; like Pluto it never looks smaller than the minimum apparent radius
 const sunBody = new THREE.Group(); scene.add(sunBody);
-SUN.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), new THREE.MeshBasicMaterial({ color: 0xfff1d6 }));
-sunBody.add(SUN.mesh);
 SUN.group = sunBody; SUN.tilt = new THREE.Group(); sunBody.add(SUN.tilt);   // (its rotation axis, for the reference body's axes)
 SUN.tilt.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), T(...SUN.pole).normalize());
+// The Sun's surface (user, 2026-10-30, v_1.9): drawn by the program, only its look (the screen time of sunClock, as the
+// planets' spins): granules (bright cells with dark lanes between them, slowly boiling), the edge darker and redder than
+// the centre (limb darkening), sunspots (a dark umbra in a grey penumbra of radial threads) in groups of two (the leader
+// nearer to the equator, the follower behind it), only in the real bands 5° to 35° north and south, born, growing and
+// fading away, and bright faculae around them, seen near the edge. Being gas it turns faster at its equator than near
+// its poles (25 / about 35 days, the Snodgrass rates): the equator once every ROT_PERIOD, as the other bodies; every spot
+// at the rate of its latitude; the granules (which live only minutes) with the equator. In the Sun's frame (SUN.tilt:
+// +y its north pole); a point at latitude b, longitude l is (cos b cos l, sin b, −cos b sin l), so the rotation (around +y)
+// adds to l.
+const SUN_GROUPS = 10;   // spot groups at most (each slot: one group at a time, see sunSpots)
+let sunClock = 0;        // screen seconds the Sun has turned (backward with time going backward, still when stopped)
+const sunRate = b => TAU / ROT_PERIOD * (1 - .163 * Math.sin(b) ** 2 - .121 * Math.sin(b) ** 4);   // rad/s at latitude b
+const sunU = { uRot: { value: 0 }, uT: { value: 0 }, uSpot: { value: Array.from({ length: 2 * SUN_GROUPS }, () => new THREE.Vector4()) },
+  uFac: { value: Array.from({ length: SUN_GROUPS }, () => new THREE.Vector4()) },
+  uFlare: { value: Array.from({ length: SUN_GROUPS }, () => new THREE.Vector4()) }, uFlareAx: { value: Array.from({ length: SUN_GROUPS }, () => new THREE.Vector4()) } };
+SUN.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 64), new THREE.ShaderMaterial({ uniforms: sunU,
+  vertexShader: `
+    #include <common>
+    #include <logdepthbuf_pars_vertex>
+    varying vec3 vP, vN, vV;
+    void main() {
+      vP = position;
+      vec4 mv = modelViewMatrix * vec4(position, 1.);
+      vV = mv.xyz; vN = normalMatrix * normal;
+      gl_Position = projectionMatrix * mv;
+      #include <logdepthbuf_vertex>
+    }`,
+  fragmentShader: `
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    uniform float uRot, uT;
+    uniform vec4 uSpot[${2 * SUN_GROUPS}], uFac[${SUN_GROUPS}];   // spot: centre (unit), penumbra radius (rad); facula: centre, strength
+    uniform vec4 uFlare[${SUN_GROUPS}], uFlareAx[${SUN_GROUPS}];   // flare: centre, brightness; its axis (from the follower to the leader), half their distance
+    varying vec3 vP, vN, vV;
+    vec3 hash3(vec3 p) {
+      p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6)));
+      return fract(sin(p) * 43758.5453);
+    }
+    // cells (Worley): distance to the nearest and the second nearest of the moving points, one per cell
+    vec2 cells(vec3 p, float t) {
+      vec3 i = floor(p), f = fract(p);
+      float d1 = 8., d2 = 8.;
+      for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
+        vec3 g = vec3(x, y, z), h = hash3(i + g);
+        vec3 o = g + .5 + .38 * sin(t * (.6 + .5 * h) + 6.2832 * h) - f;
+        float d = dot(o, o);
+        if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+      }
+      return sqrt(vec2(d1, d2));
+    }
+    // smooth noise (value noise, 0…1)
+    float vnoise(vec3 p) {
+      vec3 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+      return mix(mix(mix(hash3(i).x, hash3(i + vec3(1, 0, 0)).x, f.x), mix(hash3(i + vec3(0, 1, 0)).x, hash3(i + vec3(1, 1, 0)).x, f.x), f.y),
+                 mix(mix(hash3(i + vec3(0, 0, 1)).x, hash3(i + vec3(1, 0, 1)).x, f.x), mix(hash3(i + vec3(0, 1, 1)).x, hash3(i + vec3(1, 1, 1)).x, f.x), f.y), f.z);
+    }
+    void main() {
+      #include <logdepthbuf_fragment>
+      vec3 n = normalize(vP);
+      float mu = clamp(dot(normalize(vN), normalize(-vV)), 0., 1.);
+      // the granules turn with the equator; drawn only where a cell is several pixels wide
+      float c = cos(uRot), s = sin(uRot);
+      vec3 q = vec3(c * n.x + s * n.z, n.y, -s * n.x + c * n.z);
+      float px = length(fwidth(n));
+      float I = 1.;
+      if (px * 180. < .5) {   // (else not computed: too small to be seen)
+        vec2 g = cells(q * 180., uT * .8);
+        I += .22 * (smoothstep(.0, .4, g.y - g.x) - .6) * (1. - smoothstep(.15, .5, px * 180.));
+      }
+      // the spots: umbra and penumbra (threads around the centre), cooler so redder
+      vec3 tint = vec3(1.);
+      for (int k = 0; k < ${2 * SUN_GROUPS}; k++) {
+        vec4 sp = uSpot[k];
+        if (sp.w <= 0.) continue;
+        float d = length(n - sp.xyz), rp = sp.w, ru = .42 * rp;
+        if (d > rp * 1.15) continue;
+        vec3 e1 = normalize(cross(sp.xyz, abs(sp.y) < .9 ? vec3(0., 1., 0.) : vec3(1., 0., 0.))), e2 = cross(sp.xyz, e1);
+        vec3 t = n - sp.xyz;
+        float a = atan(dot(t, e2), dot(t, e1));
+        float thread = .5 + .5 * sin(a * 46. + 3. * sin(a * 7. + float(k))) ;
+        float pen = .68 + .14 * thread * smoothstep(ru, rp, d);
+        float um = .16 + .08 * smoothstep(0., ru, d);
+        float v = mix(um, pen, smoothstep(ru * .85, ru * 1.15, d));
+        v = mix(v, 1., smoothstep(rp * .9, rp * 1.1, d));
+        I *= v;
+        tint *= mix(vec3(1., .72, .5), vec3(1.), smoothstep(ru * .85, rp, d));
+      }
+      // the faculae: bright mottled patches around the groups, seen near the edge
+      float fac = 0.;
+      for (int k = 0; k < ${SUN_GROUPS}; k++) {
+        vec4 fc = uFac[k];
+        if (fc.w <= 0.) continue;
+        float d = length(n - fc.xyz);
+        fac += fc.w * exp(-d * d / .006);
+      }
+      float mott = vnoise(q * 60.) * .6 + vnoise(q * 140.) * .4;
+      I += .35 * fac * pow(1. - mu, 1.5) * smoothstep(.35, .75, mott);
+      // the edge darker and redder (blue darkens most), as it looks in photos (so on the screen's sRGB scale)
+      vec3 limb = pow(1. - vec3(.42, .56, .74) * (1. - mu), vec3(2.2));
+      vec3 col = vec3(.94, .83, .64) * I * tint * limb;
+      // the flares: two bright ribbons, one on each side of the line between the group's two spots, with bright knots
+      for (int k = 0; k < ${SUN_GROUPS}; k++) {
+        vec4 fl = uFlare[k], ax = uFlareAx[k];
+        if (fl.w <= 0.) continue;
+        vec3 t = n - fl.xyz;
+        if (dot(t, t) > 4. * ax.w * ax.w) continue;
+        float along = dot(t, ax.xyz) / ax.w, across = dot(t, cross(fl.xyz, ax.xyz)) / ax.w;
+        float rib = exp(-pow((abs(across) - .22) / .07, 2.)) * exp(-along * along / .45);
+        col += vec3(1., .97, .92) * fl.w * rib * (.45 + .55 * vnoise(n * 400. + float(k) * 7.));
+      }
+      gl_FragColor = vec4(col, 1.);
+      #include <colorspace_fragment>
+    }`,
+}));
+SUN.tilt.add(SUN.mesh);
+// The spot groups (see the surface above): slot i makes one group after another, each in its own cycle of P screen
+// seconds (40 to 70), all from sunClock alone (so they come back the same when time goes backward); a group lives 55% to
+// 90% of its cycle: it grows in its first 15%, then fades; its faculae come with it and stay a little longer.
+const sunHash = (i, nn, k) => { const x = Math.sin(i * 127.1 + nn * 311.7 + k * 74.7) * 43758.5453; return x - Math.floor(x); };
+function sunSpots() {
+  const sunDir = (b, l) => [Math.cos(b) * Math.cos(l), Math.sin(b), -Math.cos(b) * Math.sin(l)];
+  for (let i = 0; i < SUN_GROUPS; i++) {
+    const P = 40 + 30 * sunHash(i, 0, 1), t = sunClock + P * sunHash(i, 0, 2), nn = Math.floor(t / P), u = t - nn * P;
+    const h = k => sunHash(i, nn, k + 3), L = P * (.55 + .35 * h(0));
+    const lead = sunU.uSpot.value[2 * i], fol = sunU.uSpot.value[2 * i + 1], fac = sunU.uFac.value[i];
+    const grow = .15 * L, s = u < grow ? (u / grow) ** 2 * (3 - 2 * u / grow) : Math.max(0, 1 - (u - grow) / (L - grow));
+    const f = clamp(Math.min(u / grow, (1.25 * L - u) / (.25 * L + 1e-9)), 0, 1);
+    const fl = sunU.uFlare.value[i], fa = sunU.uFlareAx.value[i];
+    fl.w = 0;
+    if (!(s > 0) && !(f > 0)) { lead.w = fol.w = fac.w = 0; continue; }
+    // latitude 5° to 35° (most near 15°), north or south; the follower behind and a little nearer to the pole (Joy's law)
+    const sign = h(1) < .5 ? -1 : 1, b = sign * (5 + 30 * ((h(2) + h(3)) / 2) ** 1.4) * DEG;
+    const r = (.7 + 2.1 * h(4) ** 2) * DEG, gap = (3 + 5 * h(5)) * DEG, l = TAU * h(6) + sunRate(b) * u;
+    const bf = b + sign * .3 * gap;
+    lead.set(...sunDir(b, l), r * Math.sqrt(s));
+    fol.set(...sunDir(bf, l - gap), .65 * r * Math.sqrt(s) * (h(7) < .8 ? 1 : 0));
+    fac.set(...sunDir(b + sign * .15 * gap, l - .5 * gap), f * (.6 + .8 * h(4)));
+    // its flares (see SUN_FLARE): up to two in its life, while its spots are there
+    let fb = 0;
+    for (let k = 0; k < 2; k++) {
+      if (h(8 + k) > .7) continue;
+      const x = u - L * (.15 + .6 * h(10 + k));
+      if (x < 0 || x > SUN_FLARE.rise + 4 * SUN_FLARE.decay) continue;
+      fb = Math.max(fb, (x < SUN_FLARE.rise ? smooth(x / SUN_FLARE.rise) : Math.exp(-(x - SUN_FLARE.rise) / SUN_FLARE.decay)) * (1.5 + 2.5 * h(12 + k)) * Math.min(1, 2 * s));
+    }
+    if (fb > .01) {
+      const A = sunDir(b, l), B = sunDir(bf, l - gap), m = unit(add(A, B)), d = sub(A, B);
+      fl.set(...m, fb); fa.set(...unit(d), len(d) / 2);
+    }
+  }
+  sunEruptions();
+}
+// Flares (user, 2026-10-30, v_1.9): a group's two bright ribbons (as seen in white light: the strongest flares) flash
+// up in rise screen seconds and fade in about 4 × decay; up to two in a group's life
+const SUN_FLARE = { rise: .8, decay: 1.6 };
+
+// Prominences (user, 2026-10-30, v_1.9): arcades of PROM_LOOPS glowing loops of gas standing on the surface (5 000 to
+// 10 000 km thick, 30 000 to 130 000 km high), at any latitude up to 65°, turning with it; along them knots of gas flow.
+// Seen beyond the edge of the disc they glow pink (as in photos taken through a hydrogen-alpha filter, or in a total
+// eclipse); in front of the disc they are dark threads (filaments). Slot j makes one arcade after another (cycle of
+// 35 to 65 screen seconds; it lives 60% to 95% of it, grows in its first 20%); about a third of them erupt in their last
+// 30%: they rise, swell and fly off, and send out a coronal mass ejection (CME): a faint white bubble that expands from
+// the Sun to about 15 radii in CME_TIME screen seconds and fades. Only the look, like the spots: from sunClock alone.
+const PROM_SLOTS = 8, PROM_LOOPS = 10, CME_TIME = 12;
+const promGeo = new THREE.InstancedBufferGeometry();
+{
+  // a tube: position.x along the loop (0…1), position.y the angle around it; the loop itself is made in the shader
+  const S = 48, R = 8, pos = [], idx = [];
+  for (let i = 0; i <= S; i++) for (let j = 0; j <= R; j++) pos.push(i / S, TAU * j / R, 0);
+  for (let i = 0; i < S; i++) for (let j = 0; j < R; j++) { const a = i * (R + 1) + j, b = a + R + 1; idx.push(a, b, a + 1, b, b + 1, a + 1); }
+  promGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); promGeo.setIndex(idx);
+  const n = PROM_SLOTS * PROM_LOOPS;
+  promGeo.setAttribute('iA', new THREE.InstancedBufferAttribute(new Float32Array(3 * n), 3).setUsage(THREE.DynamicDrawUsage));
+  promGeo.setAttribute('iB', new THREE.InstancedBufferAttribute(new Float32Array(3 * n), 3).setUsage(THREE.DynamicDrawUsage));
+  promGeo.setAttribute('iP', new THREE.InstancedBufferAttribute(new Float32Array(4 * n), 4).setUsage(THREE.DynamicDrawUsage));
+  promGeo.instanceCount = 0;
+}
+const sunCamL = new THREE.Vector3();   // the camera in the Sun's frame (Sun radii)
+const promMesh = new THREE.Mesh(promGeo, new THREE.ShaderMaterial({
+  uniforms: { uT: sunU.uT, uCamL: { value: sunCamL } },
+  vertexShader: `
+    #include <common>
+    #include <logdepthbuf_pars_vertex>
+    attribute vec3 iA, iB;   // the loop's feet (unit vectors, the Sun's frame)
+    attribute vec4 iP;       // its height and thickness (Sun radii), opacity, a random number
+    varying float vS, vA, vSeed, vFres; varying vec3 vL;
+    vec3 loopAt(float s) { return normalize(mix(iA, iB, s)) * (.99 + iP.x * sin(3.14159265 * s)); }
+    void main() {
+      float s = position.x;
+      vec3 c = loopAt(s), t = normalize(loopAt(min(s + .01, 1.)) - loopAt(max(s - .01, 0.)));
+      vec3 nr = normalize(c - t * dot(c, t)), b = cross(t, nr), off = cos(position.y) * nr + sin(position.y) * b;
+      vec3 p = c + iP.y * (.7 + .3 * sin(3.14159265 * s)) * off;
+      vL = p; vS = s; vA = iP.z; vSeed = iP.w;
+      vec4 mv = modelViewMatrix * vec4(p, 1.);
+      vFres = abs(dot(normalize(normalMatrix * off), normalize(-mv.xyz)));
+      gl_Position = projectionMatrix * mv;
+      #include <logdepthbuf_vertex>
+    }`,
+  fragmentShader: `
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    uniform float uT; uniform vec3 uCamL;
+    varying float vS, vA, vSeed, vFres; varying vec3 vL;
+    float h1(float x) { return fract(sin(x * 127.1) * 43758.5453); }
+    float n1(float x) { float i = floor(x), f = fract(x); return mix(h1(i), h1(i + 1.), f * f * (3. - 2. * f)); }
+    void main() {
+      #include <logdepthbuf_fragment>
+      // knots of gas flowing along the loop (down both legs), soft edges
+      float flow = .6 * n1(abs(vS - .5) * 34. + uT * 1.4 + vSeed * 50.) + .4 * n1(vS * 90. - uT * .6 + vSeed * 20.);
+      float a = vA * pow(vFres, 2.);
+      // in front of the disc (the line of sight meets the Sun behind this point): a dark filament
+      vec3 d = normalize(vL - uCamL);
+      float tc = -dot(uCamL, d), m2 = dot(uCamL, uCamL) - tc * tc;
+      bool disc = m2 < 1. && length(vL - uCamL) < tc - sqrt(max(0., 1. - m2));
+      gl_FragColor = disc ? vec4(.16, .05, .03, clamp(.45 * a * (.7 + .3 * flow), 0., 1.)) : vec4(1., .32, .4, clamp(a * (.15 + 1.2 * flow * flow), 0., 1.));
+      #include <colorspace_fragment>
+    }`,
+  transparent: true, depthWrite: false }));
+promMesh.frustumCulled = false; SUN.tilt.add(promMesh);
+// the CMEs: one bubble per prominence slot; bright where it is seen edge on (its front), fainter towards the Sun
+const cmeGeo = new THREE.SphereGeometry(1, 48, 24);
+const cmes = Array.from({ length: PROM_SLOTS }, (_, j) => {
+  const u = { uT: sunU.uT, uA: { value: 0 }, uDir: { value: new THREE.Vector3() }, uSeed: { value: j * 3.7 } };
+  const m = new THREE.Mesh(cmeGeo, new THREE.ShaderMaterial({ uniforms: u,
+    vertexShader: `
+      #include <common>
+      #include <logdepthbuf_pars_vertex>
+      varying vec3 vN, vV, vP;
+      void main() {
+        vP = position; vec4 mv = modelViewMatrix * vec4(position, 1.);
+        vN = normalMatrix * normal; vV = mv.xyz;
+        gl_Position = projectionMatrix * mv;
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader: `
+      #include <common>
+      #include <logdepthbuf_pars_fragment>
+      uniform float uA, uSeed; uniform vec3 uDir;
+      varying vec3 vN, vV, vP;
+      float h3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      float vn(vec3 p) {
+        vec3 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+        return mix(mix(mix(h3(i), h3(i + vec3(1, 0, 0)), f.x), mix(h3(i + vec3(0, 1, 0)), h3(i + vec3(1, 1, 0)), f.x), f.y),
+                   mix(mix(h3(i + vec3(0, 0, 1)), h3(i + vec3(1, 0, 1)), f.x), mix(h3(i + vec3(0, 1, 1)), h3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+      }
+      void main() {
+        #include <logdepthbuf_fragment>
+        float rim = 1. - abs(dot(normalize(vN), normalize(-vV)));
+        float front = smoothstep(-.6, .5, dot(normalize(vP), uDir));
+        float threads = .3 + vn(vP * 9. + uSeed) * (.6 + .6 * vn(vP * 23. - uSeed));
+        gl_FragColor = vec4(vec3(.95, .93, 1.) * uA * pow(rim, 6.) * front * threads * threads, 1.);
+        #include <colorspace_fragment>
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+  m.visible = false; m.frustumCulled = false; SUN.tilt.add(m);
+  return { m, u };
+});
+// slot j's arcade in its cycle nn, at u screen seconds into it (null: none then)
+function promAt(j, nn, u, P) {
+  const h = k => sunHash(100 + j, nn, k), L = P * (.6 + .35 * h(0)), erupt = h(1) < .35;
+  const b = (h(2) * 2 - 1) * 65 * DEG, l = TAU * h(3) + sunRate(b) * u;
+  return { L, erupt, b, l, h, e: erupt ? clamp((u - .7 * L) / (.3 * L), 0, 1) : 0, cme: erupt ? (u - .7 * L) / CME_TIME : -1 };
+}
+function sunEruptions() {
+  SUN.tilt.updateMatrixWorld(); sunCamL.copy(camera.position); SUN.tilt.worldToLocal(sunCamL);
+  const iA = promGeo.attributes.iA, iB = promGeo.attributes.iB, iP = promGeo.attributes.iP;
+  let n = 0;
+  for (const c of cmes) c.m.visible = false;
+  for (let j = 0; j < PROM_SLOTS; j++) {
+    const P = 35 + 30 * sunHash(100 + j, 0, 1), t = sunClock + P * sunHash(100 + j, 0, 2), nn = Math.floor(t / P), u = t - nn * P;
+    // its CME (it may still be on its way in the next cycle)
+    for (const [pp, uu] of [[promAt(j, nn, u, P), u], [promAt(j, nn - 1, u + P, P), u + P]]) {
+      if (!(pp.cme >= 0 && pp.cme < 1)) continue;
+      const c = cmes[j], x = pp.cme, d = 1.1 + 14 * x, rc = .42 * (d - 1), dir = new THREE.Vector3(Math.cos(pp.b) * Math.cos(pp.l), Math.sin(pp.b), -Math.cos(pp.b) * Math.sin(pp.l));
+      c.u.uDir.value.copy(dir); c.m.position.copy(dir).multiplyScalar(d - rc); c.m.scale.setScalar(rc);
+      c.u.uA.value = .35 * smooth(Math.min(1, x / .08)) * (1 - x) ** 2; c.m.visible = true;
+    }
+    const p = promAt(j, nn, u, P), h = p.h;
+    if (u > p.L) continue;
+    const grow = smooth(Math.min(1, u / (.2 * p.L))), fade = p.erupt ? (1 - p.e) ** 2 : smooth(Math.min(1, (p.L - u) / (.2 * p.L)));
+    // its frame on the surface: centre, east and north; the arcade's axis at angle az, the feet on both sides of it
+    const cb = Math.cos(p.b), sb = Math.sin(p.b), cl = Math.cos(p.l), sl = Math.sin(p.l);
+    const C0 = [cb * cl, sb, -cb * sl], E = [-sl, 0, -cl], N = [-sb * cl, cb, sb * sl];
+    const az = TAU * h(4), ax = add(E.map(v => v * Math.cos(az)), N.map(v => v * Math.sin(az))), pr = cross(C0, ax);
+    const span = (.4 + .8 * h(5)) * DEG, arc = (5 + 12 * h(6)) * DEG, H = (.04 + .14 * h(7) ** 2) * (.5 + .5 * grow) + 3 * p.e * p.e;
+    const W = (.0035 + .003 * h(8)) * (1 + 3 * p.e);
+    const at = (x, y) => unit(add(C0, add(ax.map(v => v * x), pr.map(v => v * y))));
+    // the loops run along the axis, side by side (a sheet of threads, seen as a hedge or an arch at the edge and as a
+    // long dark thread on the disc)
+    for (let k = 0; k < PROM_LOOPS; k++) {
+      const hk = sunHash(200 + j, nn, k), hk2 = sunHash(300 + j, nn, k), y = (hk2 - .5) * span, e0 = .5 * arc * (.6 + .6 * hk);
+      iA.setXYZ(n, ...at(-e0, y + .4 * span * (h(9) - .5))); iB.setXYZ(n, ...at(e0 * (.8 + .4 * hk2), y));
+      iP.setXYZW(n, H * (.6 + .6 * hk), W * (.6 + .8 * hk2), .6 * grow * fade, hk);
+      n++;
+    }
+  }
+  promGeo.instanceCount = n; iA.needsUpdate = iB.needsUpdate = iP.needsUpdate = true;
+}
 const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true }));
 sunGlow.scale.setScalar(5); sunBody.add(sunGlow);
 function glowTexture() {
@@ -2133,7 +2433,7 @@ function trailBlock(tr, k) {
     maxL = Math.max(maxL, Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]));
     for (const q of [A, B]) for (let j = 0; j < 3; j++) { arr.push(q[j] - O[j]); lo[j] = Math.min(lo[j], q[j]); hi[j] = Math.max(hi[j], q[j]); }
   }
-  b = { O, cMin: pts[i0][4], maxL, c: lo.map((x, j) => (x + hi[j]) / 2), r: Math.hypot(...lo.map((x, j) => (hi[j] - x) / 2)), m: null };
+  b = { O, cMin: pts[i0][4], cMax: pts[i0 + TRAIL_BLOCK][4], maxL, c: lo.map((x, j) => (x + hi[j]) / 2), r: Math.hypot(...lo.map((x, j) => (hi[j] - x) / 2)), m: null };
   if (arr.length) {
     const g = new LineSegmentsGeometry();
     g.setPositions(new Float32Array(arr));
@@ -2149,7 +2449,7 @@ function blockFits(tr, b, cam, D, tEnd) {
   const dS = Math.hypot(cx - cam.x, cy - cam.y, cz - cam.z) - b.r;   // the nearest the block can be to the camera
   return dS > 0 && b.maxL < TRAIL_SPLIT * dS && b.r < 1000 * dS &&   // (no split, no finer cut, 32 bits enough)
     Math.hypot(cx - tC.x, cy - tC.y, cz - tC.z) - b.r > tr.gap &&
-    !(tr.moon && MOON_A_AU * U > .5 * camera.fov * DEG / innerHeight * dS);
+    !(tr.moon && (MOON_A_AU * U > .5 * camera.fov * DEG / innerHeight * dS || moonSpreadAt([0, 0, 0, 0, b.cMax]) > 1));
 }
 // the piece of a trail that the plume replaces (from TRAIL_GAP to TRAIL_GAP + PLUME_LEN radii): a separate straight line
 // whose brightness changes along it (see updatePlume). Its colours are added to the picture: on the dark sky that looks
@@ -2248,7 +2548,7 @@ function plume() {
 function updatePlume(tr, cam, flow) {
   const pl = tr.plume, R0 = tr.r * U;
   if (timeDir < 0) { pl.m.visible = tr.near.l.visible = false; tr.gap = TRAIL_GAP * tr.drawn(); return; }   // (no trails backward)
-  drifted(nowPt(tr.posAt, trailT), tC);   // the body's centre
+  placed(tr, nowPt(tr.posAt, trailT), tC);   // the body's centre (as drawn)
   const dist = Math.hypot(cam.x - tC.x, cam.y - tC.y, cam.z - tC.z) / R0;
   const k = clamp((PLUME_NEAR - dist) / (PLUME_NEAR - PLUME_FULL), 0, 1), blend = k * k * (3 - 2 * k);
   pl.m.visible = tr.near.l.visible = blend > 0;
@@ -2256,7 +2556,7 @@ function updatePlume(tr, cam, flow) {
   if (!pl.m.visible) return;
   // the trail leaves the body along a straight line: towards where a point it left a moment ago is now
   const t1 = trailT - tr.r / TRAIL_SPEED;
-  drifted(nowPt(tr.posAt, t1), tA);
+  placed(tr, nowPt(tr.posAt, t1), tA);
   let d = [tA.x - tC.x, tA.y - tC.y, tA.z - tC.z];
   d = d.map(x => x / len(d));
   let e1 = cross(d, Math.abs(d[1]) < .9 ? [0, 1, 0] : [1, 0, 0]);
@@ -2314,6 +2614,27 @@ function drifted(p, q) {
   q.x = (p[0] + TRAIL_DIR[0] * d) * U; q.y = (p[2] + TRAIL_DIR[2] * d) * U; q.z = -(p[1] + TRAIL_DIR[1] * d) * U;
   return q;
 }
+// a point of trail tr as it is drawn now (scene units), into q: drifted; the Moon's (user, 2026-10-30), in the zoom screen,
+// with its distance from the Earth's path enlarged as the Moon's disc is (moonSpread), so that its trail leaves the drawn
+// Moon; farther back it narrows to the real one (see moonSpreadAt; its offset from the Earth at the point's time is kept
+// in the point, p.rel: it never changes)
+function placed(tr, p, q) {
+  drifted(p, q);
+  const k = tr.moon ? (moonSpreadAt(p) - 1) * U : 0;
+  if (k) { const r = p.rel || (p.rel = moonRelT(p[3])); q.x += r[0] * k; q.y += r[2] * k; q.z -= r[1] * k; }
+  return q;
+}
+// the enlargement of a point of the Moon's trail: moonSpread while it has drifted less than MOON_SPREAD_KEEP times the
+// enlarged distance from the Earth, then less and less, the real one from MOON_SPREAD_END times (only the young part of
+// the trail goes around the Earth's drawn disc; the rest is the real path, and is drawn as fast as before)
+const MOON_SPREAD_KEEP = 2, MOON_SPREAD_END = 8;
+function moonSpreadAt(p) {
+  if (moonSpread === 1) return 1;
+  const x = (TRAIL_SPEED * (trailClock - p[4]) / (moonSpread * MOON_A_AU) - MOON_SPREAD_KEEP) / (MOON_SPREAD_END - MOON_SPREAD_KEEP);
+  if (x >= 1) return 1;
+  const s = x <= 0 ? 1 : 1 - x * x * (3 - 2 * x);
+  return 1 + (moonSpread - 1) * s;
+}
 function updateTrail(tr, cam) {
   const o = tr.o, posAt = tr.posAt;
   // (only while time goes forward; after time went backward a new piece starts from where the body is now)
@@ -2338,10 +2659,10 @@ function updateTrail(tr, cam) {
   const g2 = tr.gap * tr.gap;
   let started = false;
   const seg = (a, b, depth) => {
-    drifted(a, tA); drifted(b, tB);
+    placed(tr, a, tA); placed(tr, b, tB);
     const sd = o && depth < TRAIL_SPLIT_DEPTH ? segDist(tA, tB, cam) : 0;
     if (sd && (Math.hypot(tB.x - tA.x, tB.y - tA.y, tB.z - tA.z) > TRAIL_SPLIT * sd ||
-        (tr.moon && Math.abs(a[3] - b[3]) > MOON_STEP && MOON_A_AU * U > .5 * camera.fov * DEG / innerHeight * sd))) {
+        (tr.moon && Math.abs(a[3] - b[3]) > MOON_STEP && MOON_A_AU * Math.max(moonSpreadAt(a), moonSpreadAt(b)) * U > .5 * camera.fov * DEG / innerHeight * sd))) {
       const m = [...posAt((a[3] + b[3]) / 2), (a[3] + b[3]) / 2, (a[4] + b[4]) / 2];
       return seg(a, m, depth + 1) && seg(m, b, depth + 1);
     }
@@ -2354,13 +2675,13 @@ function updateTrail(tr, cam) {
     }
     // cut at the trail's end: the body's exact place at that time
     const end = b[4] < tEnd;
-    if (end) { const te = b[3] + (tEnd - b[4]); drifted([...posAt(te), te, tEnd], tB); }
+    if (end) { const te = b[3] + (tEnd - b[4]); placed(tr, [...posAt(te), te, tEnd], tB); }
     n = tessellate(tA, tB, cam, arr, n);
     return !end;   // false: the trail ends here
   };
   let n = 0, a = nowPt(posAt, trailT);
   if (timeDir < 0) { tr.l.geometry.instanceCount = 0; return; }   // (no trails while time goes backward)
-  drifted(a, tC);   // the body's centre
+  placed(tr, a, tC);   // the body's centre (as drawn)
   // (pieces of trail not joined, see joined, are not connected: after time went backward); at the newest segment of a
   // whole block (see trailBlock) that can be drawn as a block, its segments are left out here
   const dd = TRAIL_SPEED * trailClock, D = [TRAIL_DIR[0] * dd * U, TRAIL_DIR[2] * dd * U, -TRAIL_DIR[1] * dd * U];
@@ -3631,7 +3952,7 @@ function bodyScales(k, pxAngle, farAway, spreadMax = 1) {
     // (spreadMax > 1) it is drawn enlarged where needed (moonSpread), in its real direction, to MOON_SPREAD times the two
     // drawn radii together, at every distance and zoom (user: a small gap, 1.2), so that it goes out from behind the Earth,
     // around it and in front of it as Mercury does at the Sun (from Pluto about 50 times the real distance). Only the
-    // drawing: its path (trail) stays real. Where the two discs overlap (the picture: farther than about 0.6 AU) the one
+    // drawing: its trail is drawn enlarged the same way (see placed), its real path is not changed. Where the two discs overlap (the picture: farther than about 0.6 AU) the one
     // whose centre is nearer to the camera is drawn whole over the other (the Moon behind the Earth shows only what the
     // Earth's disc leaves).
     const sE = EARTH.group.scale.x, sM = MOON.group.scale.x;
@@ -3714,10 +4035,14 @@ function frame(now) {
   // every body spins once every 10 s, at every simulation speed: only a sign that it turns around its axis (user, 2026-10-20);
   // no body's apparent radius drops below the minimum [REQ-01, REQ-02.2]
   const spin = running ? timeDir * TAU * dt / ROT_PERIOD : 0;
+  // the Sun's surface (see sunSpots)
+  if (running) sunClock += timeDir * dt;
+  sunU.uT.value = sunClock % 1e4; sunU.uRot.value = sunRate(0) * sunClock % TAU;
   const pxAngle = camera.fov * DEG / innerHeight, farAway = alongSun(C.pos) < AXES_FAR_X;   // (see AXES_FAR_X)
   // the Sun twice the planets' minimum, the planets the same
   const sunMin = farAway ? 0 : Math.max(SUN_MIN_APPARENT_RADIUS, MIN_DOT_PX / 2 * pxAngle);
   sunBody.scale.setScalar(Math.max(SUN_R * U, camera.position.length() * Math.tan(sunMin)));
+  sunSpots();   // (after the Sun's drawn size: the eruptions need the camera in its frame)
   for (const pl of PLANETS) {
     pl.group.position.copy(T(...pl.p));
     pl.mesh.rotation.y = (pl.mesh.rotation.y + spin) % TAU;
