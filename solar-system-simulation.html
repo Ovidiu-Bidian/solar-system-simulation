@@ -349,7 +349,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_2.0 (30 October 2026)</p>
+  <p>Current version: solar system simulation v_2.0.1 (30 October 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -2875,11 +2875,13 @@ const sky = (() => {
       float a = exp(-d * d * 7.) + .6 * smoothstep(.35, .1, d); gl_FragColor = vec4(vC * min(a, 1.), 1.); }`,
   });
   const p = new THREE.Points(g, m); p.frustumCulled = false; p.renderOrder = -9;
-  // the constellation lines: thin and faint, under the stars
+  // the constellation lines: thin and faint, under the stars; not transparent (three.js draws transparent objects after
+  // the celestial bodies, and without depth test they were drawn over them): added to the black sky like the stars, in
+  // a dim colour (0x5f7fbf at 32%: 0x1e293d), drawn before everything
   const lp = new Float32Array(CONST_LINES.length * 3);
   CONST_LINES.forEach((s, i) => lp.set(SKY_DIRS[s].toArray(), i * 3));
   const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(lp, 3));
-  const l = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x5f7fbf, transparent: true, opacity: .32, depthTest: false, depthWrite: false }));
+  const l = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x1e293d, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false }));
   l.frustumCulled = false; l.renderOrder = -10;
   const o = new THREE.Group(); o.add(l, p); scene.add(o);
   return o;
