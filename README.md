@@ -37,6 +37,7 @@ shows it without any special code: it follows only from the real orbits of the E
 was traced from the video below (the Earth as the reference celestial body, one dot every 2 seconds).
 
 https://github.com/user-attachments/assets/8ba0c998-d300-4b44-9d25-85f9814e0080
+
 <img width="1764" height="800" alt="Mars_retrograde_path" src="https://github.com/user-attachments/assets/b9d2a074-0685-43c6-bd57-42c6907c9050" />
 
 ## How to use it
