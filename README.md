@@ -29,6 +29,27 @@ What is not real (visual aids) is listed in the program, in Help → About: for 
 the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds) and
 the background stars, placed at random.
 
+## Walk in the sky
+
+In absolute space mode the camera is not tied to any celestial body: it stays at rest relative to the Sun, so it
+travels with the Sun through absolute space at about 230 km/s ("Cam speed" in the information panel), and moves
+in other directions only when the user moves it. Here it looks around and moves among the trails of the planets, with the real
+constellations behind them: Cygnus, the direction in which the Sun moves around the center of the galaxy;
+Hercules (lambda Herculis) and Lyra (Vega), near the solar apex found by Herschel in 1783; Columba, the antapex;
+Sagittarius, towards the center of the galaxy; Ursa Major and Ursa Minor, Centaurus and Crux, Carina, Octans.
+All the trails run towards Vela, opposite Cygnus: the direction from which the Sun comes.
+
+https://github.com/user-attachments/assets/38069d98-4ba8-4d3d-9f91-202c3ee40b27
+
+## Example: the planets seen from Saturn
+
+The camera travels with Saturn through absolute space (Saturn is the reference celestial body). Far away, at the
+top of the picture, the Sun moves along its path towards Cygnus, and the inner planets follow it: their yellow
+trails twist around the Sun's path, the spirals they draw in absolute space. The zoom screen (the "T" key) shows
+the Sun and the planets near it, with their names in its corner.
+
+https://github.com/user-attachments/assets/e03716b3-45bc-4b04-a848-d7cda1d23848
+
 ## Example: the retrograde motion of Mars
 
 Seen from the Earth, Mars usually moves in one direction against the stars, but for about two and a half months, while the Earth
@@ -54,7 +75,6 @@ an internet connection is needed for the three.js library).
 ## Requirements
 
 The simulation was built from written requirements, kept in this repository and updated with every version:
-
 - `Requirements/requirements_EN.req.txt`: English
 - `Requirements/specificatii_simulare_RO.req.txt`: Romanian, mirrored line by line
 
