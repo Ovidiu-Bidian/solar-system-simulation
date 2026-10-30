@@ -52,8 +52,8 @@ https://github.com/user-attachments/assets/e03716b3-45bc-4b04-a848-d7cda1d23848
 
 Seen from the Earth, Mars usually moves in one direction against the stars, but for about two and a half months, while the Earth
 overtakes it on its inner orbit, it stops, moves backwards and then turns again: a loop on the sky. The simulation
-shows it without any special code: it follows only from the real orbits of the Earth and of Mars. The picture at the top
-was traced from the video below (the Earth as the reference celestial body, one dot every 2 seconds).
+shows it without any special code: it follows only from the real orbits of the Earth and of Mars. The picture under
+the video was traced from it (the Earth as the reference celestial body, one dot every 2 seconds).
 
 https://github.com/user-attachments/assets/8ba0c998-d300-4b44-9d25-85f9814e0080
 
