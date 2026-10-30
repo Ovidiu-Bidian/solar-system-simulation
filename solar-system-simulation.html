@@ -11,6 +11,7 @@
     font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
   canvas#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; cursor: grab; }
   body.dragging, body.dragging canvas#scene { cursor: none; }
+  body.zoom-on canvas#scene { cursor: none; }   /* the zoom screen's focus frame shows where the mouse is (REQ-01) */
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
     -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%); box-shadow: 0 10px 40px rgba(0, 0, 0, .35); }
   kbd { font: 600 11px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; padding: 2px 5px; border-radius: 5px;
@@ -21,7 +22,7 @@
      at its left, on the row of its first line; restrained, a line at the screen's right edge, as tall as the panel */
   #hud-wrap { position: fixed; top: 16px; right: 16px; display: flex; align-items: flex-start; gap: 6px; z-index: 4; }
   #hud-wrap.open { right: 4px; }
-  #hud { order: 2; width: 380px; padding: 14px 16px; visibility: hidden; position: absolute; right: 0; top: 0; }
+  #hud { order: 2; width: 340px; padding: 10px 12px; visibility: hidden; position: absolute; right: 0; top: 0; }
   #hud-wrap.open #hud { visibility: visible; position: static; }
   #hud-btn { order: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--text); font: inherit;
     font-weight: 700; width: 26px; height: 26px; padding: 0; line-height: 1; cursor: pointer; -webkit-backdrop-filter: blur(16px);
@@ -33,30 +34,27 @@
   #hud-wrap.open #hud-line::before { display: none; }
   #hud-wrap.pinned #hud-line { display: none; }
   .brand { font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: var(--dim); }
-  /* (user, 2026-10-28: no "Test simulation · Pluto" line any more) the mode, and in celestial body mode the name of the
-     reference celestial body at the right */
-  #mode { margin: 0 0 10px; font-size: 18px; font-weight: 650; color: var(--accent); display: flex; justify-content: space-between;
-    align-items: baseline; gap: 10px; }
-  #mode-body { color: #e9c9a4; font-weight: 600; }
-  /* test aid: the W/S move, chosen on the page (body mode only) */
-  #move-row { display: flex; align-items: center; justify-content: space-between; margin: -4px 0 10px; color: var(--dim); }
-  #move-btn[hidden] { display: none; }
-  #move-btn { background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 8px; color: var(--text);
-    font: inherit; font-size: 12.5px; padding: 4px 10px; cursor: pointer; }
-  #move-btn:hover { border-color: rgba(255, 255, 255, .25); }
-  .rows { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+  /* (user, 2026-10-29) the first line: what was chosen in the menu, the reference celestial body and its view ("Neptune -
+     pole view") or "Absolute space" */
+  #mode { margin: 0 0 6px; font-size: 17px; font-weight: 650; color: var(--accent); }
+  #move-row { display: flex; align-items: center; margin: -2px 0 8px; color: var(--dim); }
+  .rows { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; padding-top: 6px; border-top: 1px solid var(--line); }
   .rows span:nth-child(odd) { color: var(--dim); white-space: nowrap; }
   .rows span:nth-child(even) { text-align: right; font: 500 12.5px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-variant-numeric: tabular-nums; white-space: pre; }
   .km { color: #c7b9ff; }
-  /* the panel's extension (user, 2026-10-28): the rows from "Distance to Pluto" down and the credit, shown or hidden with
+  /* the panel's extension (user, 2026-10-28): the rows from "Distance to Pluto" down, the data of the reference body, its description and the source of its map, shown or hidden with
      the button at the panel's bottom ("v": hidden, "^": shown) */
-  .rows.more { border-top: 0; padding-top: 4px; }
+  .rows.more { border-top: 0; padding-top: 0; }
+  /* (user, 2026-10-30) the speed in absolute space (one of the main topics), then the reference celestial body's data */
+  .abs { color: var(--accent); }
+  .rows.body { margin-top: 6px; }
+  .desc { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.4; }
   #hud-more[hidden] { display: none; }
-  #hud-ext { display: block; margin: 8px auto 0; width: 34px; height: 16px; padding: 0; line-height: 1; font: inherit; font-weight: 700;
+  #hud-ext { display: block; margin: 6px auto 0; width: 34px; height: 16px; padding: 0; line-height: 1; font: inherit; font-weight: 700;
     font-size: 11px; color: var(--dim); background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
   #hud-ext:hover { color: var(--text); border-color: rgba(255, 255, 255, .25); }
-  .credit { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 10.5px; color: var(--dim); }
+  .credit { margin-top: 4px; font-size: 10.5px; line-height: 1.35; color: var(--dim); }
 
   /* controls hint, lower left */
   #hint { position: fixed; left: 16px; bottom: 16px; padding: 10px 14px; max-width: min(620px, calc(100% - 32px)); color: #c9d2e8; }
@@ -98,8 +96,7 @@
   #controls button:hover:not(:disabled), #speed-row button:hover:not(:disabled) { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .25); }
   #controls button:disabled, #speed-row button:disabled { opacity: .3; cursor: default; }
   #slower, #faster, #tdir { font-size: 16px; min-width: 36px; }
-  #speed-row button, #speedval, #move-btn { white-space: nowrap; }
-  #speed-row button, #speedval, #move-btn { white-space: nowrap; }
+  #speed-row button, #speedval { white-space: nowrap; }
   /* test aid (user, 2026-10-23): the tilted meridian gauge, a square above the speed buttons (see updateGauge) */
   #gauge { width: 170px; }   /* (the width the speed buttons gave it) */
   #gauge svg { display: block; width: 100%; aspect-ratio: 1; }
@@ -139,11 +136,17 @@
     color: var(--text); font: inherit; padding: 2px 10px; cursor: pointer; text-align: left; }   /* (entries close together, user 2026-10-28; was 7px) */
   #menu-list button:hover { background: rgba(255, 255, 255, .08); }
   #menu-list .on::after { content: "\2713"; color: var(--accent); margin-left: 8px; }
-  /* the submenus (Reference system, Help): opened on the right of their entry, past the menu's button */
+  /* the submenus (Reference system, Help): opened on the right of their entry, 4 px from the menu's box; the menu's button
+     moves to the right of the rightmost column shown (user, 2026-10-29, see placeMenuBtn) */
   #menu-list .sub { position: relative; }
   #menu-list .sub > button::after { content: "\203A"; color: var(--dim); margin-left: 14px; }
-  #menu-list .submenu { position: absolute; left: calc(100% + 44px); top: -4px; padding: 4px; width: max-content; display: none; }
+  #menu-list .submenu { position: absolute; left: calc(100% + 9px); top: -4px; padding: 4px; width: max-content; display: none; }
   #menu-list .sub.open > .submenu { display: block; }
+  /* (user, 2026-10-29) the views of a celestial body: a third column, opened on the right of its entry by the mouse on it,
+     centred on the entry's row where it fits, else its top on Absolute space's row or its bottom on Pluto's (see showViews) */
+  #menu-list #sub-view { left: calc(100% + 5px); display: none; }
+  #menu-list #sub-view.open { display: block; }
+  #menu-list #sub-ref > button.hover { background: rgba(255, 255, 255, .08); }
   #menu-list button:disabled { opacity: .35; cursor: default; background: none; }
   #hint { display: none; }
   body.show-controls #hint { display: block; }
@@ -171,6 +174,31 @@
   #toast { position: fixed; left: 50%; top: 18px; transform: translate(-50%, -6px); padding: 8px 14px; border-radius: 999px; opacity: 0;
     pointer-events: none; transition: opacity .3s, transform .3s; }
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  /* the names of the celestial bodies under the mouse [REQ-01] */
+  #hover-names { position: fixed; left: 0; top: 0; padding: 4px 8px; border-radius: 6px; font-size: 12px; line-height: 1.45;
+    text-align: left; white-space: nowrap; pointer-events: none; display: none; z-index: 7; }
+  /* the zoom screen [REQ-01] (a digital camera's screen at full zoom): the picture itself is drawn in the canvas; #scope is
+     the camera's body around it, #scope-v what the camera writes over it (corner brackets, the focus frame at the mouse,
+     the zoom and the W-T bar) */
+  #scope, #scope-v { position: fixed; left: 0; top: 0; pointer-events: none; display: none; z-index: 3; box-sizing: content-box; }
+  #scope { border: var(--b) solid #1a1c20; border-radius: 12px; margin: calc(-1 * var(--b)) 0 0 calc(-1 * var(--b));
+    box-shadow: inset 0 0 0 1px #000, 0 0 0 1px #3a3e46, 0 10px 30px rgba(0, 0, 0, .7); }
+  #scope::before { content: ''; position: absolute; inset: calc(-1 * var(--b)); border-radius: 12px; pointer-events: none;
+    background: linear-gradient(160deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, 0) 40%, rgba(0, 0, 0, .25));
+    padding: var(--b);
+    mask: linear-gradient(#000, #000) content-box exclude, linear-gradient(#000, #000); }
+  #scope-v { box-shadow: inset 0 0 14px 2px rgba(0, 0, 0, .55); color: #f2f4f8;
+    font: 600 12px/1 ui-monospace, Menlo, Consolas, monospace; text-shadow: 0 0 3px #000; }
+  #scope-v i { position: absolute; width: 18px; height: 18px; border: 0 solid rgba(255, 255, 255, .85); }
+  #scope-v .tl { left: 10px; top: 10px; border-width: 2px 0 0 2px; } #scope-v .tr { right: 10px; top: 10px; border-width: 2px 2px 0 0; }
+  #scope-v .bl { left: 10px; bottom: 10px; border-width: 0 0 2px 2px; } #scope-v .br { right: 10px; bottom: 10px; border-width: 0 2px 2px 0; }
+  #scope-v .af { left: 50%; top: 50%; width: 72px; height: 54px; margin: -27px 0 0 -36px; --c: linear-gradient(rgba(255, 255, 255, .55), rgba(255, 255, 255, .55));
+    background: var(--c) 0 0 / 12px 1.5px, var(--c) 0 0 / 1.5px 12px, var(--c) 100% 0 / 12px 1.5px, var(--c) 100% 0 / 1.5px 12px,   /* (only its corners) */
+      var(--c) 0 100% / 12px 1.5px, var(--c) 0 100% / 1.5px 12px, var(--c) 100% 100% / 12px 1.5px, var(--c) 100% 100% / 1.5px 12px; background-repeat: no-repeat; }
+  #scope-v b { position: absolute; left: 36px; top: 15px; font-weight: 600; }
+  #scope-v .wt { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; font-size: 10px; }
+  #scope-v .wt span { position: relative; width: 110px; height: 4px; border: 1px solid rgba(255, 255, 255, .8); border-radius: 2px; }
+  #scope-v .wt em { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 255, 255, .85); }
   #boot { position: fixed; inset: 0; display: grid; place-items: center; color: var(--dim); letter-spacing: .2em; text-transform: uppercase; font-size: 11px; }
   /* test aid: camera log, the recording indicator (top centre) and the replay bar (bottom centre) */
   #rec { position: fixed; left: 50%; top: 58px; transform: translateX(-50%); padding: 6px 12px; border-radius: 999px; display: none;
@@ -249,8 +277,9 @@
 <button id="hud-btn" type="button" aria-expanded="true" title="Information: expand / restrain (the mouse on the line at the right edge shows it for a moment)">&gt;</button>
 <div id="hud-line" aria-hidden="true"></div>
 <section id="hud" class="panel" aria-live="off">
-  <div id="mode"><span id="mode-t"></span><span id="mode-body"></span></div>
-  <!-- (user, 2026-10-28) the simulation speed buttons where the "W/S move" text was; the W/S move button stays at the right -->
+  <div id="mode"><span id="mode-t"></span></div>
+  <!-- (user, 2026-10-28) the simulation speed buttons where the "W/S move" text was; (user, 2026-10-29) the W/S move button
+       gone: the view is chosen in the menu (Reference system → celestial body → view) -->
   <div id="move-row">
     <div id="speed-row">
       <button id="slower" type="button" aria-label="Slower" title="Slower">&minus;</button>
@@ -259,21 +288,32 @@
       <button id="faster" type="button" aria-label="Faster" title="Faster">+</button>
       <span id="speedval" title="Simulation speed: Earth hours (h), days (d), weeks (wk), months (mo) or years (yr) per second"></span>
     </div>
-    <button id="move-btn" title="Switch the W/S move"></button>
   </div>
+  <!-- (user, 2026-10-30) in the order of REQ-01.1 -->
   <div class="rows">
+    <span id="abs-l">Speed in space</span><span id="abs" class="abs"></span>
     <span>Camera x, y, z</span><span id="pos-au"></span>
     <span id="pos-km-l"></span><span id="pos-km" class="km"></span>
     <span>Pan / tilt</span><span id="angles"></span>
-    <span id="meridian-l"></span><span id="meridian"></span>
   </div>
   <div id="hud-more">
   <div class="rows more">
     <span id="dist-l">Distance to Pluto</span><span id="dist"></span>
     <span>Distance to the Sun</span><span id="dist-sun"></span>
-    <span>Travel speed</span><span id="speed"></span>
+    <span id="meridian-l"></span><span id="meridian"></span>
   </div>
-  <div class="credit">Pluto surface: NASA / JHUAPL / SwRI (New Horizons). The far south was never photographed; it is filled in. Mercury, Venus (its clouds), Earth, the Moon, Mars, Jupiter, Saturn and its rings, Uranus, Neptune: Solar System Scope (CC BY 4.0).</div>
+  <div class="rows body">
+    <span id="orb-v-l">Speed on its orbit</span><span id="orb-v"></span>
+    <span>Orbit tilt</span><span id="orb-i"></span>
+    <span>Orbit period</span><span id="orb-p"></span>
+    <span>Rotation period</span><span id="rot-p"></span>
+    <span>Radius</span><span id="b-r"></span>
+    <span>Volume</span><span id="b-vol"></span>
+    <span>Mass</span><span id="b-kg"></span>
+    <span>Cam speed</span><span id="speed"></span>
+  </div>
+  <div class="desc" id="b-text"></div>
+  <div class="credit" id="b-map"></div>
   </div>
   <button id="hud-ext" type="button" aria-expanded="true" title="Show / hide the rest of the information">^</button>
 </section>
@@ -286,7 +326,7 @@
        Load camera log…, Help (its submenu: Intro, Controls, About) -->
   <div id="menu-list" class="panel" role="menu">
     <div class="sub" id="sub-ref-wrap"><button id="menu-ref" type="button" role="menuitem" aria-haspopup="true">Reference system</button>
-      <div id="sub-ref" class="panel submenu" role="menu"></div></div>
+      <div id="sub-ref" class="panel submenu" role="menu"><div id="sub-view" class="panel submenu" role="menu"></div></div></div>
     <button id="menu-load-log" type="button" role="menuitem">Load camera log…</button>
     <div class="sub" id="sub-help-wrap"><button id="menu-help" type="button" role="menuitem" aria-haspopup="true">Help</button>
       <div id="sub-help" class="panel submenu" role="menu">
@@ -361,6 +401,8 @@
 </section>
 
 <div id="toast" class="panel" role="status"></div>
+<div id="hover-names" class="panel" aria-hidden="true"></div>
+<div id="scope" aria-hidden="true"></div><div id="scope-v" aria-hidden="true"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i><i class="af"></i><b>8&times;</b><div class="wt">W<span><em></em></span>T</div></div>
 <div id="rec" class="panel" aria-live="polite"></div>
 <section id="replay-side" aria-label="Camera log replay: the camera's view and the buttons">
   <div id="rp-view"><span>Camera view</span></div>
@@ -472,7 +514,7 @@ function makeOrbit(a, e, iDeg, nodeDeg, periDeg) {
   // unit vectors of the orbit plane: towards the perihelion (Px) and 90° ahead of it (Qx), in ecliptic coordinates
   const Px = [cO * cw - sO * sw * ci, sO * cw + cO * sw * ci, sw * si], Qx = [-cO * sw - sO * cw * ci, -sO * sw + cO * cw * ci, cw * si];
   const E0 = 2 * Math.atan(Math.sqrt((1 - e) / (1 + e)) * Math.tan(-w / 2));
-  return { a, e, b: a * Math.sqrt(1 - e * e), Px, Qx, M: E0 - e * Math.sin(E0), peri: periDeg * DEG };   // M: mean anomaly now
+  return { a, e, b: a * Math.sqrt(1 - e * e), Px, Qx, M: E0 - e * Math.sin(E0), peri: periDeg * DEG, i: iDeg };   // M: mean anomaly now
 }
 // The planets: real orbit, radius (km), rotation axis (pole RA, Dec) and surface map (Solar System Scope, CC BY 4.0;
 // Pluto: New Horizons, see plutoTexture; embedded at the end of this page). They spin once every ROT_PERIOD seconds (rotH,
@@ -569,13 +611,56 @@ const moonAt = t => add(orbitAt(EARTH.orbit, EARTH.orbit.M - TAU * (trailT - t) 
 const MOON = { name: 'Moon', tex: 'tex-moon', km: 1737.4, r: 1737.4 / AU_KM, color: 0xc9c9c9, orbit: null };
 const BODIES = [SUN, ...PLANETS, MOON];
 const theName = b => b === SUN || b === MOON ? 'the ' + b.name : b.name;   // "the Sun", "the Moon", "Earth"
+// The information panel's extension about the reference celestial body (REQ-01.1, user 2026-10-30): its mass (kg), its
+// rotation period (Earth days; the planets' from rotH), a short description and the source of its surface map
+const MAP_SSS = 'Solar System Scope (CC BY 4.0)';
+const BODY_INFO = {
+  Sun: { kg: 1.989e30, rotD: 25.38, rotNote: ' (equator)', map: 'none: the Sun is drawn as a plain bright disc',
+    text: 'A yellow dwarf star, 99.86% of the mass of the solar system. Being gas, it turns faster at its equator (25 days) than near its poles (about 35 days). With all its planets it goes around the center of the Milky Way at about 230 km/s, one turn in about 230 million years.' },
+  Mercury: { kg: 3.301e23, map: MAP_SSS,
+    text: 'The smallest planet and the nearest to the Sun. It turns 3 times on its axis for every 2 orbits, so from one sunrise to the next 176 Earth days pass. It has no air: about 430 \u00b0C by day, \u2212180 \u00b0C at night.' },
+  Venus: { kg: 4.867e24, rotNote: ' (backward)', map: MAP_SSS + ', its cloud cover (its surface is never seen from space)',
+    text: 'Almost as large as the Earth, always covered by thick clouds of sulfuric acid. It turns backwards, and so slowly that its day is longer than its year. Its thick carbon dioxide air makes it the hottest planet: about 465 \u00b0C.' },
+  Earth: { kg: 5.972e24, map: MAP_SSS,
+    text: 'The only world known to have life and liquid water on its surface. Its axis is tilted 23.4\u00b0 to its orbit, which gives the seasons; the Moon keeps this tilt steady.' },
+  Moon: { kg: 7.346e22, rotD: 27.32, map: MAP_SSS,
+    text: 'It always shows the same face to the Earth: the tides raised in it by the Earth slowed its spin until one turn took exactly one orbit (tidal locking). It moves away from the Earth by about 3.8 cm a year. Seen from the Earth it is almost as large as the Sun, so solar eclipses can be total.' },
+  Mars: { kg: 6.417e23, map: MAP_SSS,
+    text: 'The red planet: its dust is rich in iron oxide (rust). It has the highest volcano in the solar system, Olympus Mons (about 22 km), and a canyon 4 000 km long, Valles Marineris. Its day is almost the Earth\'s: 24 h 37 min.' },
+  Jupiter: { kg: 1.898e27, map: MAP_SSS,
+    text: 'The largest planet, more than twice the mass of all the other planets together. It has the shortest day, under 10 hours, which flattens it visibly. Its Great Red Spot is a storm larger than the Earth, seen for more than 150 years.' },
+  Saturn: { kg: 5.683e26, map: MAP_SSS + ', its rings too',
+    text: 'Its rings, about 280 000 km across, are mostly only 10 m to 1 km thick, made of pieces of ice. It is the least dense planet, lighter than water. It has more than 140 known moons.' },
+  Uranus: { kg: 8.681e25, rotNote: ' (backward)', map: MAP_SSS,
+    text: 'It lies on its side: its axis is tilted 98\u00b0, so each pole has about 42 years of day and then 42 years of night. A blue-green ice giant (the methane in its air), it turns backwards.' },
+  Neptune: { kg: 1.024e26, map: MAP_SSS,
+    text: 'The farthest planet, a blue ice giant with the strongest winds in the solar system (up to about 2 000 km/h). It was found in 1846 by calculation, from its pull on Uranus, before it was seen. Since then it has made only one orbit (165 years).' },
+  Pluto: { kg: 1.303e22, rotNote: ' (backward)', map: 'NASA / JHUAPL / SwRI (New Horizons); the far south was never photographed, it is filled in',
+    text: 'A dwarf planet of the Kuiper belt, smaller than the Moon. Its orbit is so long and tilted (17\u00b0) that for 20 of its 248 years it is nearer to the Sun than Neptune, but the two never meet (3 of Neptune\'s orbits take 2 of Pluto\'s). Its moon Charon is half its size; the two always show each other the same face.' },
+};
+// velocities (AU per Earth year, in space): of a planet on its orbit, of the Moon around the Earth; the Sun's through
+// absolute space along its path (SUN_SPEED_KMS, see TRAIL_SPEED)
+const KMS = AU_KM / (365.25 * 86400);   // 1 AU per Earth year in km/s
+function orbitVel(b) {
+  if (b === MOON) { const h = 1e-4; return sub(moonRelT(trailT + h / 2), moonRelT(trailT - h / 2)).map(v => v / h); }
+  const o = b.orbit, h = 1e-5;
+  return sub(orbitAt(o, o.M + h / 2), orbitAt(o, o.M - h / 2)).map(v => v / h * TAU / o.period);
+}
+// the speed of a celestial body in absolute space (km/s): the Sun's velocity plus its own on its orbit (the Moon: plus the
+// Earth's), REQ-01.1
+function absSpeed(b) {
+  let v = SUN_DIR.map(x => x * SUN_SPEED_KMS / KMS);
+  if (b !== SUN) v = add(v, orbitVel(b));
+  if (b === MOON) v = add(v, orbitVel(EARTH));
+  return len(v) * KMS;
+}
 // the minimum apparent radius (user, 2026-10-28): the planets half of what it was, Pluto seen from 400 000 km (≈ 0.17°);
 // the Sun as it was, Pluto seen from 200 000 km (≈ 0.34°), twice the planets', so far away it is the biggest dot (as in
 // the solar system simulation's spec)
 const MIN_APPARENT_DISTANCE_KM = 400000;     // [REQ-02.2] never smaller than Pluto seen from 400 000 km (was 200 000)
 const MIN_APPARENT_RADIUS = Math.atan(PLUTO_R_KM / MIN_APPARENT_DISTANCE_KM);   // ≈ 0.17°, the planets
 const SUN_MIN_APPARENT_RADIUS = Math.atan(PLUTO_R_KM / 200000);                 // ≈ 0.34°, the Sun
-const MOON_MIN_APPARENT_RADIUS = .8 * MIN_APPARENT_RADIUS;                       // ≈ 0.136°, the Moon: 80% of the planets' (user, 2026-10-29; was half)
+const MOON_MIN_APPARENT_RADIUS = .5 * MIN_APPARENT_RADIUS;                       // ≈ 0.085°, the Moon: half the planets' (user, 2026-10-30; was 80%)
 const minApparent = b => b === SUN ? SUN_MIN_APPARENT_RADIUS : b === MOON ? MOON_MIN_APPARENT_RADIUS : MIN_APPARENT_RADIUS;
 const MIN_DOT_PX = 4;                        // dot diameter floor, ~3 fully coloured px (closer than 400 AU; back in the spec, user 2026-10-29) [REQ-02.2]
 const ANGULAR_SPEED = 30 * DEG;              // meridian / parallel moves, per second [REQ-02]
@@ -765,37 +850,40 @@ function setMode(mode) {
   C.mode = mode; C.wheel = 0; motion.v = motion.h = motion.r = null; LP.valid = false; SL.valid = false;
   // (into body mode on the equator, BODY_EQ: the turntable needs a picture level to the equator: it levels)
   if (mode === 'body') bodyFramed(() => { if (!bodyCentre() && !LEVELED_PAN && C.roll) C.leveling = true; });
-  toast(mode === 'body' ? 'Celestial body reference system' : 'Absolute space reference system');
+  toast(refTitle());
 }
 
-// test aid (user, 2026-10-22): the W/S move chosen with the button under the mode's name, in turn: tilted meridian,
-// meridian (user, 2026-10-24), pole view (user, 2026-10-25: the leveled pan of 2026-10-24, with its two pans, leveled
-// / rotating, chosen with the button above the gauge), turntable. The pole view and the turntable need a level
-// picture: switching to them brings the picture back to level (around the line to the body's centre, as the switch to
-// absolute mode; once level, the head is that of space again; already level: the head is that of space at once).
-function switchMove() {
-  bodyFramed(switchMove_);
-  // the Sun locked view is on the ecliptic: level to it (switchMove_ ran in the body frame, where the picture may already
+// The view of the reference celestial body (its W/S move), chosen in the menu (user, 2026-10-29: Reference system → the
+// celestial body → its view; until then a button in the information panel switched them in turn): tilted meridian,
+// meridian (user, 2026-10-24), pole view (user, 2026-10-25: the leveled pan of 2026-10-24, with its two pans, leveled /
+// rotating, chosen with the button above the gauge), Sun locked (not on the Sun), Moon locked (on the Earth) / Earth
+// locked (on the Moon), turntable. The pole view and the turntable need a level picture: switching to them brings the
+// picture back to level (around the line to the body's centre, as the switch to absolute mode; once level, the head is
+// that of space again; already level: the head is that of space at once).
+const VIEWS = [['tilted', 'Tilted meridian'], ['meridian', 'Meridian'], ['pole', 'Pole view'], ['sun', 'Sun locked'], ['other', ''], ['turntable', 'Turntable']];
+// the views of body b, in the menu's order
+const viewsFor = b => VIEWS.filter(([k]) => k === 'sun' ? b !== SUN : k === 'other' ? b === EARTH || b === MOON : true)
+  .map(([k, name]) => [k, k === 'other' ? (b === EARTH ? MOON : EARTH).name + ' locked' : name]);
+const viewKey = () => TILTED_MERIDIAN ? 'tilted' : MERIDIAN_VIEW ? 'meridian' : LEVELED_PAN ? 'pole' : SUN_LOCK ? (LOCK === SUN ? 'sun' : 'other') : 'turntable';
+function selectView(v) {
+  if (v === viewKey()) return;
+  bodyFramed(() => selectView_(v));
+  // the Sun locked view is on the ecliptic: level to it (selectView_ ran in the body frame, where the picture may already
   // have been level to the equator)
   if (SUN_LOCK && C.mode === 'body' && Math.abs(wrapPi(C.roll)) > 1e-9) { C.leveling = true; C.levelSpeed = 0; }
 }
-function switchMove_() {
-  if (TILTED_MERIDIAN) { TILTED_MERIDIAN = false; MERIDIAN_VIEW = true; }
-  else if (MERIDIAN_VIEW) { MERIDIAN_VIEW = false; LEVELED_PAN = true; }
-  else if (LEVELED_PAN) { LEVELED_PAN = false; SUN_LOCK = REF !== SUN; }   // (the Sun locked view has no meaning on the Sun)
-  else if (SUN_LOCK && LOCK === SUN && lockOther()) {   // Sun locked → Moon / Earth locked
-    LOCK = lockOther();
-    // the Moon locked and the Earth locked views at 1 day per second (user, 2026-10-29: faster, the Moon goes round too
-    // fast to follow)
-    simSpeed = SIM_SPEEDS.findIndex(s => s[1] === '1 d/s'); showSpeed();
-  }
-  else if (SUN_LOCK) { SUN_LOCK = false; LOCK = SUN; }
-  else TILTED_MERIDIAN = true;
+function selectView_(v) {
+  TILTED_MERIDIAN = v === 'tilted'; MERIDIAN_VIEW = v === 'meridian'; LEVELED_PAN = v === 'pole';
+  SUN_LOCK = v === 'sun' || v === 'other'; LOCK = v === 'other' ? lockOther() : SUN;
+  // the Moon locked and the Earth locked views at 1 day per second (user, 2026-10-29: faster, the Moon goes round too
+  // fast to follow)
+  if (v === 'other') { simSpeed = SIM_SPEEDS.findIndex(s => s[1] === '1 d/s'); showSpeed(); }
   motion.v = motion.h = motion.r = null; lastMove.v = null; lastMove.h = null; resetMeridian(); LP.valid = false; SL.valid = false;
   if (!bodyCentre()) { if (C.roll) C.leveling = true; else C.head = null; }
-  toast('W/S move: ' + moveName().toLowerCase());
 }
 const moveName = () => TILTED_MERIDIAN ? 'Tilted meridian' : MERIDIAN_VIEW ? 'Meridian' : LEVELED_PAN ? 'Pole view' : SUN_LOCK ? lockName() : 'Turntable';
+// what was chosen in the menu (the information panel's first line): "Neptune - pole view", "Earth - Moon locked", "Absolute space"
+const refTitle = () => C.mode === 'body' ? REF.name + ' - ' + (SUN_LOCK ? lockName() : moveName().toLowerCase()) : 'Absolute space';
 // the pole view's pan, leveled / rotating (the button above the gauge): the same circle C, only the picture turns to its
 // new up (see lpView's entering)
 const panName = () => LP_ROTATING ? 'Rotating pan' : 'Leveled pan';
@@ -853,7 +941,12 @@ addEventListener('keydown', e => {
     e.preventDefault();
   }
   else if (k === 'home') { forgetMoves(); resetMeridian(); startHome(); toast('Home view'); e.preventDefault(); }
-  else if (k === 'r') { toggleRecord(); e.preventDefault(); }
+  // R (user, 2026-10-30): run / stop, as the button (no need to move the mouse, e.g. away from the zoom screen's place);
+  // the camera's recording moved to Shift+R
+  else if (k === 'r') { if (e.shiftKey) toggleRecord(); else runBtn.click(); e.preventDefault(); }
+  else if (k === 't') { toggleScope(); e.preventDefault(); }
+  else if ((k === '+' || k === '=' || k === '-') && scope.on) { zoomScope(k === '-' ? -1 : 1); e.preventDefault(); }
+  else if (k === 'h') { toggleGuides(); e.preventDefault(); }
   else if (k === 'n') { addNote(); e.preventDefault(); }
 });
 addEventListener('keyup', e => { const k = KEYMAP[e.key.toLowerCase()]; if (k) held.delete(k); });
@@ -1039,8 +1132,8 @@ function rotate(v, k, a) {
 // of the W/S move reset it. W goes forward / up as seen on the screen, S back on the same circle.
 // Speed: ANGULAR_SPEED along the circle (user, 2026-10-22: no limit on the pan's change, it slowed the move too much near
 // the poles).
-// TILTED_MERIDIAN = false: the turntable move of test_simulation_v_1.1 (the W/S move button on the page switches them).
-let TILTED_MERIDIAN = false;   // switched on the page (test aid, see the W/S move button)
+// TILTED_MERIDIAN = false: the turntable move of test_simulation_v_1.1 (the view is chosen in the menu, see VIEWS).
+let TILTED_MERIDIAN = false;   // chosen in the menu (see selectView)
 // The meridian view (user, 2026-10-24): the classic latitude / longitude one, on the body centre reference as the tilted
 // meridian view (the head's pan axis the camera radius, the mouse the same, nothing levelled): W/S walk the real
 // meridian through the camera (as the tilted meridian view's real meridian, merAxis stays null), A/D the real parallel
@@ -1091,17 +1184,17 @@ let LEVELED_PAN = false;
 // Sun: as the body moves along its orbit, the camera and its view turn around the body's ecliptic z axis with the Sun's
 // direction, so the body, the Sun and the day / night border stay where they are on the screen. The mouse only turns the
 // view (level, tilt within ±90°). Entering it, the camera stays where it is (the picture levels first).
-// The lock is exact (user, 2026-10-28, option 1): every frame the camera turns with the Sun's direction (seen from the
-// body), by the smallest turn from its old direction to its new one, so the body, the Sun and the day / night border stay
-// exactly where they are; the camera works in its own frame (SL.frame) that turns the same way: its z is the ecliptic's
-// z when the view is entered, so the picture starts level to the ecliptic and then leans only by the change of the Sun's
-// height above the body ecliptic since then (Pluto's orbit is tilted 17°: within ±17°, at most about 0.4° per year).
-// W/S, A/D, the wheel and the mouse work in that frame.
+// The head stays level to the ecliptic, as in absolute space (user, 2026-10-29, replacing the exact lock of 2026-10-28):
+// every frame the camera turns with the Sun's direction (seen from the body) only around the ecliptic's z, by the Sun's
+// change of direction sideways; its change of height above the body ecliptic is not followed, it is real (Pluto's orbit
+// is tilted 17°: the Sun goes up and down within ±17°, at most about 0.4° per year), so the Sun slides up / down and the
+// day / night border turns as they really do. The picture turn stays 0. The camera works in its own frame (SL.frame: z
+// the ecliptic's z, x towards the Sun's side), which turns the same way; W/S, A/D, the wheel and the mouse work in it.
 let SUN_LOCK = true;   // (user, 2026-10-28: the program starts in the Sun locked view, REQ-02)
 // The locked view's target (user, 2026-10-28): the Sun; on the Earth also the Moon ("Moon locked": the Moon's phases),
 // on the Moon also the Earth ("Earth locked": the Moon always shows the Earth the same face; the Sun's eclipses on the
-// Earth). The same view, with the target's direction instead of the Sun's (see stepSunLock); the W/S move button goes
-// Sun locked → Moon / Earth locked → turntable. In these two the other body is drawn as large as the reference one (see
+// Earth). The same view, with the target's direction instead of the Sun's (see stepSunLock); chosen in the menu after
+// the Sun locked view (see VIEWS). In these two the other body is drawn as large as the reference one (see
 // drawnR); its place and path stay real.
 let LOCK = null;   // (set to SUN with the bodies, see setRef: null here only before they exist)
 const lockName = () => (LOCK && LOCK !== SUN ? LOCK.name : 'Sun') + ' locked';
@@ -1118,16 +1211,14 @@ function basisSwap(B, into) {
 }
 const sunFramed = fn => { basisSwap(SL.frame, true); try { return fn(); } finally { basisSwap(SL.frame, false); } };
 function stepSunLock(dt, vKey, hKey, w) {
-  if (REF === SUN) return;   // (not on the Sun, see switchMove_ and setRef)
+  if (REF === SUN) return;   // (not on the Sun, see viewsFor and setRef)
   const sun = unit(sub(LOCK.p, P));   // the target's direction from the body (the Sun: the origin)
   if (!SL.valid) {
     const z = [0, 0, 1], x = unit([sun[0], sun[1], 0]);
     SL.frame = [x, cross(z, x), z]; SL.sun = sun; SL.valid = true;
   }
-  // the camera and its frame turn with the Sun's direction, in two turns: around the ecliptic's z by the Sun's change of
-  // direction sideways, then up / down (around the horizontal line across the Sun's direction) by the change of its
-  // height above the body ecliptic; so the frame's z leans only by that change of height since the view was entered
-  // (for Pluto within ±17°; the smallest turn, around the orbit's normal, made it swing up to 34°)
+  // the camera and its frame turn with the Sun's direction around the ecliptic's z only, by the Sun's change of direction
+  // sideways (its change of height is real and stays seen; the head stays level)
   const turn = (k, ang) => {
     if (!ang) return;
     const f = rotate(viewDir(), k, ang), u = rotate(picUp(), k, ang);
@@ -1136,8 +1227,6 @@ function stepSunLock(dt, vKey, hKey, w) {
   };
   const dLon = wrapPi(Math.atan2(sun[1], sun[0]) - Math.atan2(SL.sun[1], SL.sun[0]));
   turn([0, 0, 1], dLon);
-  const s1 = rotate(SL.sun, [0, 0, 1], dLon), ax = cross(s1, sun), sa = len(ax);
-  if (sa > 1e-15) turn(ax.map(v => v / sa), Math.atan2(sa, dot(s1, sun)));
   SL.sun = sun;
   sunFramed(() => {
     let q = rel();
@@ -1970,7 +2059,8 @@ function orbitLine(o, color) {
 const orbitLines = [...PLANETS.map(pl => orbitLine({ at: E => orbitPoint(pl.orbit, E), size: pl.orbit.a }, pl.color)),
   // the Moon's orbit around the Earth where it is now: its path over one month, from half a month ago to half a month
   // ahead (it does not close exactly: the orbit turns and the Sun disturbs it)
-  orbitLine({ at: s => add(EARTH.p, moonRelT(trailT + (s / TAU - .5) * MOON_MONTH)), size: MOON_A_AU }, MOON.color)];
+  // (drawn with the Moon's distance from the Earth enlarged as the Moon is, see moonSpread)
+  orbitLine({ at: s => add(EARTH.p, moonRelT(trailT + (s / TAU - .5) * MOON_MONTH).map(v => v * moonSpread)), get size() { return MOON_A_AU * moonSpread; } }, MOON.color)];
 function updateOrbitLine({ o, l }, cam) {
   let best = 0, bd = Infinity;
   for (let i = 0; i < ORBIT_SAMPLES; i++) {   // the camera's nearest orbit point, coarse, then refined by halving
@@ -2020,7 +2110,46 @@ function trail(o, r, drawn, moon) {
   const h = o ? Math.max(o.period / 180, TRAIL_AGE / TRAIL_KEEP) : 1;
   const posAt = moon ? moonAt : t => o ? orbitAt(o, o.M - TAU * (trailT - t) / o.period) : [0, 0, 0];   // where the body was at t
   return { l, o, r, drawn, posAt, h, moon, last: trailT - h, pts: [], buf: g.attributes.instanceStart.data,   // pts: [x, y, z, t] – where the body was at t
-    gap: 0, plume: plume(), near: nearLine() };
+    gap: 0, plume: plume(), near: nearLine(), base: 0, blocks: new Map() };   // base: the points dropped so far (see trailBlock)
+}
+// Trail blocks (user, 2026-10-30: the trails made the picture slow once they were long): all the points of a trail drift
+// together, so a piece of trail keeps its shape. Block k holds the segments between the points k·TRAIL_BLOCK and
+// (k + 1)·TRAIL_BLOCK (counted from the first point the trail ever had, so tr.base + the index in tr.pts); it is made once
+// (the points where they would be at trailClock 0, relative to the first one, so that 32 bits are enough) and is then only
+// moved by the drift. A block is drawn this way only where the trail would be drawn the same: far enough from the camera
+// that no segment would be split or cut finer (see seg and tessellate), outside the gap at the body and younger than the
+// trail's end; otherwise its points are drawn with the rest, as before. The cost per picture then hardly grows with the
+// trail's length.
+const TRAIL_BLOCK = 512;
+const undrifted = p => { const d = -TRAIL_SPEED * p[4]; return [(p[0] + TRAIL_DIR[0] * d) * U, (p[2] + TRAIL_DIR[2] * d) * U, -(p[1] + TRAIL_DIR[1] * d) * U]; };
+function trailBlock(tr, k) {
+  let b = tr.blocks.get(k);
+  if (b) return b;
+  const i0 = k * TRAIL_BLOCK - tr.base, pts = tr.pts, O = undrifted(pts[i0]), arr = [], lo = [Infinity, Infinity, Infinity], hi = lo.map(x => -x);
+  let maxL = 0;
+  for (let i = i0; i < i0 + TRAIL_BLOCK; i++) {
+    if (!joined(pts[i + 1], pts[i])) continue;   // (pieces not joined are not connected, see joined)
+    const A = undrifted(pts[i + 1]), B = undrifted(pts[i]);
+    maxL = Math.max(maxL, Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]));
+    for (const q of [A, B]) for (let j = 0; j < 3; j++) { arr.push(q[j] - O[j]); lo[j] = Math.min(lo[j], q[j]); hi[j] = Math.max(hi[j], q[j]); }
+  }
+  b = { O, cMin: pts[i0][4], maxL, c: lo.map((x, j) => (x + hi[j]) / 2), r: Math.hypot(...lo.map((x, j) => (hi[j] - x) / 2)), m: null };
+  if (arr.length) {
+    const g = new LineSegmentsGeometry();
+    g.setPositions(new Float32Array(arr));
+    b.m = new LineSegments2(g, trailMaterial); b.m.visible = false; scene.add(b.m);
+  }
+  tr.blocks.set(k, b);
+  return b;
+}
+// is block b drawn as a block now (see trailBlock)? D: the drift now (scene units), tEnd: the trail's end
+function blockFits(tr, b, cam, D, tEnd) {
+  if (b.cMin < tEnd) return false;
+  const cx = b.c[0] + D[0], cy = b.c[1] + D[1], cz = b.c[2] + D[2];
+  const dS = Math.hypot(cx - cam.x, cy - cam.y, cz - cam.z) - b.r;   // the nearest the block can be to the camera
+  return dS > 0 && b.maxL < TRAIL_SPLIT * dS && b.r < 1000 * dS &&   // (no split, no finer cut, 32 bits enough)
+    Math.hypot(cx - tC.x, cy - tC.y, cz - tC.z) - b.r > tr.gap &&
+    !(tr.moon && MOON_A_AU * U > .5 * camera.fov * DEG / innerHeight * dS);
 }
 // the piece of a trail that the plume replaces (from TRAIL_GAP to TRAIL_GAP + PLUME_LEN radii): a separate straight line
 // whose brightness changes along it (see updatePlume). Its colours are added to the picture: on the dark sky that looks
@@ -2196,7 +2325,11 @@ function updateTrail(tr, cam) {
   let k = 0;   // drop the points whose next point is also too old
   while (pts.length - k > 2 && pts[k + 1][4] <= tEnd) k++;
   if (pts.length - k > TRAIL_POINTS) k = pts.length - TRAIL_POINTS;
-  if (k) pts.splice(0, k);
+  if (k) { pts.splice(0, k); tr.base += k; }
+  for (const [kb, b] of tr.blocks) {   // blocks whose first point is gone are no longer needed
+    if (b.m) b.m.visible = false;
+    if (kb * TRAIL_BLOCK < tr.base) { if (b.m) { scene.remove(b.m); b.m.geometry.dispose(); } tr.blocks.delete(kb); }
+  }
   const arr = tr.buf.array;
   // from the body itself back to the oldest point; near the camera a segment is split (with exact points of the body's
   // path in between) until each piece is short compared with its distance from the camera, so that a trail never shows
@@ -2228,9 +2361,22 @@ function updateTrail(tr, cam) {
   let n = 0, a = nowPt(posAt, trailT);
   if (timeDir < 0) { tr.l.geometry.instanceCount = 0; return; }   // (no trails while time goes backward)
   drifted(a, tC);   // the body's centre
-  // (pieces of trail not joined, see joined, are not connected: after time went backward)
-  for (let i = pts.length - 1; i >= 0; i--) { if (joined(a, pts[i]) && !seg(a, pts[i], 0)) break; a = pts[i]; }
-  tr.l.geometry.instanceCount = n / 6; tr.buf.needsUpdate = true;
+  // (pieces of trail not joined, see joined, are not connected: after time went backward); at the newest segment of a
+  // whole block (see trailBlock) that can be drawn as a block, its segments are left out here
+  const dd = TRAIL_SPEED * trailClock, D = [TRAIL_DIR[0] * dd * U, TRAIL_DIR[2] * dd * U, -TRAIL_DIR[1] * dd * U];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const j = tr.base + i, kb = (j + 1) / TRAIL_BLOCK - 1;
+    if (started && i < pts.length - 1 && Number.isInteger(kb) && kb * TRAIL_BLOCK >= tr.base) {
+      const b = trailBlock(tr, kb);
+      if (blockFits(tr, b, cam, D, tEnd)) {
+        if (b.m) { b.m.visible = true; b.m.position.set(b.O[0] + D[0], b.O[1] + D[1], b.O[2] + D[2]); }
+        i = kb * TRAIL_BLOCK - tr.base; a = pts[i]; continue;
+      }
+    }
+    if (joined(a, pts[i]) && !seg(a, pts[i], 0)) break;
+    a = pts[i];
+  }
+  tr.l.geometry.instanceCount = n / 6; tr.buf.clearUpdateRanges(); tr.buf.addUpdateRange(0, n); tr.buf.needsUpdate = true;   // (only the part used goes to the GPU)
   tr.l.position.copy(cam);
 }
 
@@ -2239,6 +2385,12 @@ function updateTrail(tr, cam) {
 // camera, doubling in length farther away) and drawn relative to the camera. Otherwise 32-bit GPU precision makes the
 // part of a line near the camera jump or vanish when its far end lies millions of km behind the camera.
 const lineSets = [], lineT = [];
+// H (user, 2026-10-30): the orbits and the ecliptic grid shown or not (guides)
+let gridLines, guides = true;
+function toggleGuides() {
+  guides = !guides; gridLines.visible = guides;   // (the orbits: see frame)
+  toast(guides ? 'Orbits and grid shown (H)' : 'Orbits and grid hidden (H)');
+}
 const MAX_LINE_VERTS = 160;   // per segment
 function lines(points, color, opacity) {
   const segs = [];
@@ -2265,11 +2417,18 @@ function tessellate(A, B, cam, arr, n) {
   const ux = dx / L, uy = dy / L, uz = dz / L;
   const t0 = clamp((cam.x - A.x) * ux + (cam.y - A.y) * uy + (cam.z - A.z) * uz, 0, L);   // closest point to the camera
   const d = Math.hypot(A.x + ux * t0 - cam.x, A.y + uy * t0 - cam.y, A.z + uz * t0 - cam.z);
+  if (d * .5 >= L) {   // far from the camera: one piece (most of the trails' segments; no lists made)
+    if (n + 6 > arr.length) return n;
+    arr[n++] = A.x - cam.x; arr[n++] = A.y - cam.y; arr[n++] = A.z - cam.z; arr[n++] = B.x - cam.x; arr[n++] = B.y - cam.y; arr[n++] = B.z - cam.z;
+    return n;
+  }
   lineT.length = 0; lineT.push(0, L, t0);
   for (let step = Math.max(d * .5, 1e-3); step < L; step *= 2) { if (t0 - step > 0) lineT.push(t0 - step); if (t0 + step < L) lineT.push(t0 + step); }
   lineT.sort((a, b) => a - b);
   for (let i = 0; i < lineT.length - 1 && n + 6 <= arr.length; i++) {
-    for (const t of [lineT[i], lineT[i + 1]]) { arr[n++] = A.x + ux * t - cam.x; arr[n++] = A.y + uy * t - cam.y; arr[n++] = A.z + uz * t - cam.z; }
+    const t = lineT[i], t1 = lineT[i + 1];
+    arr[n++] = A.x + ux * t - cam.x; arr[n++] = A.y + uy * t - cam.y; arr[n++] = A.z + uz * t - cam.z;
+    arr[n++] = A.x + ux * t1 - cam.x; arr[n++] = A.y + uy * t1 - cam.y; arr[n++] = A.z + uz * t1 - cam.z;
   }
   return n;
 }
@@ -2300,7 +2459,7 @@ function tessellate(A, B, cam, arr, n) {
     }
     for (let i = 0; i < el.length - 1; i++) grid.push(T(...el[i]), T(...el[i + 1]));
   }
-  lines(grid, 0x5b7cc4, .35);
+  gridLines = lines(grid, 0x5b7cc4, .35);
   // the cylinder's outline: its two end circles and 4 lines along it
   const c = [], at = (s, a) => D.map((v, k) => s * v + SPACE.r * (Math.cos(a) * E1[k] + Math.sin(a) * E2[k]));
   for (const s of [SPACE.s0, SPACE.s1]) for (let i = 0; i < 96; i++) c.push(T(...at(s, i * TAU / 96)), T(...at(s, (i + 1) * TAU / 96)));
@@ -2476,6 +2635,44 @@ function updateBodyAxis(ax, centre, radius, named) {
   }
   pos.needsUpdate = true;
 }
+// (user, 2026-10-29) a label of a point at distance d from the camera stays behind the celestial bodies nearer than it:
+// it is masked by their outlines on the screen (as drawn: their drawn radius, group.scale), so a body passing over it
+// covers it as it covers the lines. The outline is the sphere's real one: its tangent circle seen from the camera,
+// projected (away from the screen's centre perspective stretches it, a circle of the centre's size missed it); when that
+// circle reaches behind the camera, the label is hidden if its point is behind the sphere.
+const vCov = new THREE.Vector3(), COVER_N = 32;
+function coverLabel(el, d, pt) {
+  const r = el.getBoundingClientRect(), masks = [], o = camera.position;
+  let hide = false;
+  for (const b of BODIES) {
+    const c = b.group.position, D = o.distanceTo(c), sr = b.group.scale.x;
+    if (!b.group.visible || D >= d || D <= sr) continue;
+    const u = vCov.copy(c).sub(o).divideScalar(D), ux = u.x, uy = u.y, uz = u.z;
+    // two unit vectors across u, and the tangent circle (centre m, radius rho)
+    let e1 = Math.abs(ux) < .9 ? [0, -uz, uy] : [-uz, 0, ux]; const n1 = Math.hypot(...e1); e1 = e1.map(v => v / n1);
+    const e2 = [uy * e1[2] - uz * e1[1], uz * e1[0] - ux * e1[2], ux * e1[1] - uy * e1[0]];
+    const m = [c.x - ux * sr * sr / D, c.y - uy * sr * sr / D, c.z - uz * sr * sr / D], rho = sr * Math.sqrt(1 - sr * sr / (D * D));
+    const pts = []; let ok = true, minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+    for (let k = 0; k < COVER_N && ok; k++) {
+      const a = TAU * k / COVER_N, ca = Math.cos(a) * rho, sa = Math.sin(a) * rho;
+      proj(vCov.set(m[0] + e1[0] * ca + e2[0] * sa, m[1] + e1[1] * ca + e2[1] * sa, m[2] + e1[2] * ca + e2[2] * sa));
+      if (vCov.z <= -1 || vCov.z >= 1) { ok = false; break; }
+      const x = (vCov.x * .5 + .5) * innerWidth - r.left, y = (-vCov.y * .5 + .5) * innerHeight - r.top;
+      pts.push(x.toFixed(1) + ' ' + y.toFixed(1));
+      minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    }
+    if (!ok) { if (behindSphere(pt, c, sr)) hide = true; continue; }
+    if (maxX < 0 || minX > r.width || maxY < 0 || minY > r.height) continue;
+    // an image as large as the label: opaque, with the outline cut out (even-odd)
+    const w = Math.ceil(r.width), h = Math.ceil(r.height);
+    masks.push(`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'><path fill-rule='evenodd' d='M-1 -1H${w + 1}V${h + 1}H-1Z M${pts.join(' L')}Z'/></svg>`)}")`);
+  }
+  el.style.visibility = hide ? 'hidden' : '';
+  const m = hide ? '' : masks.join(', ');
+  if (el._mask === m) return;
+  el._mask = m; el.style.maskImage = m; el.style.maskComposite = masks.map(() => 'intersect').join(', ');
+  el.style.maskRepeat = 'no-repeat'; el.style.maskSize = '100% 100%';
+}
 // is point p hidden by the sphere (centre c, radius s) as seen from the camera?
 function behindSphere(p, c, s) {
   const o = camera.position, dx = p.x - o.x, dy = p.y - o.y, dz = p.z - o.z, L = Math.hypot(dx, dy, dz);
@@ -2486,6 +2683,49 @@ function behindSphere(p, c, s) {
 // ───────────────────────── read-out [REQ-01.1] ─────────────────────────
 let toastTimer;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1600); }
+// The names of the celestial bodies under the mouse (user, 2026-10-30): a body is under it when the mouse is on its
+// outline on the screen or less than HOVER_PX from it (small or far bodies are dots); one name per line, in the order of
+// the menu (from the Sun outwards, the Moon after the Earth), just below and right of the mouse. A body hidden by another
+// one, or behind the camera, is left out; nothing is shown while dragging or with the mouse on a panel or the menu.
+const HOVER_PX = 6, HOVER_ORDER = [SUN, ...PLANETS.flatMap(b => b === EARTH ? [b, MOON] : [b])], hover = { x: 0, y: 0, on: false };
+addEventListener('pointermove', e => { hover.x = e.clientX; hover.y = e.clientY; hover.on = e.target === canvas; hover.seen = true; });
+document.addEventListener('pointerleave', () => { hover.on = false; });
+const vHov = new THREE.Vector3();
+// In the zoom screen (Z: its zoom, with its own body sizes) the bodies whose disc there touches the focus frame (user
+// 2026-10-30), all of them.
+function hoverNames(Z = 0) {
+  const names = [];
+  if (hover.on && !dragging) {
+    const o = camera.position, k = innerHeight / 2 / Math.tan(camera.fov * DEG / 2) * (Z || 1);
+    for (const b of HOVER_ORDER) {
+      const c = b.group.position, D = o.distanceTo(c), s = b.group.scale.x;
+      if (!b.group.visible || D <= s) continue;
+      proj(vHov.copy(c));
+      if (vHov.z <= -1 || vHov.z >= 1) continue;
+      const x = (vHov.x * .5 + .5) * innerWidth, y = (-vHov.y * .5 + .5) * innerHeight;
+      const r = Math.max(Math.tan(Math.asin(s / D)) * k, MIN_DOT_PX / 2);
+      if (Z ? Math.hypot(Math.max(0, Math.abs(x - hover.x) * Z - SCOPE_AF[0] / 2), Math.max(0, Math.abs(y - hover.y) * Z - SCOPE_AF[1] / 2)) > r
+        : Math.hypot(x - hover.x, y - hover.y) > r + HOVER_PX) continue;
+      if (BODIES.some(a => a !== b && a.group.visible && behindSphere(c, a.group.position, a.group.scale.x))) continue;
+      names.push(b.name);
+    }
+  }
+  return names;
+}
+function updateHoverNames() {
+  const el = $('hover-names'), names = scope.on ? scope.names : hoverNames();
+  const t = names.join('\n');
+  if (!t) { el.style.display = 'none'; el._t = ''; return; }
+  if (el._t !== t) { el._t = t; el.textContent = ''; for (const n of names) el.appendChild(document.createElement('div')).textContent = n; }
+  el.style.display = 'block';
+  const w = el.offsetWidth, h = el.offsetHeight;
+  let x = hover.x + 14 + w > innerWidth ? hover.x - 8 - w : hover.x + 14, y = hover.y + 18 + h > innerHeight ? hover.y - 8 - h : hover.y + 18;
+  if (scope.on) {   // in the zoom screen's lower right corner (beside its corner bracket), away from the target, user 2026-10-30
+    const r = hover.x + Math.round(innerWidth * SCOPE_SIZE) / 2, b = hover.y + Math.round(innerHeight * SCOPE_SIZE) / 2;
+    x = clamp(r - 36 - w, 4, innerWidth - 4 - w); y = clamp(b - 12 - h, 4, innerHeight - 4 - h);
+  }
+  el.style.transform = `translate(${x}px, ${y}px)`;
+}
 const noNegZero = s => /^-[0.,]+$/.test(s) ? s.slice(1) : s;
 const fmtKm = km => noNegZero(Math.round(km).toLocaleString('en-US'));
 const fmtLen = au => au < .01 ? fmtKm(au * AU_KM) + ' km' : au.toFixed(2) + ' AU';
@@ -2494,18 +2734,15 @@ const pad = (s, n) => s.padStart(n);
 const HINTS = {
   body: [['Drag', 'look around (tilt / pan)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'move on the meridian (forward / backward); tilted meridian: tilt it (turn it around the line to the centre); pole view: the angle of circle C up / down (−80° to +80°)'],
     ['A D ← →', 'move on the parallel (left / right), level the picture; pole view: on the parallel, circle C turns around z'],
-    ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['L', "tilted meridian: lock to the screen's vertical (on / off)"], ['Home', 'home view'], ['R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
+    ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['L', "tilted meridian: lock to the screen's vertical (on / off)"], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 14\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'orbits and ecliptic grid (show / hide)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
   absolute: [['Drag', 'look around (tilt ±90°, pan)'], ['W S ↑ ↓', 'move forward / backward (dolly)'], ['Wheel', 'move forward / backward, parallel to the ecliptic'], ['PgUp PgDn', 'move up / down (crane)'],
-    ['A D ← →', 'move left / right (truck)'], ['Home', 'home view'], ['R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
+    ['A D ← →', 'move left / right (truck)'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 14\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'orbits and ecliptic grid (show / hide)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
 };
 let hintMode = '';
 function updateHud() {
   if (typeof hudSlide !== 'undefined') hudSlide.fit();   // (its content changes size: the line and the button follow)
-  setText($('mode-t'), C.mode === 'body' ? 'Celestial body reference system' : 'Absolute space reference system');
-  setText($('mode-body'), C.mode === 'body' ? REF.name : '');
+  setText($('mode-t'), refTitle());
   showRefMenu();
-  $('move-btn').hidden = C.mode !== 'body';   // (the speed buttons in the same row stay in both modes)
-  setText($('move-btn'), moveName());
   document.body.classList.toggle('absolute', C.mode === 'absolute');
   const p = C.pos, q = rel(), d = len(q);
   setText($('pos-au'), p.map(v => pad(noNegZero(v.toFixed(2)), 7)).join(' ') + ' AU');
@@ -2526,6 +2763,18 @@ function updateHud() {
   updateGauge(showMer, showLp);
   setText($('dist-l'), 'Distance to ' + theName(REF)); setText($('dist'), fmtLen(d));
   setText($('dist-sun'), fmtLen(len(p)));
+  // the reference celestial body (in absolute space mode the last one chosen): its speed in absolute space, its data
+  const b = REF, inf = BODY_INFO[b.name], o = b === MOON ? null : b.orbit;
+  setText($('abs-l'), C.mode === 'absolute' ? 'Speed in space, ' + theName(b) : 'Speed in space');
+  setText($('abs'), absSpeed(b).toFixed(2) + ' km/s');
+  setText($('orb-v-l'), b === SUN ? 'Speed around the galaxy' : b === MOON ? 'Speed around the Earth' : 'Speed on its orbit');
+  setText($('orb-v'), (b === SUN ? SUN_SPEED_KMS : len(orbitVel(b)) * KMS).toFixed(2) + ' km/s');
+  setText($('orb-i'), b === SUN ? '-' : (b === MOON ? MOON_EL.i / DEG : o.i).toFixed(2) + '°');
+  setText($('orb-p'), b === SUN ? '-' : b === MOON ? (MOON_MONTH * 365.25).toFixed(2) + ' d' : o.period.toFixed(2) + ' yr');
+  setText($('rot-p'), (inf.rotD || b.rotH / 24).toFixed(2) + ' d' + (inf.rotNote || ''));
+  setText($('b-r'), fmtKm(b.km) + ' km');
+  setText($('b-vol'), sci(4 / 3 * Math.PI * b.km ** 3) + ' km³'); setText($('b-kg'), sci(inf.kg) + ' kg');
+  setText($('b-text'), inf.text); setText($('b-map'), 'Surface map: ' + inf.map + '.');
   const v = travelSpeed(nearestDist(p));
   setText($('speed'), (v < .01 ? fmtKm(v * AU_KM) + ' km/s' : v.toFixed(2) + ' AU/s') +
     (C.mode === 'absolute' && alongSun(p) < FAR_X ? ', wheel ' + FAR_X_SPEED + ' AU/s' : ''));
@@ -2536,6 +2785,9 @@ function updateHud() {
   }
 }
 const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
+// 1.30 × 10²² (large values, with 2 decimals)
+const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+const sci = x => { const e = Math.floor(Math.log10(x)), m = x / 10 ** e; return m.toFixed(2) + ' × 10' + [...String(e)].map(c => SUP[c]).join(''); };
 // Test aid (user, 2026-10-23): the tilted meridian gauge above the speed buttons, only with the tilted meridian in body
 // mode: the white line is the ecliptic (90% of the square); the green segment the tilted meridian's plane at its angle to
 // the body ecliptic, the M angle (the value upper right; 90% of the white line; see updateHud); the green vector the pan
@@ -2610,7 +2862,11 @@ const tdirBtn = $('tdir'), showTimeDir = () => {
 };
 tdirBtn.addEventListener('click', () => {
   timeDir = -timeDir; showTimeDir(); tdirBtn.blur(); toast(timeDir > 0 ? 'Time: forward' : 'Time: backward');
-  if (timeDir < 0) for (const tr of trails) { tr.pts.length = 0; tr.last = trailT; }   // (see updateTrail: forward, they start again)
+  if (timeDir < 0) for (const tr of trails) {   // (see updateTrail: forward, they start again)
+    tr.pts.length = 0; tr.last = trailT; tr.base = 0;
+    for (const b of tr.blocks.values()) if (b.m) { scene.remove(b.m); b.m.geometry.dispose(); }
+    tr.blocks.clear();
+  }
 });
 showTimeDir();
 
@@ -2661,6 +2917,7 @@ function slidePanel(wrap, btn, line, box, icons, pinned, fullHeight) {
     // the icon shows what is seen (user, 2026-10-28: also when the mouse shows it)
     btn.textContent = open ? icons[1] : icons[0]; btn.setAttribute('aria-expanded', open);
     sp.fit();
+    if (sp.after) sp.after();
   };
   sp.setTemp = on => { sp.temp = on; sp.show(); };
   // the button acts on what is seen: shown (also by the mouse) → restrained for good, restrained → expanded for good
@@ -2674,6 +2931,19 @@ function slidePanel(wrap, btn, line, box, icons, pinned, fullHeight) {
 }
 const menuSlide = slidePanel(menu, menuBtn, menuLine, menuList, ['>', '<'], false);
 const openMenu = open => menuSlide.setTemp(open);
+// (user, 2026-10-29) the menu's button always on the right of the rightmost column shown (the entries, a submenu, the
+// views of a celestial body), at the same 6 px; restrained, at the right of the line
+function placeMenuBtn() {
+  let x = 0;
+  if (menu.classList.contains('open')) {
+    const r0 = menuList.getBoundingClientRect().right;
+    for (const el of [menuList, ...menuList.querySelectorAll('.submenu')])
+      if (el.offsetParent) x = Math.max(x, el.getBoundingClientRect().right - r0);
+  }
+  const m = x.toFixed(1) + 'px';
+  if (menuBtn.style.marginLeft !== m) menuBtn.style.marginLeft = m;
+}
+menuSlide.after = placeMenuBtn;
 // the information panel: expanded at the start (it was always shown); its icons mirrored
 // its extension (user, 2026-10-28): "v" the rest hidden, "^" shown; shown at the start (everything was shown)
 const hudExt = $('hud-ext'), hudMore = $('hud-more');
@@ -2697,20 +2967,25 @@ function showControls(on) {
 // the submenus (user, 2026-10-28, REQ-01.2): opened on the right of their entry, by the mouse on it or a click; closed when
 // an entry is chosen, when the other one opens, or by a click outside the menu
 const subs = [$('sub-ref-wrap'), $('sub-help-wrap')];
-const openSub = s => { for (const x of subs) x.classList.toggle('open', x === s); };
+const openSub = s => { for (const x of subs) x.classList.toggle('open', x === s); if (s !== subs[0]) showViews(null); placeMenuBtn(); };
 const closeMenu = () => { openSub(null); openMenu(false); };
 for (const s of subs) {
   s.addEventListener('pointerenter', () => openSub(s));
   s.firstElementChild.addEventListener('click', e => { openSub(s); e.currentTarget.blur(); });
 }
 // Reference system: absolute space and the celestial bodies, in their order from the Sun (the Moon after the Earth); the
-// ones not in the simulation yet are shown disabled (user, 2026-10-28); the current one has the check mark
+// ones not in the simulation yet are shown disabled (user, 2026-10-28); the current one has the check mark. A celestial
+// body's entry opens its views on the right (user, 2026-10-29, see showViews): a view chosen there makes the body the
+// reference with that view; a click on the body's entry itself keeps the current view.
+const subView = $('sub-view');
 const REF_MENU = ['Absolute space', 'Sun', 'Mercury', 'Venus', 'Earth', 'Moon', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune', 'Pluto'].map(name => {
   const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'menuitemradio');
   const body = name === 'Absolute space' ? null : BODIES.find(x => x.name === name);
   b.textContent = name;
   if (name !== 'Absolute space' && !body) { b.disabled = true; b.title = 'Not in the simulation yet'; }
+  else if (body) b.setAttribute('aria-haspopup', 'true');
   b.addEventListener('click', e => { e.currentTarget.blur(); closeMenu(); chooseRef(body); });
+  b.addEventListener('pointerenter', () => showViews(body && !b.disabled ? b : null, body));
   $('sub-ref').appendChild(b);
   return { b, body };
 });
@@ -2719,6 +2994,25 @@ function showRefMenu() {
     const on = m.body ? C.mode === 'body' && m.body === REF : C.mode === 'absolute';
     if (m.b.classList.contains('on') !== on) { m.b.classList.toggle('on', on); m.b.setAttribute('aria-checked', on); }
   }
+}
+// the views of body (its entry e) in the third column, the current one checked; centred on e's row where it fits, else
+// its first entry on the row of the first entry (Absolute space) or its last entry on the row of the last one (Pluto).
+// null closes it.
+function showViews(e, body) {
+  for (const m of REF_MENU) m.b.classList.toggle('hover', !!e && m.b === e);
+  if (!e) { subView.classList.remove('open'); subView.replaceChildren(); placeMenuBtn(); return; }
+  subView.replaceChildren(...viewsFor(body).map(([k, name]) => {
+    const v = document.createElement('button'); v.type = 'button'; v.setAttribute('role', 'menuitemradio'); v.textContent = name;
+    const on = C.mode === 'body' && body === REF && k === viewKey();
+    v.classList.toggle('on', on); v.setAttribute('aria-checked', on);
+    v.addEventListener('click', ev => { ev.currentTarget.blur(); closeMenu(); chooseRef(body, k); });
+    return v;
+  }));
+  subView.classList.add('open');
+  // (both columns have the same padding and border: their panels' edges set where their entries are)
+  const sr = $('sub-ref'), h = subView.offsetHeight, bw = sr.clientTop;
+  subView.style.top = clamp(e.offsetTop + e.offsetHeight / 2 - h / 2, -bw, sr.clientHeight + bw - h) + 'px';
+  placeMenuBtn();
 }
 menuControls.addEventListener('click', () => { showControls(!document.body.classList.contains('show-controls')); closeMenu(); menuControls.blur(); });
 // About (user, 2026-10-28): always the last line of the menu; the panel closes with × or Esc
@@ -2768,7 +3062,7 @@ function toggleRecord() {
   if (replay.on) { toast('Close the replay to record'); return; }
   if (!camLog.on) {
     camLog.on = true; camLog.t0 = performance.now(); camLog.samples = []; camLog.notes = [];
-    $('rec').classList.add('on'); setText($('rec'), 'REC 0.0 s · 0 samples'); toast('Recording the camera (N: note, R: stop and save)');
+    $('rec').classList.add('on'); setText($('rec'), 'REC 0.0 s · 0 samples'); toast('Recording the camera (N: note, Shift+R: stop and save)');
   } else {
     camLog.on = false; $('rec').classList.remove('on');
     askText(`Description of this log (${camLog.samples.length} samples, ${camLog.notes.length} notes): what you wanted to test, what you did, what you saw`,
@@ -2804,7 +3098,7 @@ function addNote() {
       replay.data.notes.push({ t, text: r.text }); replay.data.notes.sort((x, y) => x.t - y.t); replay.dirty = true;
       buildMarks(); showReplay();
     });
-  } else toast('Notes are added while recording (R) or in the replay');
+  } else toast('Notes are added while recording (Shift+R) or in the replay');
 }
 function logName(d = new Date()) {
   const p2 = v => String(v).padStart(2, '0');
@@ -3152,7 +3446,6 @@ for (const [id, way] of [['rp-step-back', -1], ['rp-step-fwd', 1]]) {
   });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, stop);
 }
-$('move-btn').addEventListener('click', e => { switchMove(); e.currentTarget.blur(); });
 $('rp-slider').addEventListener('input', e => { replay.playing = false; replay.dir = 0; seekReplay(+e.target.value); });
 $('rp-add-note').addEventListener('click', e => { e.currentTarget.blur(); addNote(); });
 $('rp-edit-note').addEventListener('click', e => {
@@ -3219,6 +3512,82 @@ function renderReplayView() {
 }
 addEventListener('resize', resize); resize();
 
+// The zoom screen (user, 2026-10-30; first a round telescope lens): T switches it on / off. As the screen of a digital
+// camera at full zoom: a rectangle centred on the mouse, SCOPE_SIZE of the screen's width and height (the same shape),
+// shows the area under it larger (SCOPE_ZOOMS, chosen with + and -; SCOPE_START when switched on, user 2026-10-30), as it is drawn on the screen,
+// drawn again for the narrower field (sharp, not enlarged pixels); lines keep their width in pixels. In it the planets'
+// minimum apparent radius is SCOPE_MIN of the usual one (30% of the Sun's minimum instead of 50%), the Moon's too.
+// Around it the camera's body (#scope), over it corner brackets, a focus frame at the mouse, the zoom and a W-T bar
+// (#scope-v). The names written over the picture are left out there. The mouse still moves the camera as usual; while
+// dragging the zoom screen stays where the drag started.
+const SCOPE_ZOOMS = [4, 6, 8, 10, 12, 14], SCOPE_START = 8, SCOPE_MIN = .3 / .5, SCOPE_SIZE = .4, SCOPE_BODY = 14, SCOPE_AF = [72, 54];   // (the focus frame, px: as in the CSS)
+const scope = { on: false, z: 0, rt: null, cam: new THREE.PerspectiveCamera(), scene: new THREE.Scene(), oc: new THREE.Camera(), w: 0, h: 0, names: [] };
+const scopeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+  uniforms: { map: { value: null }, c: { value: new THREE.Vector2() }, s: { value: new THREE.Vector2() } },
+  vertexShader: `uniform vec2 c, s; varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(c + position.xy * s, 0., 1.); }`,
+  fragmentShader: `
+    uniform sampler2D map; varying vec2 vUv;
+    void main() {
+      gl_FragColor = texture2D(map, vUv);
+      #include <colorspace_fragment>
+    }`,
+  depthTest: false, depthWrite: false }));
+scopeQuad.frustumCulled = false; scope.scene.add(scopeQuad);
+function showZoom() {
+  const z = SCOPE_ZOOMS[scope.z], v = $('scope-v');
+  v.querySelector('b').textContent = z + '\u00d7';
+  v.querySelector('em').style.width = (100 * scope.z / (SCOPE_ZOOMS.length - 1)) + '%';
+}
+function toggleScope() {
+  scope.on = !scope.on;
+  if (scope.on && !hover.seen) { hover.x = innerWidth / 2; hover.y = innerHeight / 2; }
+  for (const id of ['scope', 'scope-v']) $(id).style.display = scope.on ? 'block' : 'none';
+  document.body.classList.toggle('zoom-on', scope.on);   // (no mouse pointer over the target)
+  if (scope.on) { scope.z = SCOPE_ZOOMS.indexOf(SCOPE_START); showZoom(); } else { const l = $('labels').style; l.maskImage = l.maskSize = l.maskPosition = l.maskRepeat = l.maskComposite = ''; }
+  toast(scope.on ? 'Zoom: ' + SCOPE_ZOOMS[scope.z] + '\u00d7 (+ / -: zoom, T: off)' : 'Zoom off');
+}
+function zoomScope(dz) {
+  scope.z = clamp(scope.z + dz, 0, SCOPE_ZOOMS.length - 1); showZoom();
+  toast('Zoom: ' + SCOPE_ZOOMS[scope.z] + '\u00d7');
+}
+function renderScope() {
+  const W = innerWidth, H = innerHeight, w = Math.round(W * SCOPE_SIZE), h = Math.round(H * SCOPE_SIZE), pr = renderer.getPixelRatio();
+  if (!scope.rt || scope.w !== w * pr || scope.h !== h * pr) {
+    if (scope.rt) scope.rt.dispose();
+    scope.w = w * pr; scope.h = h * pr; scope.rt = new THREE.WebGLRenderTarget(scope.w, scope.h, { samples: 4, type: THREE.HalfFloatType });
+    scopeQuad.material.uniforms.map.value = scope.rt.texture;
+  }
+  // the mouse in the picture as drawn (the canvas is shown mirrored top to bottom with picMirror)
+  const x = hover.x, y = picMirror ? H - hover.y : hover.y, Z = SCOPE_ZOOMS[scope.z], c = scope.cam;
+  c.position.copy(camera.position); c.quaternion.copy(camera.quaternion);
+  c.fov = camera.fov; c.near = camera.near; c.far = camera.far; c.aspect = W / H;
+  c.setViewOffset(W * Z, H * Z, x * Z - w / 2, y * Z - h / 2, w, h); c.updateMatrixWorld();
+  // its own minimum sizes (and where the trails start from them, see updatePlume), then back
+  const pxAngle = camera.fov * DEG / H, farAway = alongSun(C.pos) < AXES_FAR_X;
+  const moonLine = orbitLines[orbitLines.length - 1];
+  bodyScales(SCOPE_MIN, pxAngle / Z, farAway, Infinity);
+  if (moonLine.l.visible) updateOrbitLine(moonLine, C.pos);
+  scope.names = hoverNames(Z);
+  for (const tr of trails) { updatePlume(tr, camera.position, 0); updateTrail(tr, camera.position); }
+  trailMaterial.resolution.set(w, h);   // (the lines' width in its pixels)
+  renderer.setRenderTarget(scope.rt); renderer.render(scene, c); renderer.setRenderTarget(null);
+  trailMaterial.resolution.set(W, H);
+  bodyScales(1, pxAngle, farAway);
+  if (moonLine.l.visible) updateOrbitLine(moonLine, C.pos);
+  scopeQuad.material.uniforms.c.value.set(2 * x / W - 1, 1 - 2 * y / H); scopeQuad.material.uniforms.s.value.set(w / W, h / H);
+  renderer.autoClear = false; renderer.render(scope.scene, scope.oc); renderer.autoClear = true;
+  // the camera's body and its marks, and no names over them
+  const x0 = hover.x - w / 2, y0 = hover.y - h / 2, B = SCOPE_BODY;
+  for (const id of ['scope', 'scope-v']) {
+    const e = $(id).style;
+    e.width = w + 'px'; e.height = h + 'px'; e.transform = `translate(${x0}px, ${y0}px)`;
+    if (id === 'scope') e.setProperty('--b', B + 'px');
+  }
+  const l = $('labels').style;
+  l.maskImage = 'linear-gradient(#000, #000), linear-gradient(#000, #000)'; l.maskRepeat = 'no-repeat'; l.maskComposite = 'exclude';
+  l.maskSize = `100% 100%, ${w + 2 * B}px ${h + 2 * B}px`; l.maskPosition = `0 0, ${x0 - B}px ${y0 - B}px`;
+}
+
 const v3 = new THREE.Vector3();
 let last = performance.now(), refInflated = false, inflatedBody = null;
 // the radius a body is drawn with (AU): its real one, except in the Moon locked view (on the Earth: the Moon as large as
@@ -3237,6 +3606,43 @@ function setInflated(b, on) {
   if ('emissiveIntensity' in m) { m.transparent = on; m.emissiveIntensity = on ? .7 : 0; m.needsUpdate = true; }
   b.mesh.renderOrder = on ? 10 : 0;
   for (const ax of BODY_AXES) { ax.line.renderOrder = b.mesh.renderOrder; for (const c of ax.line.children) c.renderOrder = b.mesh.renderOrder; }
+}
+// The drawn size of the planets and the Moon: no apparent radius below the minimum (MIN_APPARENT_RADIUS; the Moon half of
+// it), k times (the zoom screen, see SCOPE_MIN); pxAngle: the size of a pixel (radians); spreadMax: see moonSpread
+const MOON_SPREAD = 1.2;
+let moonSpread = 1;
+function bodyScales(k, pxAngle, farAway, spreadMax = 1) {
+  MOON.group.position.copy(T(...MOON.p));
+  const minAngle = farAway ? 0 : Math.max(k * MIN_APPARENT_RADIUS, MIN_DOT_PX / 2 * pxAngle);
+  for (const pl of PLANETS)
+    pl.group.scale.setScalar(Math.max(drawnR(pl) * U, camera.position.distanceTo(pl.group.position) * Math.tan(farAway ? 0 : Math.max(minAngle, k * lockMinAngle(pl)))));
+  const moonMin = farAway ? 0 : Math.max(k * MOON_MIN_APPARENT_RADIUS, MIN_DOT_PX / 2 * pxAngle);
+  MOON.group.scale.setScalar(Math.max(drawnR(MOON) * U, camera.position.distanceTo(MOON.group.position) * Math.tan(farAway ? 0 : Math.max(moonMin, k * lockMinAngle(MOON)))));
+  // (user, 2026-10-29: the Moon disappeared from its orbit) drawn larger than real, far away, the Earth's sphere took the
+  // Moon in: the two are not drawn so large that they touch: the Earth at most 60%, the Moon at most 35% of the real
+  // distance between their centres, but never smaller than real nor than their usual minimum (the Earth as the planets,
+  // the Moon half of it; the larger ones of the Moon / Earth locked views give way).
+  {
+    const D = len(sub(MOON.p, EARTH.p)) * U, least = (b, a) => camera.position.distanceTo(b.group.position) * Math.tan(farAway ? 0 : Math.max(a, MIN_DOT_PX / 2 * pxAngle));
+    EARTH.group.scale.setScalar(Math.min(EARTH.group.scale.x, Math.max(drawnR(EARTH) * U, .6 * D, least(EARTH, k * MIN_APPARENT_RADIUS))));
+    MOON.group.scale.setScalar(Math.min(MOON.group.scale.x, Math.max(drawnR(MOON) * U, .35 * D, least(MOON, k * MOON_MIN_APPARENT_RADIUS))));
+    // The Moon around the Earth (user, 2026-10-30): far away the real orbit is far smaller than the drawn discs (from Pluto
+    // about 0.004° against at least 0.17°). In the picture its distance from the Earth is the real one; in the zoom screen
+    // (spreadMax > 1) it is drawn enlarged where needed (moonSpread), in its real direction, to MOON_SPREAD times the two
+    // drawn radii together, at every distance and zoom (user: a small gap, 1.2), so that it goes out from behind the Earth,
+    // around it and in front of it as Mercury does at the Sun (from Pluto about 50 times the real distance). Only the
+    // drawing: its path (trail) stays real. Where the two discs overlap (the picture: farther than about 0.6 AU) the one
+    // whose centre is nearer to the camera is drawn whole over the other (the Moon behind the Earth shows only what the
+    // Earth's disc leaves).
+    const sE = EARTH.group.scale.x, sM = MOON.group.scale.x;
+    moonSpread = clamp(MOON_SPREAD * (sE + sM) / D, 1, spreadMax);
+    MOON.group.position.copy(T(...add(EARTH.p, sub(MOON.p, EARTH.p).map(v => v * moonSpread))));
+    const o = camera.position, over = sE + sM > D * moonSpread, moonTop = over && o.distanceTo(MOON.group.position) < o.distanceTo(EARTH.group.position);
+    for (const [b, top] of [[MOON, moonTop], [EARTH, over && !moonTop]]) {
+      const m = b.mesh.material;
+      if (m.depthTest === top) { m.depthTest = !top; b.mesh.renderOrder = top ? 12 : inflatedBody === b && refInflated ? 10 : 0; }
+    }
+  }
 }
 function frame(now) {
   requestAnimationFrame(frame);
@@ -3309,34 +3715,19 @@ function frame(now) {
   // no body's apparent radius drops below the minimum [REQ-01, REQ-02.2]
   const spin = running ? timeDir * TAU * dt / ROT_PERIOD : 0;
   const pxAngle = camera.fov * DEG / innerHeight, farAway = alongSun(C.pos) < AXES_FAR_X;   // (see AXES_FAR_X)
-  const minAngle = farAway ? 0 : Math.max(MIN_APPARENT_RADIUS, MIN_DOT_PX / 2 * pxAngle);
   // the Sun twice the planets' minimum, the planets the same
   const sunMin = farAway ? 0 : Math.max(SUN_MIN_APPARENT_RADIUS, MIN_DOT_PX / 2 * pxAngle);
   sunBody.scale.setScalar(Math.max(SUN_R * U, camera.position.length() * Math.tan(sunMin)));
   for (const pl of PLANETS) {
     pl.group.position.copy(T(...pl.p));
-    pl.group.scale.setScalar(Math.max(drawnR(pl) * U, camera.position.distanceTo(pl.group.position) * Math.tan(farAway ? 0 : Math.max(minAngle, lockMinAngle(pl)))));
     pl.mesh.rotation.y = (pl.mesh.rotation.y + spin) % TAU;
   }
-  // the Moon: half the planets' minimum; its axis turns with its node; its map's longitude 0 always towards the Earth
-  const moonMin = farAway ? 0 : Math.max(MOON_MIN_APPARENT_RADIUS, MIN_DOT_PX / 2 * pxAngle);
+  // the Moon: its axis turns with its node; its map's longitude 0 always towards the Earth
   MOON.group.position.copy(T(...MOON.p));
-  MOON.group.scale.setScalar(Math.max(drawnR(MOON) * U, camera.position.distanceTo(MOON.group.position) * Math.tan(farAway ? 0 : Math.max(moonMin, lockMinAngle(MOON)))));
-  // (user, 2026-10-29: the Moon disappeared from its orbit) drawn larger than real, far away, the Earth's sphere took the
-  // Moon in: the two are not drawn so large that they touch: the Earth at most 60%, the Moon at most 35% of the real
-  // distance between their centres, but never smaller than real nor than their usual minimum (the Earth as the planets,
-  // the Moon 80% of it; the larger ones of the Moon / Earth locked views give way). Where they still overlap (more than
-  // about 0.9 AU away, less than 3 pixels apart) the Moon is drawn over the Earth, so that it is always seen.
-  {
-    const D = len(sub(MOON.p, EARTH.p)) * U, least = (b, a) => camera.position.distanceTo(b.group.position) * Math.tan(farAway ? 0 : Math.max(a, MIN_DOT_PX / 2 * pxAngle));
-    EARTH.group.scale.setScalar(Math.min(EARTH.group.scale.x, Math.max(drawnR(EARTH) * U, .6 * D, least(EARTH, MIN_APPARENT_RADIUS))));
-    MOON.group.scale.setScalar(Math.min(MOON.group.scale.x, Math.max(drawnR(MOON) * U, .35 * D, least(MOON, MOON_MIN_APPARENT_RADIUS))));
-    const over = EARTH.group.scale.x + MOON.group.scale.x > D, mm = MOON.mesh.material;
-    if (mm.depthTest === over) { mm.depthTest = !over; MOON.mesh.renderOrder = over ? 12 : 0; }
-  }
+  bodyScales(1, pxAngle, farAway);
   MOON.tilt.quaternion.setFromUnitVectors(v3.set(0, 1, 0), T(...MOON.pole).normalize());
   { const e = T(...sub(EARTH.p, MOON.p)).normalize().applyQuaternion(MOON.tilt.quaternion.clone().invert()); MOON.mesh.rotation.y = Math.atan2(-e.z, e.x); }
-  for (const ol of orbitLines) { ol.l.visible = !farAway; if (!farAway) updateOrbitLine(ol, C.pos); }
+  for (const ol of orbitLines) { ol.l.visible = !farAway && guides; if (ol.l.visible) updateOrbitLine(ol, C.pos); }
   for (const tr of trails) { updatePlume(tr, camera.position, running && timeDir > 0 ? dt : 0); updateTrail(tr, camera.position); }
   // the reference body, when shown larger than real (far away): fully lit and drawn over the axis lines (setInflated)
   // (not in the Moon / Earth locked views: there the reference body keeps its light and shadow, for its phases)
@@ -3376,6 +3767,7 @@ function frame(now) {
     // near: the others 6 px right of and 8 px above their point
     else tr = `translate3d(${(sx + 6).toFixed(1)}px,${(sy - 8).toFixed(1)}px,0)`;
     l.el.style.transform = tr;
+    coverLabel(l.el, camera.position.distanceTo(useFar ? l.far.v : l.v), useFar ? l.far.v : l.v);
   }
 
   REF.group.updateMatrixWorld(true);
@@ -3395,6 +3787,8 @@ function frame(now) {
   if (replay.on) updateReplay(dt);
   if (replay.objs) updateCamAxes();
   renderer.render(scene, camera);
+  if (scope.on) renderScope();
+  updateHoverNames();   // (after the zoom screen: its list)
   if (replay.on) renderReplayView();
 }
 
@@ -3422,7 +3816,9 @@ function setRef(b) {
 // fastest, 1 year per second: 2.7 and 4.1 minutes). The program itself starts with Pluto at 3 months per second.
 const REF_SPEED = { Sun: '3 mo/s', Mercury: '1 wk/s', Venus: '1 wk/s', Earth: '1 wk/s', Moon: '3 d/s', Mars: '1 mo/s',
   Jupiter: '3 mo/s', Saturn: '6 mo/s', Uranus: '1 yr/s', Neptune: '1 yr/s', Pluto: '1 yr/s' };
-function chooseRef(b) {
+// v (optional, user 2026-10-29): the view chosen with it in the menu (see VIEWS), set before the flight to Home, which
+// runs in the view's frame; without it the view stays.
+function chooseRef(b, v) {
   forgetMoves(); resetMeridian();
   if (!b) { setMode('absolute'); return; }
   const other = b !== REF;
@@ -3430,28 +3826,33 @@ function chooseRef(b) {
   setMode('body');
   // the body's own speed (REF_SPEED), if it has one
   if (REF_SPEED[b.name]) { simSpeed = SIM_SPEEDS.findIndex(s => s[1] === REF_SPEED[b.name]); showSpeed(); }
-  if (other) { startHome(); toast('Celestial body reference system: ' + theName(b)); }
+  if (v && viewsFor(b).some(([k]) => k === v)) selectView(v);   // (only a view the body has)
+  if (other) startHome();
+  toast(refTitle());
 }
 // The starting view (user, 2026-10-28): Pluto in the Sun locked view, as the user saw it then: the camera at
 // (−23.63, −15.94, 8.54) AU, (−9 232, 7 868, 7 687) km from Pluto's centre, pan −1.4°, tilt −34.3°, turn −9.0°. What
-// counts in this view is the place relative to the Sun, so the whole camera (place, view and picture's up) is turned by
-// the turn that carries the Sun's direction seen from Pluto then onto its direction at Pluto's starting place (its
-// ascending node): Pluto, the Sun and the day / night border are where they were on the screen. The view's frame starts
-// leaned as it was then (its z the ecliptic's z turned up / down across the Sun's direction, so that the picture is
-// level in it), so nothing jumps when the simulation runs.
+// counts is the picture: Pluto and the Sun keep their places on the screen then, with the head level to the ecliptic
+// (user, 2026-10-29: as in absolute space, turn 0). The Sun's place and its real height now (then 16.7° below the body
+// ecliptic, at the start 0.5° below) give the tilt and the pan; Pluto's place then gives the camera's place around Pluto,
+// at the same distance. The angle between Pluto and the Sun seen from the camera stays, so does the lit part of Pluto.
 const START = { cam: [-23.63, -15.94, 8.54], km: [-9232, 7868, 7687], pan: -1.4, tilt: -34.3, turn: -9.0 };
 function startView() {
-  const q0 = START.km.map(x => x / AU_KM), s0 = unit(sub(q0, START.cam)), s1 = unit(P.map(v => -v));   // the Sun from Pluto
-  const h = [Math.cos(START.pan * DEG), Math.sin(START.pan * DEG), 0], ct = Math.cos(START.tilt * DEG), st = Math.sin(START.tilt * DEG);
-  const f = [ct * h[0], ct * h[1], st], u = rotate([-st * h[0], -st * h[1], ct], f, START.turn * DEG), r = cross(f, u);
-  // the frame then: z turned by θ around the horizontal line across the Sun's direction, the picture level in it
-  const z = [0, 0, 1], sh = unit([s0[0], s0[1], 0]), a = unit(cross(sh, z)), az = cross(a, z);
-  const th = Math.atan(-dot(z, r) / dot(az, r)), zf = rotate(z, a, th), xf = rotate(sh, a, th);
-  // the turn Q from the Sun's direction then to now (the smallest)
-  let k = cross(s0, s1); const ang = Math.atan2(len(k), dot(s0, s1)); k = len(k) > 1e-12 ? unit(k) : z;
-  const Q = v => rotate(v, k, ang);
-  C.pos = add(P, Q(q0)); setView(Q(f), Q(u)); syncSpherical();
-  SL.frame = [Q(xf), Q(cross(zf, xf)), Q(zf)]; SL.sun = s1; SL.valid = true;
+  const axes = (pan, tilt, turn) => { const h = [Math.cos(pan), Math.sin(pan), 0], ct = Math.cos(tilt), st = Math.sin(tilt);
+    const f = [ct * h[0], ct * h[1], st], u = rotate([-st * h[0], -st * h[1], ct], f, turn); return [cross(f, u), u, f]; };
+  const onScreen = (v, e) => e.map(a => dot(v, a)), inSpace = (w, e) => [0, 1, 2].map(i => w[0] * e[0][i] + w[1] * e[1][i] + w[2] * e[2][i]);
+  const q0 = START.km.map(x => x / AU_KM), s1 = unit(P.map(v => -v)), e0 = axes(START.pan * DEG, START.tilt * DEG, START.turn * DEG);
+  const ws = onScreen(unit(sub(q0, START.cam)), e0), wp = onScreen(unit(q0.map(x => -x)), e0);   // the Sun's and Pluto's places then
+  // the tilt: the Sun's place at its height now, ws[1]·cos(tilt) + ws[2]·sin(tilt) = s1z (the solution nearest the old tilt)
+  const A = Math.hypot(ws[1], ws[2]), phi = Math.atan2(ws[2], ws[1]), c = Math.acos(Math.max(-1, Math.min(1, s1[2] / A)));
+  const tilt = [phi + c, phi - c].map(wrapPi).filter(t => Math.abs(t) <= Math.PI / 2)
+    .reduce((m, t) => Math.abs(t - START.tilt * DEG) < Math.abs(m - START.tilt * DEG) ? t : m, Infinity);
+  const v0 = inSpace(ws, axes(0, tilt, 0)), pan = wrapPi(Math.atan2(s1[1], s1[0]) - Math.atan2(v0[1], v0[0]));
+  const dist = Math.hypot(...q0), d = inSpace(wp, axes(pan, tilt, 0));   // from the camera to Pluto
+  C.pos = P.map((v, i) => v - dist * d[i]); C.pan = pan; C.tilt = tilt; C.roll = C.turn = 0;
+  syncSpherical();
+  const z = [0, 0, 1], x = unit([s1[0], s1[1], 0]);
+  SL.frame = [x, cross(z, x), z]; SL.sun = s1; SL.valid = true;
 }
 LOCK = SUN;
 setRef(REF);
