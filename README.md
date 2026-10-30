@@ -4,8 +4,6 @@ A 3D simulation of the solar system moving through absolute space, in a single H
 
 **Live demo:** https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html
 
-![The retrograde motion of Mars, seen from the Earth in the simulation](screenshots/mars-retrograde-path.png)
-
 ## What it shows
 
 The Sun is not still. It moves around the center of our galaxy at about 230 km/s, towards the constellation Cygnus,
