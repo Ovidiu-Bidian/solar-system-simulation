@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Solar system simulation</title>
+<!-- the icon of the browser tab (user, 2026-10-30): the Sun and a planet on a tilted orbit, with their straight trails -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Cdefs%3E%3CradialGradient id=%22s%22 cx=%2240%25%22 cy=%2238%25%22 r=%2265%25%22%3E%3Cstop offset=%220%22 stop-color=%22%23fff6c2%22/%3E%3Cstop offset=%22.45%22 stop-color=%22%23ffd24a%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ff8a1e%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1020%22/%3E%3Cpath d=%22M32 32 L3 61%22 stroke=%22%23ffd24a%22 stroke-width=%223.4%22 stroke-linecap=%22round%22 stroke-opacity=%22.85%22/%3E%3Cpath d=%22M46.6 36 L21 61.6%22 stroke=%22%23ffd24a%22 stroke-width=%222.4%22 stroke-linecap=%22round%22 stroke-opacity=%22.85%22/%3E%3Cg transform=%22rotate%28-22 32 32%29%22%3E%3Cpath d=%22M6 32 A26 10 0 0 1 58 32%22 fill=%22none%22 stroke=%22%237f9ed8%22 stroke-width=%222.6%22/%3E%3C/g%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2213%22 fill=%22url%28%23s%29%22/%3E%3Cg transform=%22rotate%28-22 32 32%29%22%3E%3Cpath d=%22M58 32 A26 10 0 0 1 6 32%22 fill=%22none%22 stroke=%22%239fbaf0%22 stroke-width=%222.6%22/%3E%3Ccircle cx=%2244%22 cy=%2241.2%22 r=%225.2%22 fill=%22%234f8cff%22 stroke=%22%230b1020%22 stroke-width=%221.5%22/%3E%3C/g%3E%3C/svg%3E">
 <style>
   :root { --panel: rgba(13, 17, 30, .62); --line: rgba(255, 255, 255, .09); --text: #e8ecf6; --dim: #8f9ab4; --accent: #e9c9a4; }
   * { box-sizing: border-box; }
@@ -38,10 +40,11 @@
      pole view") or "Absolute space" */
   #mode { margin: 0 0 6px; font-size: 17px; font-weight: 650; color: var(--accent); }
   #move-row { display: flex; align-items: center; margin: -2px 0 8px; color: var(--dim); }
-  .rows { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; padding-top: 6px; border-top: 1px solid var(--line); }
+  .rows { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; padding-top: 6px; border-top: 1px solid var(--line); line-height: 1.225; }
   .rows span:nth-child(odd) { color: var(--dim); white-space: nowrap; }
   .rows span:nth-child(even) { text-align: right; font: 500 12.5px/1.45 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-variant-numeric: tabular-nums; white-space: pre; }
+    font-variant-numeric: tabular-nums; white-space: pre; line-height: 1.225; }
+  /* (user, 2026-10-30) the space between the lines of the panel: half of the page's (line-height 1.45 -> 1.225) */
   .km { color: #c7b9ff; }
   /* the panel's extension (user, 2026-10-28): the rows from "Distance to Pluto" down, the data of the reference body, its description and the source of its map, shown or hidden with
      the button at the panel's bottom ("v": hidden, "^": shown) */
@@ -49,12 +52,17 @@
   /* (user, 2026-10-30) the speed in absolute space (one of the main topics), then the reference celestial body's data */
   .abs { color: var(--accent); }
   .rows.body { margin-top: 6px; }
-  .desc { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.4; }
+  /* (user, 2026-10-30) "Cam speed" is in the first rows, after the pan and tilt; in absolute space mode it is the first row,
+     in place of the speed of the body in absolute space (see updateHud), and the rows of the reference celestial body
+     (the panel's second section) are not shown, nor the name at the arrow (it covered the panel's first line) */
+  body.absolute .rows .cam, body.absolute #hud-more .rows { display: none; }
+  body.absolute #pointer span { display: none; }
+  .desc { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 11.5px; line-height: 1.2; white-space: pre-line; }
   #hud-more[hidden] { display: none; }
   #hud-ext { display: block; margin: 6px auto 0; width: 34px; height: 16px; padding: 0; line-height: 1; font: inherit; font-weight: 700;
     font-size: 11px; color: var(--dim); background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
   #hud-ext:hover { color: var(--text); border-color: rgba(255, 255, 255, .25); }
-  .credit { margin-top: 4px; font-size: 10.5px; line-height: 1.35; color: var(--dim); }
+  .credit { margin-top: 4px; font-size: 10.5px; line-height: 1.175; color: var(--dim); }
 
   /* controls hint, lower left */
   #hint { position: fixed; left: 16px; bottom: 16px; padding: 10px 14px; max-width: min(620px, calc(100% - 32px)); color: #c9d2e8; }
@@ -300,6 +308,7 @@
     <span>Camera x, y, z</span><span id="pos-au"></span>
     <span id="pos-km-l"></span><span id="pos-km" class="km"></span>
     <span>Pan / tilt</span><span id="angles"></span>
+    <span class="cam">Cam speed</span><span id="speed" class="cam"></span>
   </div>
   <div id="hud-more">
   <div class="rows more">
@@ -315,7 +324,6 @@
     <span>Radius</span><span id="b-r"></span>
     <span>Volume</span><span id="b-vol"></span>
     <span>Mass</span><span id="b-kg"></span>
-    <span>Cam speed</span><span id="speed"></span>
   </div>
   <div class="desc" id="b-text"></div>
   <div class="credit" id="b-map"></div>
@@ -350,7 +358,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_2.0.2 (30 October 2026)</p>
+  <p>Current version: solar system simulation v_2.0.3 (30 October 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -629,6 +637,14 @@ const theName = b => b === SUN || b === MOON ? 'the ' + b.name : b.name;   // "t
 // The information panel's extension about the reference celestial body (REQ-01.1, user 2026-10-30): its mass (kg), its
 // rotation period (Earth days; the planets' from rotH), a short description and the source of its surface map
 const MAP_SSS = 'Solar System Scope (CC BY 4.0)';
+// In absolute space mode the panel describes absolute space (user, 2026-10-30): Newton's definition (Principia, Scholium
+// to the Definitions, Motte's translation, 1729) and what it is in this simulation (one paragraph per line)
+const ABS_SPACE_INFO = {
+  text: 'Newton (Principia, 1687): "Absolute space, in its own nature, without relation to anything external, remains always similar and immovable."\n' +
+    'It is the frame in which motion is "absolute" (does not depend on other reference systems/motions): through it the Sun moves at about 230 km/s towards Cygnus, carrying the planets, so their true (absolute) paths are the spirals of their trails. In this simulation absolute space is limited to a cylinder around the Sun\'s path, 69 AU in radius.\n' +
+    'The motions presented here (yellow trails) are the motions searched by humans for thousands of years.',
+  source: 'I. Newton, Philosophiae Naturalis Principia Mathematica (1687), Scholium to the Definitions; translation A. Motte (1729)',
+};
 const BODY_INFO = {
   Sun: { kg: 1.989e30, rotD: 25.38, rotNote: ' (equator)', map: 'none: drawn by the program (granules, sunspots, faculae; only its look)',
     text: 'A yellow dwarf star, 99.86% of the mass of the solar system. Being gas, it turns faster at its equator (25 days) than near its poles (about 35 days). With all its planets it goes around the center of the Milky Way at about 230 km/s, one turn in about 230 million years.' },
@@ -661,14 +677,31 @@ function orbitVel(b) {
   const o = b.orbit, h = 1e-5;
   return sub(orbitAt(o, o.M + h / 2), orbitAt(o, o.M - h / 2)).map(v => v / h * TAU / o.period);
 }
-// the speed of a celestial body in absolute space (km/s): the Sun's velocity plus its own on its orbit (the Moon: plus the
-// Earth's), REQ-01.1
-function absSpeed(b) {
-  let v = SUN_DIR.map(x => x * SUN_SPEED_KMS / KMS);
+// The camera's speed in absolute space (user, 2026-10-30), in both modes: the Sun's velocity plus the camera's velocity
+// relative to the Sun in simulation time: its move in the frame (C.pos is measured from the Sun) over the simulated time
+// of the frame, smoothed over about 0.3 s. In absolute space mode the camera is at rest relative to the Sun unless the
+// user moves it; in body mode it travels with the reference body, so this is the body's velocity plus the user's moves
+// (and the stops at the wall of the space, the pushes of the bodies). While the motion is stopped no simulated time
+// passes: the camera keeps the velocity it is carried with (the Sun's, or the reference body's).
+let camPrev = null, camVel = [0, 0, 0];   // AU per Earth year, relative to the Sun
+const sunVel = () => SUN_DIR.map(x => x * SUN_SPEED_KMS / KMS);
+function updateCamVel(dt, st) {
+  if (camPrev && st !== 0) {
+    const v = sub(C.pos, camPrev).map(x => x / st), k = 1 - Math.exp(-dt / .3);
+    camVel = camVel.map((c, i) => c + (v[i] - c) * k);
+  } else camVel = C.mode === 'absolute' ? [0, 0, 0] : sub(absVel(REF), sunVel());
+  camPrev = C.pos.slice();
+}
+const camAbsSpeed = () => len(add(sunVel(), camVel)) * KMS;
+// the velocity of a celestial body in absolute space (AU per Earth year): the Sun's velocity plus its own on its orbit
+// (the Moon: plus the Earth's), REQ-01.1; its speed in km/s
+function absVel(b) {
+  let v = sunVel();
   if (b !== SUN) v = add(v, orbitVel(b));
   if (b === MOON) v = add(v, orbitVel(EARTH));
-  return len(v) * KMS;
+  return v;
 }
+const absSpeed = b => len(absVel(b)) * KMS;
 // the minimum apparent radius (user, 2026-10-28): the planets half of what it was, Pluto seen from 400 000 km (≈ 0.17°);
 // the Sun as it was, Pluto seen from 200 000 km (≈ 0.34°), twice the planets', so far away it is the biggest dot (as in
 // the solar system simulation's spec)
@@ -3197,11 +3230,12 @@ function updateHud() {
   showRefMenu();
   document.body.classList.toggle('absolute', C.mode === 'absolute');
   const p = C.pos, q = rel(), d = len(q);
-  setText($('pos-au'), p.map(v => pad(noNegZero(v.toFixed(2)), 7)).join(' ') + ' AU');
+  // (user, 2026-10-30) compact: the three values one space apart, without padding to a fixed width
+  setText($('pos-au'), p.map(v => noNegZero(v.toFixed(2))).join(' ') + ' AU');
   // close to the reference body the AU values hardly change: the position relative to its centre is shown in km as well
   const near = d < .01;
   setText($('pos-km-l'), near ? 'From ' + REF.name + ' x, y, z' : '');
-  setText($('pos-km'), near ? q.map(v => pad(fmtKm(v * AU_KM), 8)).join(' ') + ' km' : '');
+  setText($('pos-km'), near ? q.map(v => fmtKm(v * AU_KM)).join(' ') + ' km' : '');
   setText($('angles'), fmtAng(C.pan) + ' / ' + fmtAng(C.tilt) + (Math.abs(wrapPi(C.roll)) > .05 * DEG ? ', turn ' + fmtAng(wrapPi(C.roll)) : ''));
   // the tilted meridian and its M angle (only in the tilted meridian view)
   const showMer = SHOW_MERIDIAN && TILTED_MERIDIAN && C.mode === 'body';
@@ -3217,8 +3251,8 @@ function updateHud() {
   setText($('dist-sun'), fmtLen(len(p)));
   // the reference celestial body (in absolute space mode the last one chosen): its speed in absolute space, its data
   const b = REF, inf = BODY_INFO[b.name], o = b === MOON ? null : b.orbit;
-  setText($('abs-l'), C.mode === 'absolute' ? 'Speed in space, ' + theName(b) : 'Speed in space');
-  setText($('abs'), absSpeed(b).toFixed(2) + ' km/s');
+  const abs = C.mode === 'absolute';
+  setText($('abs-l'), abs ? 'Cam speed' : 'Speed in space');
   setText($('orb-v-l'), b === SUN ? 'Speed around the galaxy' : b === MOON ? 'Speed around the Earth' : 'Speed on its orbit');
   setText($('orb-v'), (b === SUN ? SUN_SPEED_KMS : len(orbitVel(b)) * KMS).toFixed(2) + ' km/s');
   setText($('orb-i'), b === SUN ? '-' : (b === MOON ? MOON_EL.i / DEG : o.i).toFixed(2) + '°');
@@ -3226,10 +3260,13 @@ function updateHud() {
   setText($('rot-p'), (inf.rotD || b.rotH / 24).toFixed(2) + ' d' + (inf.rotNote || ''));
   setText($('b-r'), fmtKm(b.km) + ' km');
   setText($('b-vol'), sci(4 / 3 * Math.PI * b.km ** 3) + ' km³'); setText($('b-kg'), sci(inf.kg) + ' kg');
-  setText($('b-text'), inf.text); setText($('b-map'), 'Surface map: ' + inf.map + '.');
-  const v = travelSpeed(nearestDist(p));
-  setText($('speed'), (v < .01 ? fmtKm(v * AU_KM) + ' km/s' : v.toFixed(2) + ' AU/s') +
-    (C.mode === 'absolute' && alongSun(p) < FAR_X ? ', wheel ' + FAR_X_SPEED + ' AU/s' : ''));
+  if (C.mode === 'absolute') { setText($('b-text'), ABS_SPACE_INFO.text); setText($('b-map'), 'Source: ' + ABS_SPACE_INFO.source + '.'); }
+  else { setText($('b-text'), inf.text); setText($('b-map'), 'Surface map: ' + inf.map + '.'); }
+  // the camera's speed in absolute space (see camAbsSpeed): in absolute space mode the first row, in body mode after the
+  // pan and tilt (the first row is the reference body's)
+  const camS = camAbsSpeed().toFixed(2) + ' km/s';
+  setText($('speed'), camS);
+  setText($('abs'), abs ? camS : absSpeed(b).toFixed(2) + ' km/s');
   if (hintMode !== C.mode) {
     hintMode = C.mode;
     $('hint-title').textContent = C.mode === 'body' ? 'Controls · celestial body mode' : 'Controls · absolute space mode';
@@ -4284,6 +4321,7 @@ function frame(now) {
   updateMeridianLine();
 
   updatePointer(f, u);
+  updateCamVel(dt, st);
   updateHud();
   if (camLog.on && !camLog.paused) recordSample(now);
   if (replay.on) updateReplay(dt);
