@@ -41,19 +41,20 @@ https://github.com/user-attachments/assets/38069d98-4ba8-4d3d-9f91-202c3ee40b27
 
 ## Sun rotation around planets
 
-Seen from a planet, the Sun seems to turn around it: once a year around the Earth (yes, the Sun rotates around the Earth)
-once in about 29.5 years around Saturn (yes, the Sun rotates also around Saturn, everything depending on the choosen reference system).
-This is the motion people saw for thousands of years, and it is only relative (to the choosen reference system): in absolute space
+Seen from a planet, the Sun seems to turn around it: once a year around the Earth (yes, the Sun rotates around the Earth),
+once in about 29.5 years around Saturn (yes, the Sun rotates also around Saturn, everything depending on the chosen reference system).
+This is the motion people saw for thousands of years, and it is only relative (to the chosen reference system): in absolute space
 the planet does not stand still at the center, it follows the Sun along its path through the galaxy.
 
-In these two videos the camera travels with the planet (the reference celestial body). Around the Earth, the
-camera looks towards Vela, the direction from which the Sun comes: the Sun turns around the Earth, while all
-the trails run away towards the same point in Vela. Around Saturn, the camera looks towards Leo: the Sun moves
-slowly among the trails of the inner planets, which twist around its path.
+In these two videos the camera travels with the planet (the reference celestial body).
+Around the Earth, the camera looks towards Vela, the direction from which the Sun comes: the Sun turns around the Earth, while all
+the trails run away towards the same point in Vela.
+Around Saturn, the camera looks towards Centaurus and Crux: the Sun, with the inner planets around it, makes a full turn around Saturn
+while their trails, twisted around the Sun's path, always run towards Vela.
 
 https://github.com/user-attachments/assets/fe950ab0-0b5a-400a-bdfb-dbfdb159049a
 
-https://github.com/user-attachments/assets/2256463b-c369-4286-b45c-dd7626677cfc
+https://github.com/user-attachments/assets/cd1e935e-f72b-4811-be28-34aad8edef6b
 
 ## Example: the planets seen from Saturn
 
