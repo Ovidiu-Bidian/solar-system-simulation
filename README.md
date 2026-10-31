@@ -22,6 +22,8 @@ What is real in the simulation (as known today):
 - the constellations: the real directions, brightness and colors of their stars (Hipparcos catalogue), among them
   the constellations from which the motion of the Sun was determined (Hercules, Lyra, Columba, Cygnus, Sagittarius,
   Vela and those of Herschel's seven stars of 1783).
+- the Milky Way: NASA's map of the glow of our galaxy, in its real place on the sky (brightest towards Sagittarius,
+  the center of the galaxy, with its dark dust lanes).
 
 What is not real (visual aids) is listed in the program, in Help → About: for example the minimum apparent size of
 the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds) and
@@ -112,6 +114,8 @@ Ovidiu Bidian: the requirements, the review of every version and the tests are h
 - Map of Pluto: NASA / JHUAPL / SwRI (New Horizons, PIA11707), public domain
 - Stars and constellation lines: [d3-celestial](https://github.com/ofrohn/d3-celestial) by Olaf Frohn (BSD 3-clause),
   from the Hipparcos catalogue
+- Milky Way: NASA Goddard Space Flight Center, Scientific Visualization Studio,
+  [Deep Star Maps 2020](https://svs.gsfc.nasa.gov/4851) (from the Hipparcos, Tycho and Gaia catalogues)
 - Orbital elements: JPL; orbit of the Moon: J. Meeus, Astronomical Algorithms
 
 ## License
