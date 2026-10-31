@@ -78,6 +78,21 @@ https://github.com/user-attachments/assets/8ba0c998-d300-4b44-9d25-85f9814e0080
 
 <img width="1764" height="800" alt="Mars_retrograde_path" src="https://github.com/user-attachments/assets/b9d2a074-0685-43c6-bd57-42c6907c9050" />
 
+## Eclipses of the Sun and of the Moon
+
+The eclipses are not drawn on purpose: they follow from the real orbits of the Earth and of the Moon and from the
+real sizes of the Sun, the Earth and the Moon. For every point of a surface the simulation computes how much of the
+disk of the Sun is covered by the other body, so the shadows have a dark center (umbra) and a soft edge (penumbra).\
+In the first video (the Moon as the reference celestial body, Earth locked view) the shadow of the Moon crosses the
+Earth: an eclipse of the Sun, total only in the small spot of the umbra.\
+In the second video (the Earth as the reference celestial body, Moon locked view) the Moon enters the shadow of the Earth and turns copper red: it is lit
+only by the sunlight that the atmosphere of the Earth bends into its shadow, mostly red. In these two views the other
+body is drawn larger (or smaller) than real, so that it can be seen, but its place and its shadow stay real.
+
+https://github.com/user-attachments/assets/a889ed82-bb39-40ba-ba99-891f224d293e
+
+https://github.com/user-attachments/assets/79f34e43-c585-4be8-be82-ed102b1a7f6d
+
 ## How to use it
 
 Open the live demo, or download `solar-system-simulation.html` and open it in a browser (Edge, Chrome or Firefox;
