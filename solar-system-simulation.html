@@ -167,7 +167,7 @@
   #hint-close:hover { color: var(--text); }
   /* About (Menu → About, user 2026-10-28): a panel in the middle of the screen, over everything; Esc or × closes it */
   #about { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(680px, calc(100% - 32px));
-    max-height: calc(100% - 64px); padding: 18px 0 8px 22px; z-index: 30; display: none; color: #c9d2e8;
+    max-height: calc(100% - 64px); padding: 18px 0 8px 22px; z-index: 45; display: none; color: #c9d2e8;   /* (over the Intro, user 2026-11-02) */
     font-size: 13.5px; line-height: 1.24; flex-direction: column; }   /* (the same line distance everywhere, a little compact; user 2026-10-28) */
   #about.open { display: flex; }
   /* the title and × stay where they are; only the text under them scrolls */
@@ -429,7 +429,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_2.4 (2 November 2026)</p>
+  <p>Current version: solar system simulation v_2.7 (4 November 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -558,6 +558,9 @@
     <line id="g-pan" x1="50" y1="50" x2="74.45" y2="50" stroke="#5fd35f" stroke-width="2.2" marker-end="url(#g-head)"/>
     <circle cx="50" cy="50" r="1.6" fill="#5fd35f"/>
     <text id="g-val" x="95" y="10" text-anchor="end" fill="#5fd35f" stroke="#0a0e18" stroke-width="2.4" paint-order="stroke" font-size="7.5" font-family="ui-monospace, Menlo, Consolas, monospace"></text>
+    <text id="g-ptl" x="18" y="86" fill="#5fd35f" stroke="#0a0e18" stroke-width="2.4" paint-order="stroke" font-size="7.5" font-family="ui-monospace, Menlo, Consolas, monospace"></text>
+    <text id="g-pt" x="95" y="86" text-anchor="end" fill="#5fd35f" stroke="#0a0e18" stroke-width="2.4" paint-order="stroke" font-size="7.5" font-family="ui-monospace, Menlo, Consolas, monospace"></text>
+    <text id="g-pvl" x="18" y="95" fill="#5fd35f" stroke="#0a0e18" stroke-width="2.4" paint-order="stroke" font-size="7.5" font-family="ui-monospace, Menlo, Consolas, monospace"></text>
     <text id="g-pv" x="95" y="95" text-anchor="end" fill="#5fd35f" stroke="#0a0e18" stroke-width="2.4" paint-order="stroke" font-size="7.5" font-family="ui-monospace, Menlo, Consolas, monospace"></text>
   </svg></div>
 </div>
@@ -791,7 +794,7 @@ const MOUSE_SENS = .05 * DEG;                // per pixel of mouse movement [REQ
 const WHEEL_NOTCH = .3;                      // one wheel notch = 0.3 s of travel at the current speed (not specified)
 // camera at 8R, 60° above the body's ecliptic plane, looking at the centre with pan -135°: x = y = +2.83R, z = +6.93R
 // [REQ-02.2] (user, 2026-10-21; it was 4R on the Sun's side)
-const HOME = { pan: -135 * DEG, tilt: -60 * DEG, get r() { return 8 * R; }, lat: 60 * DEG, lon: 45 * DEG };   // (R: the reference body's)
+const HOME = { pan: -135 * DEG, tilt: -60 * DEG, get r() { return 10 * R; }, lat: 60 * DEG, lon: 45 * DEG };   // (R: the reference body's; user, 2026-11-04: 10 R, was 8 R)
 const UPRIGHT_TURN = 1;                      // s, picture turning upright when switching to absolute mode upside down [REQ-02]
 
 const $ = id => document.getElementById(id);
@@ -1013,11 +1016,10 @@ const panName = () => LP_ROTATING ? 'Rotating pan' : 'Leveled pan';
 function switchPan() {
   LP_ROTATING = !LP_ROTATING;
   // (both pans in the same frame, see LP_ROT_AXIS: C kept, the picture turns to its new up)
-  if (LP.valid) { LP.entering = true; LP.roll = lpRoll(unit(LP_ROT_AXIS ? toLPB(rel()) : rel()), LP.i, LP.node); }
+  if (LP.valid) { LP.entering = true; LP.cf = null; LP.roll = lpRoll(unit(LP_ROT_AXIS ? toLPB(rel()) : rel()), LP.i, LP.node); }
   setText($('g-pan-mode'), panName());
   toast('Pole view: ' + panName().toLowerCase());
 }
-
 // ───────────────────────── input ─────────────────────────
 const held = new Set();
 const KEYMAP = { w: 'fwd', arrowup: 'fwd', s: 'back', arrowdown: 'back', a: 'left', arrowleft: 'left', d: 'right', arrowright: 'right',
@@ -1138,21 +1140,15 @@ function cameraMouse(e) {
     return [mx0 * c - my0 * sn, mx0 * sn + my0 * c];
   };
   const free = C.mode === 'body' && bodyCentre();
-  if (C.mode === 'body' && LEVELED_PAN && LP.valid) { lpFramed(() => lpMouse(...unturn(), free)); return; }
+  if (C.mode === 'body' && LEVELED_PAN && LP.valid) { lpFramed(() => lpMouse(mx0, my0, free)); return; }
   const [mx, my] = unturn();
   [C.pan, C.tilt] = mouseTurn(C.pan, C.tilt, mx, my, free);
 }
-// the pole view's mouse (in the body frame for the rotating pan on the rotation axis, see lpFramed): the body no farther
-// from the screen's centre than C's angle allows (lpMaxI): the largest part of the mouse's move that keeps it so (a move
-// back towards the centre always goes)
+// the pole view's mouse (in the body frame, see lpFramed)
 function lpMouse(mx, my, free) {
-  {
-    const p0 = C.pan, t0 = C.tilt, was = lpMouseOk(), d0 = Math.acos(clamp(placeNow()[2], -1, 1));
-    const fits = k => { [C.pan, C.tilt] = mouseTurn(p0, t0, mx * k, my * k, free); const ok = lpMouseOk() || (!was && Math.acos(clamp(placeNow()[2], -1, 1)) <= d0); [C.pan, C.tilt] = [p0, t0]; return ok; };
-    let k = 1;
-    if (!fits(1)) { let lo = 0, hi = 1; for (let j = 0; j < 20; j++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; } k = lo; }
-    [C.pan, C.tilt] = mouseTurn(p0, t0, mx * k, my * k, free);
-  }
+  // (both pans: the user's look from the centred view, LP.oa / LP.ob, see lpCentred; the move as seen on the screen,
+  // the image grabbed, anywhere)
+  if (LP.cf) lpLook(mx, my);
 }
 canvas.addEventListener('wheel', e => {
   const notches = e.deltaMode === 1 ? e.deltaY / 3 : e.deltaMode === 2 ? e.deltaY * 3 : e.deltaY / 100;
@@ -1391,16 +1387,12 @@ let LP_ROTATING = false;
 // towards the z axis all the time, no mirror, +z up on both sides of the ecliptic.
 const LP_MIRROR = false;
 let picMirror = false;
-const LP_MAX_I = 80 * DEG, LP_ANGLE_SPEED = 40 * DEG;   // (user, 2026-10-25: 40°/s, was 30°/s)
-// The leveled pan with the body off the screen's centre (user, 2026-10-27): C's angle at most 90° − d (d: the body's
-// angle from the screen's centre), so the whole way round C keeps the body fixed on the screen: a level head (tilt
-// within ±90°) shows a point d from the centre at most 90° − d above / below the horizon, and on C the camera's latitude
-// goes between ±i. The mouse cannot take the body farther from the centre than C's angle allows (see lpMouseOk).
-const lpMaxI = w => !w ? LP_MAX_I : Math.min(LP_MAX_I, Math.asin(clamp(w[2], -1, 1)));   // (both pans, user 2026-10-27)
-const lpMouseOk = () => Math.abs(LP.i) <= lpMaxI(placeNow()) + 1e-9;
+const LP_MAX_I = 80 * DEG, LP_ANGLE_SPEED = 30 * DEG;   // (user, 2026-11-03: 30°/s; 2026-10-25: 40°/s, was 30°/s)
+// (The leveled pan's restricted area, user 2026-10-27: C's angle at most 90° − d, d the body's angle from the screen's
+// centre, the mouse stopped there: removed 2026-11-04, the manual look is a sum of angles, anywhere; see lpView.)
 // valid: C set for the camera as it is (else set afresh from it); panA / tiltA: the automatic pan / tilt last given to
 // the camera; entering: the view turning onto the z axis after entering the view (see lpView)
-const LP = { valid: false, i: 0, node: 0, u: 0, panA: 0, tiltA: 0, entering: false, roll: 0 };   // roll: the rotating pan's turn (lpTurnNow)
+const LP = { valid: false, i: 0, node: 0, u: 0, panA: 0, tiltA: 0, entering: false, roll: 0, cf: null, cr: 0, oa: 0, ob: 0 };   // roll: the rotating pan's turn (lpTurnNow); cf, cr: its centred frame and that frame's turn, oa, ob: the user's look from it (lpCentred)
 const lpN = node => [Math.cos(node), Math.sin(node), 0];
 const lpM = (i, node) => [-Math.sin(node) * Math.cos(i), Math.cos(node) * Math.cos(i), Math.sin(i)];
 function lpDir(i, node, u) {
@@ -1420,6 +1412,9 @@ function lpFit(q, keepI) {
       const a = Math.asin(x), n1 = lam + a, n2 = lam + Math.PI - a;
       i = keepI; node = Math.abs(wrapPi(n1 - LP.node)) <= Math.abs(wrapPi(n2 - LP.node)) ? n1 : n2;
     }
+    // (no circle at keepI there: the camera at C's highest point (u = 90°) or, the same circle written the other way,
+    // its lowest one (−φ, node + 180°, u = −90°): the one nearer the camera's u now, so the turn (lpRollU) does not jump)
+    else if (Math.abs(wrapPi(-Math.PI / 2 - LP.u)) < Math.abs(wrapPi(Math.PI / 2 - LP.u))) { i = -phi; node = lam + Math.PI / 2; }
   }
   LP.i = i; LP.node = wrapPi(node);
   LP.u = Math.atan2(dot(q, lpM(i, LP.node)), dot(q, lpN(LP.node)));
@@ -1434,18 +1429,25 @@ function lpAuto(q) {
 // below it the turn δ of the mirrored pan p′ from p (α = node + 180°: p′ = α − wrap(p − α) = 2·node − p, δ = p′ − p),
 // taken as the picture's turn itself (user, 2026-10-25; not its look across the view direction, which bunched the turn
 // up around δ = 90° on flat circles, where the view is nearly horizontal): the same for every C angle
-// The rotating pan's turn (user, 2026-10-27, B: one turn over the whole lap, in the north too): δ = 90° − (the angle
-// along C from its highest point), so 0° at C's top, 90° at the crossing after it, 180° at its lowest point, 270° at the
-// other crossing (the near pole towards the top of the screen at both poles); the same way round as before in the south,
-// half as fast. q: the camera on C (i, node); i < 0 has its highest point at u = −90°.
-const lpRoll = (q, i, node) => !LP_ROTATING ? 0 : wrapPi((i >= 0 ? 1 : -1) * Math.PI / 2 - Math.atan2(dot(q, lpM(i, node)), dot(q, lpN(node))));
+// The rotating pan's turn (user, 2026-11-04, "even", the only one kept; tried 2026-11-02 … 11-04 and dropped: 90° − u,
+// even and then flat at the poles ("full lap"), by the latitude (a swing, level along the equator), by the longitude on
+// C (ρ = λ − 90°: the body's own turn under the camera, opposite at the two poles, was taken off in the north and added
+// in the south: 0.15° against 6.1° of picture turn per degree walked, C at 73°, log 2026-11-04-183251)): set by the
+// camera's place on C alone: the pan vector turns evenly in the plane of the head, against the direction of travel
+// along C, by u − 180° (u: the angle along C from A): backward at A, towards C's north side at C's highest point (the
+// north pole at the top), forward at the next crossing of the equator, towards the south side at the lowest point (the
+// south pole at the top), one turn per lap; the picture turns 1° per degree walked, everywhere and the same at both poles,
+// never faster than walking. As the pan ρ from the north (lpCentredFrame): ρ = u + az − 180°, az the heading of C from
+// the north at the camera (atan2(cos i, sin i cos u)); −90° − C at A. A: the node of C where, with u growing (E), the
+// camera goes north (C > 0: the ascending node, u = 0; C < 0: the other one, u = 180°, + 180°; on the equator, C = 0°,
+// the last one, LP.side). side (stepLeveled): the node A to take, kept through a move; W/S taking C through 0° move A to
+// the other node: the picture then turns by 180° at LP_ANGLE_SPEED (LP.entering), the camera waiting for it. q: the
+// camera on C (i, node).
+const lpSide = (i, side) => side || (i > 0 ? 1 : i < 0 ? -1 : LP.side || 1);
+const lpRollU = (u, i, side) => !LP_ROTATING ? 0
+  : wrapPi(u + Math.atan2(Math.cos(i), Math.sin(i) * Math.cos(u)) + (lpSide(i, side) < 0 ? 0 : -Math.PI));
+const lpRoll = (q, i, node) => lpRollU(Math.atan2(dot(q, lpM(i, node)), dot(q, lpN(node))), i);
 const lpRollAt = (q, i, node) => lpRoll(q, i, node);
-// W/S (user, 2026-10-27, option 3): rule B alone would turn the picture by 180° at once where W/S take the camera from
-// C's top through the ecliptic to C's lowest point (C flat there). So the turn is kept as it goes (LP.roll, from where
-// it is): E/C turn it by −1° per degree along C (rule B: one turn per lap), W/S by 1.125° per degree of latitude (180°
-// from +80° to −80°, the same way as down the lap: going south it decreases), A/D not at all. It depends on the way
-// taken; Home sets it to 0, a fresh start (lpStart, switching to the rotating pan) to rule B's value there.
-const LP_WS_TURN = 180 / 160;
 // The pole view on the body's rotation axis (user, 2026-10-27: first the rotating pan, then the leveled pan too): the pole view's
 // reference is the celestial body's own: its rotation axis (north pole, IAU, REF.pole) instead of the ecliptic's z axis, its
 // equator instead of the body ecliptic. So C's angle is to the equator, A/D turn C around the rotation axis, the head's
@@ -1497,28 +1499,27 @@ const lpFramed = fn => lpOnAxis() ? bodyFramed(fn) : fn();
 const lpTurnNow = () => LP_ROTATING ? LP.roll : 0;
 // a place on the screen w (right, up, view) in the head's own frame, for the picture turned by ρ (C.roll): the screen's
 // up is the head's up turned by ρ around the view direction (picUp), so the head's components are w turned back by ρ
-const headPlace = (w, r) => [w[0] * Math.cos(r) + w[1] * Math.sin(r), -w[0] * Math.sin(r) + w[1] * Math.cos(r), w[2]];
 // C set afresh from the camera as it is; the view then turns onto the z axis (lpView)
 function lpStart() {
   lpFit(unit(rel()));
   LP.roll = lpRoll(unit(rel()), LP.i, LP.node);
-  LP.panA = C.pan; LP.tiltA = C.tilt; LP.valid = true; LP.entering = true;
+  LP.panA = C.pan; LP.tiltA = C.tilt; LP.valid = true; LP.entering = true; LP.cf = null;
 }
 // the largest part s (0..1) of a move, the camera then at at(s) (relative to O), for which the automatic pan and tilt
-// turn at most LP_ANGLE_SPEED in this frame; with roll(s) (the automatic picture's turn then) that too
-// w (the leveled pan, user 2026-10-27): the body's place on the screen to hold; then the camera's own pan and tilt for it
-// (lpPlaceAngles) are what is limited, and the move stops where the place can no longer be held (a level head cannot
-// show a point d° beside the screen's centre more than 90° − d° above / below the horizon)
-// (rollAt(s): the picture's turn there, the rotating pan: the place is turned into the head's frame, and the turn is
-// limited too)
-function lpLimit(dt, at, roll, w, rollAt) {
+// turn at most LP_ANGLE_SPEED in this frame; with roll(s) (the automatic picture's turn then, the rotating pan) what is
+// seen (see below). (Until 2026-11-04 the leveled pan's moves also stopped where the body's place on the screen could
+// not be held: the restricted area, removed.)
+function lpLimit(dt, at, roll) {
   const [p0, t0] = lpAuto(rel()), r0 = roll ? roll(0) : 0, lim = LP_ANGLE_SPEED * dt * (1 + 1e-9);
   const okAuto = s => { const [p, t] = lpAuto(at(s)); return Math.max(p === null || p0 === null ? 0 : Math.abs(wrapPi(p - p0)), Math.abs(t - t0), roll ? Math.abs(wrapPi(roll(s) - r0)) : 0) <= lim; };
-  const okPlace = s => {
-    const r = rollAt ? rollAt(s) : 0, a = lpPlaceAngles(at(s), headPlace(w, r), C.tilt);
-    return !a || (a.exact && Math.max(a.pan === null ? 0 : Math.abs(wrapPi(a.pan - C.pan)), Math.abs(a.tilt - C.tilt), Math.abs(wrapPi(r - C.roll))) <= lim);
-  };
-  const ok = w ? okPlace : okAuto;
+  // the rotating pan (user, 2026-11-03, with the even turn): what is seen is limited, not the head's own pan and turn
+  // (both race near the poles, where C's heading and the body's own turn change fast, the picture not): the picture's
+  // turn (its up at s against the right now: a move of the camera alone, the head carried along, adds none to it) and
+  // the view direction's
+  const frameAt = s => { const [p, t] = lpAuto(at(s)); return lpCentredFrame(p !== null ? p : LP.panA, t, roll(s)); };
+  const F0 = roll ? frameAt(0) : null;
+  const okSeen = s => { const F = frameAt(s); return Math.max(Math.abs(Math.asin(clamp(dot(F[1], F0[0]), -1, 1))), Math.acos(clamp(dot(F[2], F0[2]), -1, 1))) <= lim; };
+  const ok = F0 ? okSeen : okAuto;
   if (ok(1)) return 1;
   let lo = 0, hi = 1;
   for (let k = 0; k < 20; k++) { const m = (lo + hi) / 2; if (ok(m)) lo = m; else hi = m; }
@@ -1533,7 +1534,7 @@ function lpHome() {
 function lpHome_() {
   LP.i = HOME.lat; LP.node = wrapPi(HOME.lon - Math.PI / 2); LP.u = Math.PI / 2; LP.roll = 0;
   const a = lpAuto(rel());
-  LP.panA = C.pan = a[0]; LP.tiltA = C.tilt = a[1]; C.roll = 0; LP.valid = true; LP.entering = false;
+  LP.panA = C.pan = a[0]; LP.tiltA = C.tilt = a[1]; C.roll = 0; LP.valid = true; LP.entering = false; LP.cf = null;
 }
 // C (i, node, u) turned rigidly by a around the axis e through O; of the two ways to write the turned circle ((i, Ω) and
 // (−i, Ω + 180°)) the one with the node nearer to the old one
@@ -1550,7 +1551,7 @@ function lpTurn(i, node, u, e, a) {
   return { i: ni, node: nn, u: Math.atan2(dot(q, lpM(ni, nn)), dot(q, lpN(nn))) };
 }
 // one frame of the leveled pan's keys
-function stepLeveled(dt, vKey, hKey, cKey, w) {
+function stepLeveled(dt, vKey, hKey, cKey) {
   if (!LP.valid) lpStart();
   const qu = unit(rel());
   if (dot(qu, lpDir(LP.i, LP.node, LP.u)) < 1 - 1e-9) lpFit(qu, LP.i);   // moved by something else (a wall, a planet)
@@ -1558,9 +1559,9 @@ function stepLeveled(dt, vKey, hKey, cKey, w) {
   const step = ANGULAR_SPEED * dt, right = cross(viewDir(), picUp());   // the screen's right, as the picture is turned
   // W/S (user, 2026-10-27: they only set C's angle, from −80° to +80°; walking round C is E/C's): C turns around its
   // line of nodes, W raising its angle, S lowering it, at ANGULAR_SPEED; the camera rides on C (the same u). Within ±maxI
-  // (lpMaxI); from beyond it (entered there) only back towards the range.
+  // (LP_MAX_I); from beyond it (entered there) only back towards the range.
   const lam = Math.atan2(qu[1], qu[0]), e = [-Math.sin(lam), Math.cos(lam), 0];
-  const maxI = lpMaxI(w);
+  const maxI = LP_MAX_I;
   let di = 0;
   if (vKey) {
     let ni = i + vKey * step;
@@ -1578,65 +1579,124 @@ function stepLeveled(dt, vKey, hKey, cKey, w) {
   const n0 = LP.node, u0 = LP.u, dn = wrapPi(node - n0), du = wrapPi(u - u0);
   const move = s => ({ i: i + di * s, node: n0 + dn * s, u: u0 + du * s });
   if (!di && !dn && !du) return;
+  // the rotating pan's picture still turning to its rule (entering, a switch, C through 0°): the camera waits for it
+  // (user, 2026-11-03, the limit at 30°/s: walking, the turn's target moved as fast as the turn and it never ended)
+  if (LP.entering) return;
   // slower where the automatic view would turn faster than LP_ANGLE_SPEED (Q/E: the pan near C's top / bottom, the
   // picture's turn on C's lower half; W/S crossing the ecliptic away from a node turns the picture at once, see above)
   const at = s => { const c = move(s); return lpDir(c.i, c.node, c.u).map(x => x * C.r); };
-  // the picture's turn at s (the rotating pan; see LP_WS_TURN): E/C's part along C, W/S's by the latitude of their own turn
-  const lat0 = Math.asin(clamp(qu[2], -1, 1)), latWS = s => Math.asin(clamp(lpDir(i + di * s, n0, u0)[2], -1, 1));
-  const rollAt = s => !LP_ROTATING ? 0 : wrapPi(LP.roll - du * s + (di ? LP_WS_TURN * (latWS(s) - lat0) : 0));
-  const roll = LP_ROTATING ? rollAt : null;
-  const sl = lpLimit(dt, at, roll, !LP.entering ? w : null, rollAt);
+  // the picture's turn at s (the rotating pan; see lpRollU): by the place on C alone
+  const side = lpSide(i), rollAt = s => lpRollU(u0 + du * s, i + di * s, side);
+  const roll = rollAt;
+  const sl = lpLimit(dt, at, roll);
   const p = add(P, at(sl));
   if (!insideBox(p)) return;
   const c = move(sl);
-  C.pos = p; Object.assign(LP, { i: c.i, node: wrapPi(c.node), u: wrapPi(c.u), roll: rollAt(sl) });
+  C.pos = p; Object.assign(LP, { i: c.i, node: wrapPi(c.node), u: wrapPi(c.u), roll: rollAt(sl), side: Math.sign(c.i) || side });
+  if (LP_ROTATING && LP.side !== side) { LP.roll = lpRollU(LP.u, LP.i); LP.entering = true; }   // C through 0°: A to the other node
   syncSpherical();
 }
 // the automatic view follows the camera's place: the camera's pan / tilt take the change of the automatic angles, at
 // most LP_ANGLE_SPEED (the moves are already within that; only on entering, or when something else moves the camera, a
 // planet, a wall, does the view catch up at that speed)
-// The leveled pan (user, 2026-10-27): the body's centre keeps its place on the screen through every move (w: its place
-// before the move, see placeNow), the level head's pan and tilt set for it (lpKeepPlace); with the body in the screen's
-// centre that is the automatic view. (Until then the mouse's part went back to 0 while a key was held, for the mirror
-// at the ecliptic, now off: the body drifted to the centre.)
-// The rotating pan, moving: a move key held (W/S, A/D, E/C): the mouse's part of the view goes back to 0 (user,
-// 2026-10-25, log 2026-10-25-222808), within what LP_ANGLE_SPEED leaves after the automatic turn of this frame
-function lpView(dt, moving, w) {
+function lpView(dt) {
   const [pT, tT] = lpAuto(rel()), lim = LP_ANGLE_SPEED * dt;
-  // entering (user, 2026-10-24: the view on the z axis): once the picture is level (levelling turns the camera around the
-  // line to the body's centre, which also changes its pan / tilt), the camera's own pan and tilt turn onto the automatic
-  // ones, so nothing of the view before stays as a mouse part, and the picture onto its turn; the mouse ends it (its part
-  // is then kept)
+  // both pans (user, 2026-11-04): the automatic view (centred on the body: the leveled pan's level, north up, the
+  // rotating pan's turned by ρ) + the user's look relative to it (lpCentred, lpLook), so the body keeps its place on the
+  // screen through the moves whatever the look, and the look can go anywhere. (The leveled pan first, 2026-11-04, added
+  // the look to the level head's own pan and tilt: with the camera's latitude changing the body then swung on the screen,
+  // user: "this shouldn't happen"; and straight along the rotation axis its pan was lost and the picture jumped.)
+  if (C.leveling) { LP.panA = C.pan; LP.tiltA = C.tilt; LP.cf = null; return; }
+  lpCentred(pT, tT, lim);
+}
+// The rotating pan's view (user, 2026-11-03, log 2026-11-03-095825, option b; the head, user 2026-11-03): the camera's
+// head has its plane perpendicular to the line from the camera to the body's centre (its pan axis on that line, the
+// camera tilted −90° in it, looking at the centre), and its pan vector, the centred picture's up, turned in that plane
+// by the pan ρ (the rotating pan's rule, lpRollU) from the side of the north pole: 0° at C's highest point (the north
+// pole at the top), 180° at its lowest point (the south pole at the top), continuously in between. The camera's
+// (right, up, view) for that centred view: lpCentredFrame. The user looks from it in any direction with the mouse
+// (lpLook), the mouse grabbing the image (user, 2026-11-04, option B; a pan around the head's z, tried first, could
+// only turn the picture around the body at the automatic view, the head's z being the line to it): a turn LP.oa
+// left / right around the head's x (the centred picture's up), then LP.ob up / down around the turned y (the new right),
+// at most ±90°. The final view is the automatic one (head pan 0, tilt −90°: at the body's centre) + this manual look,
+// shown and logged as the head's own pan and tilt of the view (headAngles: pan around z from +x, tilt from the head's
+// plane); W/S, A/D, E/C (forward, left …, in the head's terms) are the keys', the mouse only grabs the image. The look
+// is kept through every move: at 0 the body's centre is in the middle of the screen, with a look it can be anywhere,
+// or off the screen, and the moves still follow the rules (the head turns, the camera with it).
+// Entering (LP.cf null), the look and the centred frame's turn (LP.cr) are taken from the camera as it is (nothing
+// changes on the screen), and LP.cr then goes to the rule's at LP_ANGLE_SPEED.
+// lpCentredFrame: the camera's (right, up, view) for pan p, tilt t, picture's turn r
+function lpCentredFrame(p, t, r) {
+  const s = [C.pan, C.tilt, C.roll];
+  C.pan = p; C.tilt = t; C.roll = r;
+  const f = viewDir(), u = picUp();
+  [C.pan, C.tilt, C.roll] = s;
+  return [cross(f, u), u, f];
+}
+// the head's axes (x, y, z) of the centred frame F (right, up, view): x its up, y its left, z against its view
+const lpHeadAxes = F => [F[1], F[0].map(v => -v), F[2].map(v => -v)];
+// the pan and tilt in the head (x, y, z) of the view f (with its up u): the tilt from the head's plane, the pan of the
+// view's direction in that plane from +x (+: towards +y); within 0.06° of ±90° (the view on the body's centre, or
+// straight away from it) the pan of the picture's up (cos t·f − sin t·u) instead: there the view's own direction in the
+// plane is only rounding, and flipped the pan from sample to sample (user, 2026-11-04, log 2026-11-04-091547)
+function headAngles([X, Y, Z], f, u) {
+  const t = Math.asin(clamp(dot(f, Z), -1, 1)), h = Math.cos(t) > 1e-3 ? f : f.map((x, k) => Math.cos(t) * x - Math.sin(t) * u[k]);
+  return [Math.atan2(dot(h, Y), dot(h, X)), t];
+}
+// the view and up for the look (a, b) from the centred frame F (right, up, view): a around its up (+: to the left), then
+// b around the new right (+: up)
+function lpLookDir(F, a, b) {
+  const [r0, u0, f0] = F, f1 = rotate(f0, u0, a), r1 = rotate(r0, u0, a);
+  return [rotate(f1, r1, b), rotate(u0, r1, b)];
+}
+// the look (a, b) from F that has the view direction f
+function lpLookOf(F, f) {
+  const x = dot(f, F[0]), y = dot(f, F[1]), z = dot(f, F[2]);
+  return [Math.atan2(-x, z), Math.asin(clamp(y, -1, 1))];
+}
+// the centred frame (right, up, view) of the head's axes (x, y, z)
+const headFrame = ([X, Y, Z]) => [Y.map(v => -v), X, Z.map(v => -v)];
+// the head's own pan and tilt of the look (a, b) from the centred frame F (shown in the gauge, logged)
+const lpLookHead = (F, a, b) => { const [f, u] = lpLookDir(F, a, b); return headAngles(lpHeadAxes(F), f, u); };
+// the head's own pan and tilt now (gauge, log), or null: the rotating pan's look (lpLookHead), the leveled pan's
+// automatic + manual angles (the automatic pan is +x: the pan is the manual one; the tilt the final one), not while
+// entering (the picture still turning level: the manual angles are taken after it)
+const lpHeadNow = () => !LP.cf ? null : LP_ROTATING ? lpLookHead(LP.cf, LP.oa, LP.ob) : (() => {
+  // the leveled pan: in the level head (z the rotation axis, +x horizontally towards it: the centred view's level part)
+  const Z = [0, 0, 1], v = LP.cf[2], h = [v[0], v[1], 0], X = len(h) > 1e-9 ? unit(h) : LP.cf[1];
+  const [f, u] = lpLookDir(LP.cf, LP.oa, LP.ob);
+  return headAngles([X, cross(Z, X), Z], f, u);
+})();
+// the mouse in the rotating pan (as seen on the screen; the image follows it, as mouseTurn): right turns the look to the
+// left, forward (my < 0) down; up / down within ±90° (no picture upside down)
+function lpLook(mx, my) {
+  const H = Math.PI / 2 - 1e-6;
+  LP.oa = wrapPi(LP.oa + mx * MOUSE_SENS); LP.ob = clamp(LP.ob + my * MOUSE_SENS, -H, H);
+  const [f, u] = lpLookDir(LP.cf, LP.oa, LP.ob); setView(f, u);
+}
+function lpCentred(pT, tT, lim) {
+  const p = pT !== null ? pT : LP.panA, rT = lpTurnNow();
+  if (!LP.cf) {
+    // from the camera as it is: the centred frame's turn for which the look has the camera's view and up (found by
+    // turning it by what is left over, a few times)
+    const f = viewDir(), u = picUp(), fc = unit(rel().map(x => -x)), u0 = u.map((x, k) => x - dot(u, fc) * fc[k]);
+    const lu = lpCentredFrame(p, tT, 0)[1];
+    let cr = len(u0) > 1e-6 ? Math.atan2(dot(cross(lu, u0), fc), dot(lu, u0)) : rT;
+    for (let k = 0; k < 30; k++) {
+      const F = lpCentredFrame(p, tT, cr), [a, b] = lpLookOf(F, f), u2 = lpLookDir(F, a, b)[1];
+      const m = Math.atan2(dot(cross(u2, u), f), dot(u2, u));
+      cr = wrapPi(cr + m); [LP.oa, LP.ob] = [a, b];
+      if (Math.abs(m) < 1e-12) break;
+    }
+    LP.cr = cr;
+  }
   if (LP.entering) {
-    if (C.leveling) { LP.panA = C.pan; LP.tiltA = C.tilt; return; }
-    if (pT !== null) C.pan += clamp(wrapPi(pT - C.pan), -lim, lim);
-    C.tilt += clamp(tT - C.tilt, -lim, lim);
-    const rT = lpTurnNow();
-    C.roll += clamp(wrapPi(rT - C.roll), -lim, lim);
-    LP.panA = C.pan; LP.tiltA = C.tilt;
-    if ((pT === null || Math.abs(wrapPi(pT - C.pan)) < 1e-9) && Math.abs(tT - C.tilt) < 1e-9 && Math.abs(wrapPi(rT - C.roll)) < 1e-9) LP.entering = false;
-    return;
-  }
-  if (w) {
-    // (both pans, user 2026-10-27: the rotating pan's picture turned by its own rule, the body kept in its place the same way)
-    if (pT !== null) LP.panA = pT;
-    C.roll = lpTurnNow();
-    LP.tiltA = tT;
-    lpKeepPlace(headPlace(w, C.roll));
-    return;
-  }
-  if (pT !== null) {
-    const d = clamp(wrapPi(pT - LP.panA), -lim, lim);
-    LP.panA = wrapPi(LP.panA + d); C.pan += d;
-    if (moving) { const r = lim - Math.abs(d); C.pan += clamp(wrapPi(LP.panA - C.pan), -r, r); }
-  }
-  const d = clamp(tT - LP.tiltA, -lim, lim);
-  C.tilt = clamp(C.tilt + d, -Math.PI / 2, Math.PI / 2); LP.tiltA += d;
-  if (moving) { const r = lim - Math.abs(d); C.tilt += clamp(LP.tiltA - C.tilt, -r, r); }
-  // the picture's turn: from the automatic pan (towards the z axis), not the camera's with the mouse's part (that gave
-  // a turn of twice the mouse's pan at the node, undone at once on crossing the ecliptic); the moves already within
-  // LP_ANGLE_SPEED
-  C.roll = lpTurnNow();
+    LP.cr = wrapPi(LP.cr + clamp(wrapPi(rT - LP.cr), -lim, lim));
+    if (Math.abs(wrapPi(rT - LP.cr)) < 1e-9) LP.entering = false;
+  } else LP.cr = rT;
+  const F = lpCentredFrame(p, tT, LP.cr), [f, u] = lpLookDir(F, LP.oa, LP.ob);
+  setView(f, u);
+  LP.cf = F; LP.panA = p; LP.tiltA = tT;
 }
 // the level head's pan and tilt that put the body's centre at w = (right, up, view) components on the screen, from where
 // the camera is now: the direction b to the centre has b_z = w_up·cos t + w_view·sin t (gives the tilt; of the two, the
@@ -1655,12 +1715,6 @@ function lpPlaceAngles(q, w, t0) {
   const g = w[2] * Math.cos(t) - w[1] * Math.sin(t);
   const pan = Math.hypot(b[0], b[1]) > 1e-12 ? wrapPi(Math.atan2(b[1], b[0]) - Math.atan2(-w[0], g)) : null;
   return { pan, tilt: t, exact: Math.abs(b[2]) <= A + 1e-12 && ok.length > 0 };
-}
-function lpKeepPlace(w) {
-  const a = lpPlaceAngles(rel(), w, C.tilt);
-  if (!a) return;
-  if (a.pan !== null) C.pan = a.pan;
-  C.tilt = a.tilt;
 }
 const LEVEL_TIME = 2;   // s, the picture going back to level (user, 2026-10-22)
 let merAxis = null;   // the tilted meridian's axis set with Q / E, or null: the meridian through the camera
@@ -1842,8 +1896,9 @@ function updateBody(dt) {
   if (LEVELED_PAN) {
     const cKey = held.has('turnR') !== held.has('turnC') ? (held.has('turnR') ? 1 : -1) : 0;   // E forward, C backward
     lpFramed(() => {
-      const w = placeNow();   // the body's place on the screen before this frame's moves (with the mouse's last turn)
-      stepLeveled(dt, vKey, hKey, cKey, w); wheelStep(dt); lpView(dt, !!(vKey || hKey || cKey), w);
+      // the body's place on the screen before this frame's moves (with the mouse's last turn); the rotating pan: none,
+      // its view is the centred one moved by the mouse's offset (see lpCentred)
+      stepLeveled(dt, vKey, hKey, cKey); wheelStep(dt); lpView(dt);
     });
     return;
   }
@@ -3156,6 +3211,8 @@ function updateSkyLabels() {
     const rad = Math.tan(Math.asin(s / D)) * k;
     if (vSky.z < 1 || rad > innerWidth) discs.push(vSky.z < 1 ? [(vSky.x * .5 + .5) * innerWidth, (-vSky.y * .5 + .5) * innerHeight, rad * 1.5 + 4] : null);
   }
+  const rb = replayBoxScreen();   // (the replay's camera box covers them too, see coverLabel)
+  if (rb) discs.push([rb.cx, rb.cy, rb.rad + 4]);
   // each name centred on its fixed place (skyLayout)
   for (const l of SKY_LABELS) {
     proj(vSky.copy(l.pos).multiplyScalar(1e7).add(o));
@@ -3332,11 +3389,43 @@ function coverLabel(el, d, pt, r = el.getBoundingClientRect()) {
     const w = Math.ceil(r.width), h = Math.ceil(r.height);
     masks.push(`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'><path fill-rule='evenodd' d='M-1 -1H${w + 1}V${h + 1}H-1Z M${pts.join(' L')}Z'/></svg>`)}")`);
   }
+  // the replay's camera box covers the labels behind it too (user, 2026-11-03: the names of the constellations were
+  // seen through it): its outline on the screen, as the bodies'
+  const rb = replayBoxScreen();
+  if (rb && rb.dist < d) {
+    const pts = rb.pts.map(([x, y]) => [x - r.left, y - r.top]);
+    if (!pts.every(([x]) => x < 0) && !pts.every(([x]) => x > r.width) && !pts.every(([, y]) => y < 0) && !pts.every(([, y]) => y > r.height)) {
+      const w = Math.ceil(r.width), h = Math.ceil(r.height);
+      masks.push(`url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'><path fill-rule='evenodd' d='M-1 -1H${w + 1}V${h + 1}H-1Z M${pts.map(([x, y]) => x.toFixed(1) + ' ' + y.toFixed(1)).join(' L')}Z'/></svg>`)}")`);
+    }
+  }
   el.style.visibility = hide ? 'hidden' : '';
   const m = hide ? '' : masks.join(', ');
   if (el._mask === m) return;
   el._mask = m; el.style.maskImage = m; el.style.maskComposite = masks.map(() => 'intersect').join(', ');
   el.style.maskRepeat = 'no-repeat'; el.style.maskSize = '100% 100%';
+}
+// the replay's camera box on the screen (null when not shown, or reaching behind the observer): its outline (the convex
+// hull of its 8 corners, px), a circle around it (cx, cy, rad) and its distance from the observer
+const vBox = new THREE.Vector3();
+function replayBoxScreen() {
+  if (!replay.on || !replay.objs) return null;
+  const o = replay.objs, s = o.s, p = [];
+  o.cam.updateMatrixWorld(true);
+  for (const x of [-.25, .25]) for (const y of [-.175, .175]) for (const z of [-.45, .45]) {
+    vBox.set(x * s, y * s, z * s); o.cam.localToWorld(vBox); proj(vBox);
+    if (vBox.z <= -1 || vBox.z >= 1) return null;
+    p.push([(vBox.x * .5 + .5) * innerWidth, (-vBox.y * .5 + .5) * innerHeight]);
+  }
+  p.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const turn = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]), half = q => {
+    const h = [];
+    for (const v of q) { while (h.length > 1 && turn(h[h.length - 2], h[h.length - 1], v) <= 0) h.pop(); h.push(v); }
+    h.pop(); return h;
+  };
+  const pts = [...half(p), ...half([...p].reverse())], cx = pts.reduce((a, v) => a + v[0], 0) / pts.length, cy = pts.reduce((a, v) => a + v[1], 0) / pts.length;
+  o.cam.getWorldPosition(vBox);
+  return { pts, cx, cy, rad: Math.max(...pts.map(([x, y]) => Math.hypot(x - cx, y - cy))), dist: camera.position.distanceTo(vBox) };
 }
 // is point p hidden by the sphere (centre c, radius s) as seen from the camera?
 function behindSphere(p, c, s) {
@@ -3479,15 +3568,26 @@ function updateGauge(show, lp) {
   const e = Math.asin(clamp(dot(cross(f, u), zRef), -1, 1));
   const M = 40.5, V = .9 * M;
   const set = (el, x1, y1, x2, y2) => { el.setAttribute('x1', x1.toFixed(2)); el.setAttribute('y1', y1.toFixed(2)); el.setAttribute('x2', x2.toFixed(2)); el.setAttribute('y2', y2.toFixed(2)); };
-  const seg = (el, b) => set(el, 50 - M * Math.cos(b), 50 + M * Math.sin(b), 50 + M * Math.cos(b), 50 - M * Math.sin(b));
-  seg($('g-mer'), a);
+  // (user, 2026-11-04: the segment kept between the texts, 4 below the C / M angle's line and 4 above the lowest text
+  // line under it: each half cut there, so it never runs between the letters)
+  const ha = lp ? lpHeadNow() : null, hd = !!ha, yTop = 14, yBot = hd ? 77 : 86;
+  const half = sg => { const dx = sg * Math.cos(a), dy = -sg * Math.sin(a), l = Math.min(M, dy < 0 ? (50 - yTop) / -dy : dy > 0 ? (yBot - 50) / dy : M); return [50 + l * dx, 50 + l * dy]; };
+  set($('g-mer'), ...half(-1), ...half(1));
   // (the arrowhead, as the axes' arrows: narrow and long, 12 long; 6 wide at its base, user 2026-10-28: 4 was hard to
   // see over the tilted meridian's line; from the end of the line to the vector's end)
   set($('g-pan'), 50, 50, 50 + (V - 12) * Math.cos(e), 50 - (V - 12) * Math.sin(e));
   setText($('g-val'), (lp ? 'C angle: ' + (a < 0 ? '\u2212' : '') : 'M angle: ') + (Math.abs(a) / DEG).toFixed(1) + '\u00b0');
   const ev = Math.round(e / DEG * 10) / 10;   // (\u22120.0 shown as +0.0)
   setText($('g-pv'), 'pan angle: ' + (ev < 0 ? '\u2212' : '+') + Math.abs(ev).toFixed(1) + '\u00b0');
+  // the rotating pan (user, 2026-11-04): the head's own angles, the automatic ones (pan 0, tilt −90°) + the manual ones
+  // (two lines: in one, right-aligned, the start was cut off at the gauge's left edge; user, 2026-11-04: the names left-
+  // aligned, at the place that leaves room for "head pan: +100.2°", the values right-aligned)
+  if (hd) setText($('g-pv'), sgnDeg(ha[0]));
+  setText($('g-pvl'), hd ? 'head pan:' : '');
+  setText($('g-ptl'), hd ? 'head tilt:' : '');
+  setText($('g-pt'), hd ? sgnDeg(ha[1]) : '');
 }
+const sgnDeg = a => { const v = Math.round(a / DEG * 10) / 10; return (v < 0 ? '\u2212' : '+') + Math.abs(v).toFixed(1) + '\u00b0'; };
 
 // when no part of Pluto is on screen, an arrow at the screen edge shows which way to turn [REQ-01.1]
 const pointerEl = $('pointer'), pointerLabel = pointerEl.querySelector('span'), POINTER_MARGIN = 34;
@@ -3501,8 +3601,11 @@ function updatePointer(f, u) {
   let visible = edge <= 0;
   if (!visible && edge < Math.PI / 2) { const e = Math.tan(edge) / h; visible = Math.abs(dr * e / th) <= 1 && Math.abs(du * e / tv) <= 1; }
   // arrow direction: towards Pluto on the screen; straight behind the camera: down
+  // (user, 2026-11-04: within 1° of straight behind the camera the direction is only rounding, and the arrow raced
+  // round the screen's edge: there it keeps the last direction)
   let x = dr / th, y = (picMirror ? -du : du) / tv;   // (the picture mirrored top to bottom: see picMirror)
-  if (!h) { x = 0; y = -1; }
+  if (!h || -df / dl > Math.cos(DEG)) [x, y] = updatePointer.last || [0, -1];
+  else updatePointer.last = [x, y];
   // (no arrow in absolute space mode, user 2026-10-30: there is no reference celestial body to point to)
   if (visible || C.mode === 'absolute') { pointerEl.style.display = 'none'; return; }
   const hw = innerWidth / 2 - POINTER_MARGIN, hh = innerHeight / 2 - POINTER_MARGIN;
@@ -3687,10 +3790,11 @@ function showViews(e, body) {
 }
 menuControls.addEventListener('click', () => { showControls(!document.body.classList.contains('show-controls')); closeMenu(); menuControls.blur(); });
 // About (user, 2026-10-28): always the last line of the menu; the panel closes with × or Esc
-const aboutEl = $('about'), showAbout = on => aboutEl.classList.toggle('open', on);
+// (user, 2026-11-02: About over the Intro; the Intro stops while About is open and goes on when it is closed, see introFreeze)
+const aboutEl = $('about'), showAbout = on => { if (aboutEl.classList.contains('open') === on) return; aboutEl.classList.toggle('open', on); introFreeze(on); };
 $('menu-about').addEventListener('click', e => { closeMenu(); e.currentTarget.blur(); showAbout(true); });
 $('about-close').addEventListener('click', e => { e.currentTarget.blur(); showAbout(false); });
-addEventListener('keydown', e => { if (e.key === 'Escape' && aboutEl.classList.contains('open')) showAbout(false); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && aboutEl.classList.contains('open')) { showAbout(false); intro.escAbout = true; } });   // (Esc closes About only, not the Intro under it)
 // Intro [REQ-01.3] (user, 2026-10-31): an automatic presentation in text only, on a parchment scroll, at every start
 // (after the picture has appeared) and from Help → Intro; the simulation runs behind it (Pluto, Sun locked view).
 // Each line first shows random letters and digits, changing fast; after INTRO_SCRAMBLE s the first two lines settle to
@@ -3740,10 +3844,34 @@ function introWrap(page, width, indent) {
 const INTRO_SCRAMBLE = 2, INTRO_SETTLE = 1, INTRO_STEP = .5, INTRO_READ = 10, INTRO_FADE = 2, INTRO_ROLL = 3;   // s (reading: user, 2026-11-02: 10 s)
 const INTRO_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', INTRO_FLICKER = 60;   // ms
 const introEl = $('intro'), introLines = $('intro-lines');
-const intro = { page: 0, t0: 0, lines: [], paused: false, next: 0, raf: 0, timer: 0, lastFlick: 0 };
+const intro = { page: 0, t0: 0, lines: [], paused: false, next: 0, raf: 0, timer: 0, lastFlick: 0, frozen: 0, later: null };
+// the Intro's steps after a time (appearing, unrolling, rolling back, disappearing), kept so that introFreeze can hold them
+function introLater(fn, ms) {
+  clearTimeout(intro.timer);
+  intro.later = { fn, at: performance.now() + ms };
+  intro.timer = setTimeout(() => { intro.later = null; fn(); }, ms);
+}
+// About open over the Intro (user, 2026-11-02): everything of the Intro stops (the letters, the reading time, the next
+// step of opening / closing) and goes on from there when About is closed (a roll or fade already going on ends first)
+function introFreeze(on) {
+  if (!introEl.classList.contains('on')) { intro.frozen = 0; return; }
+  const now = performance.now();
+  if (on) {
+    if (intro.frozen) return;
+    intro.frozen = now; cancelAnimationFrame(intro.raf); clearTimeout(intro.timer);
+    if (intro.later) intro.later.left = Math.max(0, intro.later.at - now);
+    return;
+  }
+  if (!intro.frozen) return;
+  const d = now - intro.frozen; intro.frozen = 0;
+  intro.t0 += d; intro.next += d; intro.lastFlick += d;
+  if (intro.later) introLater(intro.later.fn, intro.later.left);
+  if (intro.lines.length) { cancelAnimationFrame(intro.raf); intro.raf = requestAnimationFrame(introStep); }
+}
 const introLineStart = k => k < 2 ? INTRO_SCRAMBLE : INTRO_SCRAMBLE + INTRO_SETTLE + (k - 2) * INTRO_STEP;
 function introShow(i) {
   intro.page = i; intro.t0 = performance.now(); intro.lastFlick = 0;
+  if (intro.frozen) intro.frozen = intro.t0;   // (a page chosen while About is open starts when it is closed)
   introLines.textContent = '';
   const page = INTRO_PAGES[i], center = page.align === 'center';
   introLines.classList.toggle('big', !!page.big);   // (before the lines are measured)
@@ -3763,6 +3891,7 @@ function introShow(i) {
   cancelAnimationFrame(intro.raf); intro.raf = requestAnimationFrame(introStep);
 }
 function introStep(now) {
+  if (intro.frozen) return;
   const t = (now - intro.t0) / 1000, flick = now - intro.lastFlick >= INTRO_FLICKER;
   let busy = false;
   for (const l of intro.lines) {
@@ -3779,7 +3908,7 @@ function introStep(now) {
 }
 function introPause(on) {
   intro.paused = on; $('intro-run').textContent = on ? '▶ Run' : '❚❚ Stop';
-  if (!on && intro.lines.length) { intro.next = Math.max(intro.next, performance.now() + INTRO_READ * 1000); cancelAnimationFrame(intro.raf); intro.raf = requestAnimationFrame(introStep); }
+  if (!on && intro.lines.length && !intro.frozen) { intro.next = Math.max(intro.next, performance.now() + INTRO_READ * 1000); cancelAnimationFrame(intro.raf); intro.raf = requestAnimationFrame(introStep); }
 }
 // the parchment (user's example picture): drawn once for the scroll's size, with a fixed random sequence so that it is
 // always the same: a tan ground, light and dark blotches, a fine grain, faint creases, darker along the torn top and
@@ -3824,25 +3953,26 @@ function introPaper() {
 }
 addEventListener('resize', () => { if (introEl.classList.contains('on')) introPaper(); });
 function openIntro() {
-  clearTimeout(intro.timer); cancelAnimationFrame(intro.raf);
+  clearTimeout(intro.timer); cancelAnimationFrame(intro.raf); intro.later = null; intro.frozen = 0;
   introEl.classList.remove('closing', 'shown', 'open'); introEl.classList.add('on');
   introLines.textContent = ''; intro.lines = []; intro.page = 0; $('intro-pg').textContent = '';
   introPause(false); introEl.offsetWidth;   // (the hidden, rolled up scroll is laid out first, so that it fades in)
   introPaper();
   introEl.classList.add('shown');   // appears rolled up
-  intro.timer = setTimeout(() => {
+  introLater(() => {
     introEl.classList.add('open');   // unrolls
-    intro.timer = setTimeout(() => introShow(0), INTRO_ROLL * 1000);
+    introLater(() => introShow(0), INTRO_ROLL * 1000);
   }, INTRO_FADE * 1000);
+  if (aboutEl.classList.contains('open')) introFreeze(true);
 }
 function closeIntro() {
   if (!introEl.classList.contains('on') || introEl.classList.contains('closing')) return;
-  clearTimeout(intro.timer); cancelAnimationFrame(intro.raf);
+  clearTimeout(intro.timer); cancelAnimationFrame(intro.raf); intro.later = null; intro.frozen = 0;
   const open = introEl.classList.contains('open');
   introEl.classList.add('closing'); introEl.classList.remove('open');   // rolls back (if unrolled)
-  intro.timer = setTimeout(() => {
+  introLater(() => {
     introEl.classList.remove('shown');   // disappears
-    intro.timer = setTimeout(() => introEl.classList.remove('on', 'closing'), INTRO_FADE * 1000);
+    introLater(() => introEl.classList.remove('on', 'closing'), INTRO_FADE * 1000);
   }, open ? INTRO_ROLL * 1000 : 0);
 }
 $('intro-prev').addEventListener('click', e => { e.currentTarget.blur(); if (intro.page > 0) introShow(intro.page - 1); });
@@ -3850,7 +3980,7 @@ $('intro-next').addEventListener('click', e => { e.currentTarget.blur(); if (int
 $('intro-run').addEventListener('click', e => { e.currentTarget.blur(); introPause(!intro.paused); });
 $('intro-skip').addEventListener('click', e => { e.currentTarget.blur(); closeIntro(); });
 $('menu-intro').addEventListener('click', e => { closeMenu(); e.currentTarget.blur(); openIntro(); });
-addEventListener('keydown', e => { if (e.key === 'Escape' && introEl.classList.contains('on')) closeIntro(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && introEl.classList.contains('on') && !aboutEl.classList.contains('open') && !intro.escAbout) closeIntro(); intro.escAbout = false; });
 $('hint-close').addEventListener('click', e => { showControls(false); e.currentTarget.blur(); });
 addEventListener('pointerdown', e => { if (!menu.contains(e.target)) closeMenu(); });
 showControls(false);
@@ -3906,7 +4036,7 @@ function recordSample(now) {
     x: +q[0].toFixed(1), y: +q[1].toFixed(1), z: +q[2].toFixed(1),
     pan: +(C.pan / DEG).toFixed(3), tilt: +(C.tilt / DEG).toFixed(3), roll: +(wrapPi(C.roll) / DEG).toFixed(3),
     keys: [...held].join(' '), mode: C.mode, view: moveName(),
-    lp: LEVELED_PAN && LP.valid ? { i: +(LP.i / DEG).toFixed(3), node: +(LP.node / DEG).toFixed(3), u: +(LP.u / DEG).toFixed(3), panA: +(LP.panA / DEG).toFixed(3), tiltA: +(LP.tiltA / DEG).toFixed(3), pan: panName(), mirror: picMirror } : null, lean: +(bodyFramed(() => meridianLean(unit(rel()))) / DEG).toFixed(3), mangle: lastMeridianAxis ? +(Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ())))) / DEG).toFixed(3) : null, mer: lastMeridianAxis ? lastMeridianAxis.map(v => +v.toFixed(5)) : null });
+    lp: LEVELED_PAN && LP.valid ? { i: +(LP.i / DEG).toFixed(3), node: +(LP.node / DEG).toFixed(3), u: +(LP.u / DEG).toFixed(3), panA: +(LP.panA / DEG).toFixed(3), tiltA: +(LP.tiltA / DEG).toFixed(3), pan: panName(), mirror: picMirror, rho: +(LP.roll / DEG).toFixed(3), ...(lpHeadNow() ? (([hp, ht]) => ({ la: +(LP.oa / DEG).toFixed(3), lb: +(LP.ob / DEG).toFixed(3), hp: +(hp / DEG).toFixed(3), ht: +(ht / DEG).toFixed(3) }))(lpHeadNow()) : {}) } : null, lean: +(bodyFramed(() => meridianLean(unit(rel()))) / DEG).toFixed(3), mangle: lastMeridianAxis ? +(Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ())))) / DEG).toFixed(3) : null, mer: lastMeridianAxis ? lastMeridianAxis.map(v => +v.toFixed(5)) : null });
   if (n % 10 === 0) setText($('rec'), `REC ${camLog.samples[n].t.toFixed(1)} s · ${n + 1} samples · ${camLog.notes.length} notes`);
 }
 // N: a note at the current time, while recording (the recording goes on, the camera waits) or in the replay
@@ -4017,7 +4147,9 @@ function startReplay(text, name) {
   const ss = data && data.samples;
   if (!ss || !ss.length) { toast('This is not a camera log'); return; }
   if (camLog.on) toggleRecord();
+  const wasRunning = replay.on ? replay.wasRunning : running;   // (another log loaded in the replay: the state before the first)
   closeReplay();
+  replay.wasRunning = wasRunning;
   replay.on = true; replay.samples = ss; replay.i = 0; replay.t = ss[0].t; replay.dir = 0; replay.way = 1; replay.playing = false;
   if (!Array.isArray(data.notes)) data.notes = [];
   if (typeof data.description !== 'string') data.description = '';
@@ -4062,25 +4194,39 @@ function startReplay(text, name) {
     m.renderOrder = 21; g.add(m);
     return m;
   });
-  // the camera's reference system (user, 2026-10-26): 0 where the pan and tilt segments cross, the axes parallel to the
-  // ecliptic's x, y, z (the body's axes' colours), each half 75% of the shorter vector; its name (+x, −x, ...) after
-  // the end of the line, one blank away, no line after it (see updateCamAxes)
+  // the camera's reference system (user, 2026-10-26): 0 where the pan and tilt segments cross (the body's axes' colours),
+  // each half 75% of the shorter vector; its name (+x, −x, ...) after the end of the line, one blank away, no line after
+  // it (see updateCamAxes). The axes are the head's own (user, 2026-11-02, see replayHead), drawn along the group's
+  // local axes and turned with it
   const axLen = .75 * Math.min(.8 * 1.4 * s, .6 * 2.2 * s), axes = new THREE.Group(), axPos = [], axCol = [], axNames = [];
   [[[1, 0, 0], 0xff7b7b, '#ff9b9b', 'x'], [[0, 1, 0], 0x7bdc93, '#9be8b0', 'y'], [[0, 0, 1], 0x7ba6ff, '#a9c3ff', 'z']].forEach(([v, color, css, n]) => {
-    const d = toScene(v), c3 = new THREE.Color(color);
+    const d = new THREE.Vector3(...v), c3 = new THREE.Color(color);
     for (const sign of [1, -1]) {
       axPos.push(0, 0, 0, d.x * sign * axLen, d.y * sign * axLen, d.z * sign * axLen);
       axCol.push(c3.r, c3.g, c3.b, c3.r, c3.g, c3.b);
       const el = document.createElement('div'); el.className = 'axl along'; el.textContent = (sign > 0 ? '+' : '−') + n; el.style.color = css;
       labelsEl.appendChild(el); el.style.display = 'none';
-      axNames.push({ el, end: d.clone().multiplyScalar(sign * axLen), w: 0, h: 0 });
+      axNames.push({ el, end: d.clone().multiplyScalar(sign * axLen), w: 0, h: 0, d: sign > 0 ? d : null, color });
     }
   });
+  // + halves (user, 2026-11-03, like the body's axes): after the name the line goes on (one blank after it) for a short
+  // piece with a small arrowhead at its end, pointing outwards (a slim cone in the axis's colour, a third as wide as
+  // long): the camera's place in space at a glance. Their size is kept on the screen (AX_ARROW: px), so they always
+  // come after the name, near or far; set every frame (see updateCamAxes)
+  axNames.filter(a => a.d).forEach(a => {
+    a.outer = axPos.length / 3;
+    const c3 = new THREE.Color(a.color);
+    axPos.push(0, 0, 0, 0, 0, 0); axCol.push(c3.r, c3.g, c3.b, c3.r, c3.g, c3.b);
+    const cg = new THREE.ConeGeometry(1 / 6, 1, 12); cg.translate(0, -.5, 0);   // (its tip at 0, pointing along +y)
+    a.cone = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ color: a.color, depthTest: false, transparent: true, opacity: .9 }));
+    a.cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), a.d); a.cone.renderOrder = 20; a.cone.visible = false;
+    axes.add(a.cone);
+  });
   const axGeo = new THREE.BufferGeometry();
-  axGeo.setAttribute('position', new THREE.Float32BufferAttribute(axPos, 3)); axGeo.setAttribute('color', new THREE.Float32BufferAttribute(axCol, 3));
+  axGeo.setAttribute('position', new THREE.Float32BufferAttribute(axPos, 3).setUsage(THREE.DynamicDrawUsage)); axGeo.setAttribute('color', new THREE.Float32BufferAttribute(axCol, 3));
   const axLines = new THREE.LineSegments(axGeo, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: .9 }));
   axLines.frustumCulled = false; axLines.renderOrder = 20; axes.add(axLines); g.add(axes);
-  replay.objs = { g, cam, segs, vecs, heads, s, axes, axNames };
+  replay.objs = { g, cam, segs, vecs, heads, s, axes, axNames, axGeo, axLen };
   // the observer: away from the path, looking at Pluto
   const rmax = Math.max(...ss.map(q => Math.hypot(q.x, q.y, q.z))) / AU_KM, dir = unit([1, -1, .8]);
   C.pos = add(P, dir.map(x => x * Math.max(3 * rmax, 20 * R)));
@@ -4093,20 +4239,60 @@ function startReplay(text, name) {
 function closeReplay() {
   if (!replay.on) return;
   replay.on = false; document.body.classList.remove('replaying');
+  running = replay.wasRunning !== false; showRun();   // the simulation as it was before the replay: running or stopped (user, 2026-11-02)
   if (replay.objs) { for (const a of replay.objs.axNames) a.el.remove(); }
   if (replay.objs) { replay.objs.g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); scene.remove(replay.objs.g); replay.objs = null; }
+}
+// the head of the logged camera (user, 2026-11-02; x and y swapped 2026-11-03): x the pan vector (+x the head plane's
+// forward), y the tilt axis (+y the left, so that x, y, z are right-handed as the other systems), z the pan axis (+z the
+// top of the head). The camera never turns in its head, so the
+// tilt axis is the screen's right, and the pan axis is in the plane of the view direction f and the picture's up u,
+// with the same angle to f as the view's own pan axis A: space's z in absolute mode and the Sun / Moon / Earth locked
+// views, the rotation axis in the pole view and the turntable (on the equator, see BODY_EQ), the camera radius in the
+// tilted meridian and meridian views. (A ⟂ the right: the pan axis is A itself, also with the tilt past ±90°; not in the
+// pole view, whose tilt stays within ±90°: with the picture turned by exactly 180° that would flip the head)
+// The rotating pan's head (user, 2026-11-03): its plane perpendicular to the line from the camera to the body's centre,
+// the pan axis on that line (+z away from the body: the camera, tilted −90° in its head, looks along −z at the centre),
+// and the pan vector (+x, the picture's up for the centred view) turned in that plane by the pan ρ (lp.rho; older logs:
+// 90° − u, see lpRollU) from the side of the north pole: ρ = 0 at C's highest point (the north pole at the top), 180° at
+// its lowest point (the south pole at the top). Set by the rule on that line, so a mouse offset of the view does not
+// change it (the box, the camera, shows the view as it was)
+function replayHead(q, f, u, km, free) {
+  if (!free && q.mode === 'body' && q.view === 'Pole view' && q.lp && q.lp.pan === 'Rotating pan') {
+    const fc = unit(km.map(x => -x)), A = unit(REF.pole), n = A.map((x, k) => x - dot(A, fc) * fc[k]);
+    const rho = (typeof q.lp.rho === 'number' ? q.lp.rho : 90 - q.lp.u) * DEG;
+    if (len(n) > 1e-9) {
+      const x = rotate(unit(n), fc, rho), z = fc.map(v => -v);
+      return [x, cross(z, x), z];
+    }
+  }
+  // the leveled pan's head (user, 2026-11-04): the automatic one, level: z parallel to the rotation axis, +x
+  // horizontally towards the rotation axis (the body's z line), whatever the camera's look (the pan segment shows that)
+  if (!free && levLog(q)) {
+    const z = unit(REF.pole), h = km.map((x, k) => x - dot(km, z) * z[k]);
+    if (len(h) > 1e-9) { const x = unit(h.map(v => -v)); return [x, cross(z, x), z]; }
+  }
+  const right = cross(f, u), body = !free && q.mode === 'body';
+  const A = !body ? [0, 0, 1] : q.view === 'Pole view' || q.view === 'Turntable' ? unit(REF.pole)
+    : q.view === 'Tilted meridian' || q.view === 'Meridian' ? unit(km) : [0, 0, 1];
+  const a = clamp(dot(A, f), -1, 1);
+  const z = q.view !== 'Pole view' && Math.abs(dot(A, right)) < 1e-6 ? A : unit(add(f.map(x => x * a), u.map(x => x * Math.sqrt(1 - a * a))));
+  return [cross(z, right), right.map(v => -v), z];
 }
 // the camera of sample i: position, the box turned like the camera, the two segments through its middle
 function showReplay() {
   const ss = replay.samples, i = replay.i, q = ss[i], o = replay.objs, s = o.s, fr = replay.free;
-  const [p, t] = replayAngles(q), h = [Math.cos(p), Math.sin(p), 0];
-  const f = [Math.cos(t) * h[0], Math.cos(t) * h[1], Math.sin(t)];
-  const up = rotate([-Math.sin(t) * h[0], -Math.sin(t) * h[1], Math.cos(t)], f, fr ? 0 : (q.roll || 0) * DEG), right = cross(f, up);
   const km = fr ? sub(fr.pos, P).map(x => x * AU_KM) : [q.x, q.y, q.z];   // the camera relative to Pluto (km)
+  const [f, up, hp] = replayView(q, km), right = cross(f, up);
   const c = toScene(km.map(x => x / 1000));
   o.cam.position.copy(c); o.axes.position.copy(c);
+  const [hx, hy, hz] = replayHead(q, f, up, km, fr);
+  o.axes.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(toScene(hx), toScene(hy), toScene(hz)));
   o.cam.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(toScene(right), toScene(up), toScene(f.map(x => -x))));
-  const a = o.segs.geometry.attributes.position, L = 1.4 * s, hs = toScene(h), fs = toScene(f);
+  // the pan segment / vector: the camera's pan in its head (user, 2026-11-02: +y; 2026-11-03: +x; 2026-11-04: the head's
+  // axes stay the automatic ones, the pan segment shows the pan turned from +x by the manual pan, the rotating pan)
+  const pv = hp ? hp.pv : hx;
+  const a = o.segs.geometry.attributes.position, L = 1.4 * s, hs = toScene(pv), fs = toScene(f);
   a.setXYZ(0, c.x - hs.x * L, c.y - hs.y * L, c.z - hs.z * L); a.setXYZ(1, c.x + hs.x * L, c.y + hs.y * L, c.z + hs.z * L);
   a.setXYZ(2, c.x - fs.x * .7 * s, c.y - fs.y * .7 * s, c.z - fs.z * .7 * s); a.setXYZ(3, c.x + fs.x * 2.2 * s, c.y + fs.y * 2.2 * s, c.z + fs.z * 2.2 * s);
   a.needsUpdate = true;
@@ -4124,9 +4310,10 @@ function showReplay() {
   const d = Math.hypot(...km), lat = Math.asin(clamp(km[2] / d, -1, 1)) / DEG;
   const num = (v, w, dg = 1) => v.toFixed(dg).padStart(w);
   if (fr) setText($('replay-info'), `free camera (from sample ${i + 1}/${ss.length}, t ${q.t.toFixed(2)} s)   ${(d / REF.km).toFixed(2)} R   lat ${num(lat, 6)}°\n` +
-    `pan ${num(wrapAngle(p) / DEG, 7)}°   tilt ${num(t / DEG, 6)}°`);
+    `pan ${num(wrapAngle(fr.pan) / DEG, 7)}°   tilt ${num(fr.tilt / DEG, 6)}°`);
   else setText($('replay-info'), `t ${num(q.t, 7, 2)} s   sample ${String(i + 1).padStart(String(ss.length).length)}/${ss.length}   ${(d / REF.km).toFixed(2)} R   lat ${num(lat, 6)}°\n` +
-    `pan ${num(q.pan, 7)}°   tilt ${num(q.tilt, 6)}°   ${replay.path ? `(+ yours ${num(replay.offPan / DEG, 6)}° ${num(replay.offTilt / DEG, 6)}°)   ` : ''}turn ${num(q.roll || 0, 7)}°   keys ${(q.keys || '-').padEnd(10)} ${q.mangle != null ? 'M ' + q.mangle.toFixed(1) + '°  ' : q.mset !== undefined ? 'set ' + q.mset.toFixed(1) + '°  ' : ''}${q.lean !== undefined ? 'lean ' + q.lean.toFixed(1) + '°' : q.locked ? 'locked' : 'free'}`);
+    (hp ? `head pan ${num(hp.pan / DEG, 7)}°   tilt ${num(hp.tilt / DEG, 6)}°   ${replay.path ? `(+ yours ${num(replay.offPan / DEG, 6)}° ${num(replay.offTilt / DEG, 6)}°)   ` : ''}rho ${num(q.lp.rho, 7)}°`
+      : `pan ${num(q.pan, 7)}°   tilt ${num(q.tilt, 6)}°   ${replay.path ? `(+ yours ${num(replay.offPan / DEG, 6)}° ${num(replay.offTilt / DEG, 6)}°)   ` : ''}turn ${num(q.roll || 0, 7)}°`) + `   keys ${(q.keys || '-').padEnd(10)} ${q.mangle != null ? 'M ' + q.mangle.toFixed(1) + '°  ' : q.mset !== undefined ? 'set ' + q.mset.toFixed(1) + '°  ' : ''}${q.lean !== undefined ? 'lean ' + q.lean.toFixed(1) + '°' : q.locked ? 'locked' : 'free'}`);
   $('rp-path').textContent = PATH_NAMES[replay.path];
   $('rp-path').classList.toggle('on', replay.path > 0);
   $('rp-ctrl').textContent = 'Control: ' + replay.ctrl;
@@ -4153,6 +4340,39 @@ function showReplay() {
 }
 // the camera's pan and tilt shown for sample q (radians): the logged ones, plus the user's with the view free; the tilt
 // kept within ±90° when the logged one is (the mouse never carries it across, as in the app)
+// a logged sample of the rotating pan
+const rotLog = q => q.mode === 'body' && q.view === 'Pole view' && !!q.lp && q.lp.pan === 'Rotating pan';
+const levLog = q => q.mode === 'body' && q.view === 'Pole view' && !!q.lp && q.lp.pan === 'Leveled pan';
+// the logged camera's view and up, with the user's offsets (cam control); the rotating pan (user, 2026-11-04): from its
+// head (replayHead, the automatic one) by the look (lp.la, lp.lb, see lpLook; logs without it: taken from the logged
+// view) + the user's offsets, the mouse grabbing the image as in the app; hp: { pan, tilt (the head's own, final, see
+// headAngles), pv (the pan vector) }
+function replayView(q, km) {
+  const fr = replay.free, rot = !fr && rotLog(q), [p, t] = rot ? [q.pan * DEG, q.tilt * DEG] : replayAngles(q), h = [Math.cos(p), Math.sin(p), 0];
+  const f = [Math.cos(t) * h[0], Math.cos(t) * h[1], Math.sin(t)];
+  const up = rotate([-Math.sin(t) * h[0], -Math.sin(t) * h[1], Math.cos(t)], f, fr ? 0 : (q.roll || 0) * DEG);
+  if (!rot && !fr && levLog(q)) {
+    // the leveled pan (user, 2026-11-04): as the app's (lpCentred): the look (lp.la, lp.lb; else taken from the logged
+    // view) relative to the automatic view (at the centre, level: its up towards the north pole) + the user's offsets;
+    // shown as the level head's own pan and tilt (H, replayHead)
+    const H = replayHead(q, f, up, km, null), v = unit(km.map(x => -x)), pl = unit(REF.pole);
+    const uc = unit(pl.map((x, k) => x - dot(pl, v) * v[k])), F = [cross(v, uc), uc, v];
+    let f2 = f, u2 = up;
+    if (replay.path) {
+      let [a, b] = typeof q.lp.la === 'number' ? [q.lp.la * DEG, q.lp.lb * DEG] : lpLookOf(F, f);
+      const L = Math.PI / 2 - 1e-6; a = wrapPi(a + replay.offPan); b = clamp(b + replay.offTilt, -L, L);
+      [f2, u2] = lpLookDir(F, a, b);
+    }
+    const [hp, ht] = headAngles(H, f2, u2);
+    return [f2, u2, { pan: hp, tilt: ht, pv: H[0].map((x, k) => Math.cos(hp) * x + Math.sin(hp) * H[1][k]) }];
+  }
+  if (!rot) return [f, up, null];
+  const H = replayHead(q, f, up, km, null), F = headFrame(H);
+  let [a, b] = typeof q.lp.la === 'number' ? [q.lp.la * DEG, q.lp.lb * DEG] : lpLookOf(F, f);
+  if (replay.path) { const L = Math.PI / 2 - 1e-6; a = wrapPi(a + replay.offPan); b = clamp(b + replay.offTilt, -L, L); }
+  const [f2, u2] = lpLookDir(F, a, b), [hp, ht] = headAngles(H, f2, u2);
+  return [f2, u2, { pan: hp, tilt: ht, pv: H[0].map((x, k) => Math.cos(hp) * x + Math.sin(hp) * H[1][k]) }];
+}
 function replayAngles(q) {
   if (replay.free) return [replay.free.pan, replay.free.tilt];
   const p = q.pan * DEG, t = q.tilt * DEG;
@@ -4165,7 +4385,10 @@ function replayAngles(q) {
 function replayMouse(mx, my) {
   const fr = replay.free;
   if (fr) { [fr.pan, fr.tilt] = mouseTurn(fr.pan, fr.tilt, mx, my, false); fr.pan = wrapPi(fr.pan); showReplay(); return; }
-  const q = replay.samples[replay.i], [p, t] = replayAngles(q), r = (q.roll || 0) * DEG;
+  const q = replay.samples[replay.i];
+  // the rotating pan: the look, as the app's mouse there (lpLook)
+  if (rotLog(q) || levLog(q)) { replay.offPan = wrapPi(replay.offPan + mx * MOUSE_SENS); replay.offTilt = clamp(replay.offTilt + my * MOUSE_SENS, -Math.PI, Math.PI); showReplay(); return; }
+  const [p, t] = replayAngles(q), r = (q.roll || 0) * DEG;
   if (r) { const c = Math.cos(r), sn = Math.sin(r); [mx, my] = [mx * c - my * sn, mx * sn + my * c]; }
   const [p2, t2] = mouseTurn(p, t, mx, my, false);
   replay.offPan = wrapPi(replay.offPan + p2 - p); replay.offTilt += t2 - t;
@@ -4176,7 +4399,7 @@ $('rp-path').addEventListener('click', e => {
   replay.path = (replay.path + 1) % 3;
   if (replay.path === 2) {
     // set free where the camera is now (with the view turned by the user), the picture level; the time stops
-    const q = replay.samples[replay.i], [p, t] = replayAngles(q);
+    const q = replay.samples[replay.i], f = replayView(q, [q.x, q.y, q.z])[0], p = Math.atan2(f[1], f[0]), t = Math.asin(clamp(f[2], -1, 1));
     setPlay(false);
     replay.free = { pos: add(P, [q.x, q.y, q.z].map(x => x / AU_KM)), pan: p, tilt: t };
   } else if (!replay.path) { replay.offPan = replay.offTilt = 0; replay.ctrl = 'appl'; replay.free = null; }
@@ -4204,7 +4427,7 @@ function freeCamStep(dt) {
 // hidden when the end is behind the observer
 const caA = new THREE.Vector3(), caB = new THREE.Vector3();
 function updateCamAxes() {
-  const o = replay.objs;
+  const o = replay.objs, pos = o.axGeo.attributes.position;
   o.axes.updateMatrixWorld(true);
   proj(caA.copy(o.axes.position).add(o.g.position));
   const ox = (caA.x * .5 + .5) * innerWidth, oy = (-caA.y * .5 + .5) * innerHeight, front = caA.z < 1;
@@ -4212,13 +4435,43 @@ function updateCamAxes() {
     caB.copy(a.end); o.axes.localToWorld(caB); proj(caB);
     const show = front && caB.z < 1;
     a.el.style.display = show ? '' : 'none';
+    if (a.cone) { a.cone.visible = false; pos.setXYZ(a.outer, 0, 0, 0); pos.setXYZ(a.outer + 1, 0, 0, 0); }
     if (!show) continue;
     if (!a.w) { a.w = a.el.offsetWidth; a.h = a.el.offsetHeight; }
     const bx = (caB.x * .5 + .5) * innerWidth, by = (-caB.y * .5 + .5) * innerHeight, D = Math.hypot(bx - ox, by - oy);
     const ux = D > 1e-6 ? (bx - ox) / D : 1, uy = D > 1e-6 ? (by - oy) / D : 0;
     const k = a.h / 2 + Math.min(a.w / 2 / Math.max(Math.abs(ux), 1e-6), a.h / 2 / Math.max(Math.abs(uy), 1e-6));
     a.el.style.transform = `translate3d(${(bx + ux * k).toFixed(1)}px,${(by + uy * k).toFixed(1)}px,0) translate(-50%,-50%)`;
+    // the + half's piece after the name: from one blank after it (2k from the end, on the screen) for AX_ARROW[0] px,
+    // its last AX_ARROW[1] px the arrowhead; the places on the axis found from their distances on the screen (none if
+    // the axis points so nearly at the observer that it never gets that far on the screen)
+    if (a.cone) {
+      const t0 = axAlong(o, a, bx, by, 2 * k), t1 = axAlong(o, a, bx, by, 2 * k + AX_ARROW[0]), tb = axAlong(o, a, bx, by, 2 * k + AX_ARROW[0] - AX_ARROW[1]);
+      if (t0 !== null && t1 !== null && tb !== null) {
+        pos.setXYZ(a.outer, a.d.x * t0, a.d.y * t0, a.d.z * t0); pos.setXYZ(a.outer + 1, a.d.x * tb, a.d.y * tb, a.d.z * tb);
+        // (its length along the axis, its width from the screen: seen end on, a width of a third of that length was
+        // a large disc, user 2026-11-03)
+        a.cone.position.copy(a.d).multiplyScalar(t1); a.cone.updateMatrixWorld(true);
+        const w = AX_ARROW[1] * camera.position.distanceTo(a.cone.getWorldPosition(axAt)) * 2 * Math.tan(camera.fov * DEG / 2) / innerHeight;
+        a.cone.scale.set(w, t1 - tb, w); a.cone.visible = true;
+      }
+    }
   }
+  pos.needsUpdate = true;
+}
+const AX_ARROW = [24, 10];   // px: the piece after the name, with its arrowhead (the camera's + axes)
+// the place t on the + axis a (its length from the centre, in the axes' frame) seen dist px beyond its end (bx, by) on
+// the screen, or null
+const axAt = new THREE.Vector3();
+function axAlong(o, a, bx, by, dist) {
+  const L = o.axLen, far = s => {
+    axAt.copy(a.d).multiplyScalar(s); o.axes.localToWorld(axAt); proj(axAt);
+    return axAt.z < 1 ? Math.hypot((axAt.x * .5 + .5) * innerWidth - bx, (-axAt.y * .5 + .5) * innerHeight - by) : Infinity;
+  };
+  let lo = L, hi = 64 * L;
+  if (far(hi) < dist) return null;
+  for (let j = 0; j < 30; j++) { const m = (lo + hi) / 2; if (far(m) < dist) lo = m; else hi = m; }
+  return (lo + hi) / 2;
 }
 // the notes as marks on the time slider; clicking one goes there
 function buildMarks() {
@@ -4562,8 +4815,8 @@ function frame(now) {
     if (q.some((x, i) => x !== C.pos[i])) { C.pos = q; syncSpherical(); }
   }
   // the moves and the mouse add up angles; keep them in [-180°, +180°] so they never grow, however long the camera turns
-  // [REQ-01.1, REQ-02]
-  C.pan = wrapAngle(C.pan); C.tilt = wrapAngle(C.tilt); C.lon = wrapPi(C.lon);
+  // [REQ-01.1, REQ-02] (the picture's turn too, user 2026-11-03: it was wrapped only where it was used)
+  C.pan = wrapAngle(C.pan); C.tilt = wrapAngle(C.tilt); C.roll = wrapAngle(C.roll); C.lon = wrapPi(C.lon);
 
   // camera: screen top/bottom edges stay parallel to the ecliptic [REQ-02]; only right after switching to absolute mode
   // upside down the picture turns around the view direction from upside down to upright (smooth start and stop)
@@ -4696,6 +4949,12 @@ const REF_SPEED = { Sun: '3 mo/s', Mercury: '1 wk/s', Venus: '1 wk/s', Earth: '1
 // v (optional, user 2026-10-29): the view chosen with it in the menu (see VIEWS), set before the flight to Home, which
 // runs in the view's frame; without it the view stays.
 function chooseRef(b, v) {
+  // a reference system chosen in the menu during the replay (user, 2026-11-02): the replay (the test application) closes
+  // and the simulation goes on as it was before the replay (running or stopped), in the chosen reference system
+  if (replay.on) {
+    if (replay.dirty && !confirm('The description or the notes were changed and not saved. Close the replay anyway?')) return;
+    closeReplay();
+  }
   forgetMoves(); resetMeridian();
   if (!b) { setMode('absolute'); return; }
   const other = b !== REF;
