@@ -1,5 +1,7 @@
 # Solar system simulation
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23988621.svg)](https://doi.org/10.5281/zenodo.23988621)
+
 A 3D simulation of the solar system moving through absolute space, in a single HTML file that runs in the browser.
 
 **Live demo:** https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html
@@ -147,6 +149,9 @@ tag carries the list of its changes.
 
 This simulation is for scientific and educational purposes. It is also a support software for the book
 "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).
+
+To cite it: Ovidiu Bidian, *Solar system simulation*, Zenodo, 2026, https://doi.org/10.5281/zenodo.23988621
+(this DOI always leads to the latest version; each version has its own DOI on Zenodo).
 
 The software was written by Claude Code (Anthropic) under the direct and close requirements and supervision of
 Ovidiu Bidian: the requirements, the review of every version and the tests are his.
