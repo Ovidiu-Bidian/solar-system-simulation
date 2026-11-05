@@ -72,10 +72,6 @@
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
   .axl { position: absolute; left: 0; top: 0; font: 600 11px/1 ui-monospace, Menlo, Consolas, monospace; padding: 2px 5px; border-radius: 4px;
     background: rgba(3, 5, 11, .55); white-space: nowrap; will-change: transform; }
-  /* the names of the constellations and of the stars [REQ-04] */
-  .skl { position: absolute; left: 0; top: 0; font: 11px/1 system-ui, sans-serif; color: rgba(214, 222, 240, .78); white-space: nowrap;
-    text-shadow: 0 0 3px #000, 0 0 2px #000; will-change: transform; }
-  .skl.con { font: italic 12px/1 system-ui, sans-serif; letter-spacing: .08em; color: rgba(130, 160, 220, .85); }
   /* names written in the short body axes, in a gap of the line, turned with it */
   .axl.along { font-size: 12px; padding: 0; background: none; text-shadow: 0 0 3px #000, 0 0 2px #000; transform-origin: 0 0; }
 
@@ -429,7 +425,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_2.7 (4 November 2026)</p>
+  <p>Current version: solar system simulation v_2.8 (5 November 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -794,7 +790,7 @@ const MOUSE_SENS = .05 * DEG;                // per pixel of mouse movement [REQ
 const WHEEL_NOTCH = .3;                      // one wheel notch = 0.3 s of travel at the current speed (not specified)
 // camera at 8R, 60° above the body's ecliptic plane, looking at the centre with pan -135°: x = y = +2.83R, z = +6.93R
 // [REQ-02.2] (user, 2026-10-21; it was 4R on the Sun's side)
-const HOME = { pan: -135 * DEG, tilt: -60 * DEG, get r() { return 10 * R; }, lat: 60 * DEG, lon: 45 * DEG };   // (R: the reference body's; user, 2026-11-04: 10 R, was 8 R)
+const HOME = { pan: -135 * DEG, tilt: -60 * DEG, get r() { return 14 * R; }, lat: 60 * DEG, lon: 45 * DEG };   // (R: the reference body's; user, 2026-11-05: 14 R, so that the longer axes fit; was 10 R, before 8 R)
 const UPRIGHT_TURN = 1;                      // s, picture turning upright when switching to absolute mode upside down [REQ-02]
 
 const $ = id => document.getElementById(id);
@@ -1452,7 +1448,9 @@ const lpRollAt = (q, i, node) => lpRoll(q, i, node);
 // reference is the celestial body's own: its rotation axis (north pole, IAU, REF.pole) instead of the ecliptic's z axis, its
 // equator instead of the body ecliptic. So C's angle is to the equator, A/D turn C around the rotation axis, the head's
 // pan axis is parallel to the rotation axis and the pan points at it, the poles are the rotation poles. Done by working
-// in the body frame (LPB: x on the equator at its ascending node on the ecliptic, z the rotation axis): every frame the
+// in the body frame (LPB: z the rotation axis, x on the equator towards the node where the ecliptic rises north over
+// it, as the Earth's real equatorial x, the vernal equinox; user, 2026-11-05: so that x is the drawn +x-eq (was the
+// other node); the Home numbers are taken in it, so Home moved with it): every frame the
 // camera (place, view, picture's up) is turned into it, the pole view's code runs there as it is, and it is turned back
 // (lpSwap). Both pans: switching between them keeps C.
 // All the views of "celestial body" mode on the equator (user, 2026-10-27: the tilted meridian, meridian and turntable
@@ -1464,7 +1462,7 @@ const BODY_EQ = true;
 const LP_ROT_AXIS = BODY_EQ;
 const lpOnAxis = () => LP_ROT_AXIS;
 function bodyBasis(pole) {
-  const nz = v => v.map(x => x / len(v)), Z = nz(pole), n = cross([0, 0, 1], Z), X = len(n) > 1e-9 ? nz(n) : [1, 0, 0];
+  const nz = v => v.map(x => x / len(v)), Z = nz(pole), n = cross(Z, [0, 0, 1]), X = len(n) > 1e-9 ? nz(n) : [1, 0, 0];
   return [X, cross(Z, X), Z];
 }
 let LPB = bodyBasis(REF.pole);   // (the reference body's; see setRef)
@@ -2522,36 +2520,74 @@ const SATURN_RINGS = { inner: 69950, outer: 141040 };
 
 // orbits: thin lines (Pluto light orange, the planets in their colours). Drawn relative to the camera and sampled densely near the camera's
 // closest point (step doubling farther away), so that close to a planet the line passes exactly through its centre.
-const ORBIT_SAMPLES = 720, orbitE = [];
-// o: { at(s): the point for the parameter s (0 … 2π, around the orbit), size: its scale (AU) }
+// Speed (user, 2026-11-04: the orbits took 44% of the processor's time, the Moon's 26%, "a lot of time for nothing"):
+// the ORBIT_SAMPLES points of a line are not computed every picture: a planet's orbit does not change (the Sun stays at
+// the origin, space drifts past it), so its points are computed once; the Moon's are its places on a time grid, each
+// computed once, while it is within the month drawn (moonGrid). Only near the camera's closest point (the camera nearer
+// to the line than a few of its steps) are points computed exactly, for the line to pass through the body's centre.
+const ORBIT_SAMPLES = 720;
+// o: { at(s): the point for the parameter s (0 … 2π, around the orbit), points(): the ORBIT_SAMPLES points at
+// s = 2π·i / ORBIT_SAMPLES, size: its scale (AU) }
 function orbitLine(o, color) {
   const l = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color, transparent: true, opacity: .45, depthWrite: false }));
   l.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array((ORBIT_SAMPLES + 200) * 3), 3).setUsage(THREE.DynamicDrawUsage));
   l.frustumCulled = false; scene.add(l);
   return { o, l };
 }
-const orbitLines = [...PLANETS.map(pl => orbitLine({ at: E => orbitPoint(pl.orbit, E), size: pl.orbit.a }, pl.color)),
+const fixedPoints = at => { let pts = null; return () => pts || (pts = Array.from({ length: ORBIT_SAMPLES }, (_, i) => at(TAU * i / ORBIT_SAMPLES))); };
+// the Moon's place from the Earth on the time grid of ORBIT_SAMPLES steps a month (moonRelT; each computed once while it
+// is in the month drawn; all again if the Earth's mean anomaly no longer goes with the time, as when time runs backward),
+// in between on the straight line between two grid places (0.5° of its orbit apart)
+const moonGrid = { pts: new Map(), key: NaN };
+function moonRelGrid(t) {
+  const step = MOON_MONTH / ORBIT_SAMPLES, k0 = Math.floor(t / step), f = t / step - k0;
+  const key = wrapPi(EARTH.orbit.M - TAU * trailT / EARTH.orbit.period);
+  if (!(Math.abs(key - moonGrid.key) < 1e-9)) { moonGrid.pts.clear(); moonGrid.key = key; }
+  const at = k => { let p = moonGrid.pts.get(k); if (!p) moonGrid.pts.set(k, p = moonRelT(k * step)); return p; };
+  const a = at(k0), b = at(k0 + 1);
+  return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+}
+// (the grid places older than the month drawn dropped)
+function moonGridTrim() {
+  const step = MOON_MONTH / ORBIT_SAMPLES, k0 = Math.floor((trailT - MOON_MONTH / 2) / step) - 2, k1 = k0 + ORBIT_SAMPLES + 4;
+  for (const k of moonGrid.pts.keys()) if (k < k0 || k > k1) moonGrid.pts.delete(k);
+}
+const moonOrbitAt = s => trailT + (s / TAU - .5) * MOON_MONTH;
+const orbitLines = [...PLANETS.map(pl => orbitLine({ at: E => orbitPoint(pl.orbit, E), points: fixedPoints(E => orbitPoint(pl.orbit, E)), size: pl.orbit.a }, pl.color)),
   // the Moon's orbit around the Earth where it is now: its path over one month, from half a month ago to half a month
   // ahead (it does not close exactly: the orbit turns and the Sun disturbs it)
   // (drawn with the Moon's distance from the Earth enlarged as the Moon is, see moonSpread)
-  orbitLine({ at: s => add(EARTH.p, moonRelT(trailT + (s / TAU - .5) * MOON_MONTH).map(v => v * moonSpread)), get size() { return MOON_A_AU * moonSpread; } }, MOON.color)];
+  orbitLine({ at: s => add(EARTH.p, moonRelT(moonOrbitAt(s)).map(v => v * moonSpread)),
+    points: () => { moonGridTrim(); return Array.from({ length: ORBIT_SAMPLES }, (_, i) => add(EARTH.p, moonRelGrid(moonOrbitAt(TAU * i / ORBIT_SAMPLES)).map(v => v * moonSpread))); },
+    get size() { return MOON_A_AU * moonSpread; } }, MOON.color)];
 function updateOrbitLine({ o, l }, cam) {
+  const N = ORBIT_SAMPLES, pts = o.points(), dS = TAU / N;
   let best = 0, bd = Infinity;
-  for (let i = 0; i < ORBIT_SAMPLES; i++) {   // the camera's nearest orbit point, coarse, then refined by halving
-    const q = sub(o.at(TAU * i / ORBIT_SAMPLES), cam), d = dot(q, q);
-    if (d < bd) { bd = d; best = TAU * i / ORBIT_SAMPLES; }
+  for (let i = 0; i < N; i++) {   // the camera's nearest orbit point, coarse (then, near the line, refined by halving)
+    const p = pts[i], x = p[0] - cam[0], y = p[1] - cam[1], z = p[2] - cam[2], d = x * x + y * y + z * z;
+    if (d < bd) { bd = d; best = dS * i; }
   }
-  for (let h = TAU / ORBIT_SAMPLES; h > 1e-12; h /= 2)
-    for (const E of [best - h, best + h]) { const q = sub(o.at(E), cam), d = dot(q, q); if (d < bd) { bd = d; best = E; } }
-  orbitE.length = 0;
-  for (let i = 0; i < ORBIT_SAMPLES; i++) orbitE.push(TAU * i / ORBIT_SAMPLES);
-  for (let st = Math.max(Math.sqrt(bd) * .25 / o.size, 1e-10); st < TAU / ORBIT_SAMPLES; st *= 2) orbitE.push(best - st, best + st);
-  orbitE.push(best);
-  for (let i = 0; i < orbitE.length; i++) orbitE[i] = ((orbitE[i] % TAU) + TAU) % TAU;
-  orbitE.sort((a, b) => a - b); orbitE.push(orbitE[0] + TAU);
+  // the exact points near the camera's closest point (step doubling from a quarter of its distance up to the line's own
+  // step), only with the camera nearer to the line than a few of its steps: farther away the line's own points are drawn
+  const extra = [];
+  if (Math.sqrt(bd) * .25 / o.size < 2 * dS) {
+    for (let h = dS; h > 1e-12; h /= 2)
+      for (const E of [best - h, best + h]) { const q = sub(o.at(E), cam), d = dot(q, q); if (d < bd) { bd = d; best = E; } }
+    const wrap = E => ((E % TAU) + TAU) % TAU;
+    for (let st = Math.max(Math.sqrt(bd) * .25 / o.size, 1e-10); st < dS; st *= 2) extra.push(wrap(best - st), wrap(best + st));
+    extra.push(wrap(best));
+    extra.sort((a, b) => a - b);
+  }
   const arr = l.geometry.attributes.position.array;
-  orbitE.forEach((E, i) => { const q = sub(o.at(E), cam); arr.set([q[0] * U, q[2] * U, -q[1] * U], i * 3); });
-  l.geometry.setDrawRange(0, orbitE.length); l.geometry.attributes.position.needsUpdate = true;
+  let n = 0, j = 0;
+  const put = p => { arr[n * 3] = (p[0] - cam[0]) * U; arr[n * 3 + 1] = (p[2] - cam[2]) * U; arr[n * 3 + 2] = -(p[1] - cam[1]) * U; n++; };
+  for (let i = 0; i < N; i++) {
+    for (; j < extra.length && extra[j] < dS * i; j++) put(o.at(extra[j]));
+    put(pts[i]);
+  }
+  for (; j < extra.length; j++) put(o.at(extra[j]));
+  put(o.at(TAU));   // (the end: a planet's orbit closed; the Moon's a month after its start)
+  l.geometry.setDrawRange(0, n); l.geometry.attributes.position.needsUpdate = true;
   l.position.copy(T(...cam));
 }
 
@@ -3124,12 +3160,42 @@ const AXIS_LABELS = [
   labelsEl.appendChild(el); return { el, v: T(...p), axis: text[1], text, far, sign: text[0] === '+' ? 1 : -1 };
 });
 
-// The names of the constellations and of the named stars [REQ-04], in the labels layer as the axis names: a name is
-// hidden behind the celestial bodies (coverLabel: masked by their outlines).
+// The names of the constellations and of the named stars [REQ-04]: drawn in the sky itself (user, 2026-11-04: they were
+// written over the trails, in the labels layer), each a sprite with its text, at its place on the sky (l.pos), after
+// the stars and before everything else, so that the celestial bodies, their trails and the markings are drawn over
+// them. Their look: as the former labels (font, colour, a dark shadow around the letters).
 // A name is not drawn over another name, nor over the constellations' lines and stars (user, 2026-11-02): a star's
 // name near its star, a constellation's name near the middle of its figure (the middle of its lines, by their length);
 // the places are chosen once (skyLayout). Room is given first to the stars, from the brightest (their names must stay
 // near them), then to the constellations.
+const SKY_FONT = { star: ['11px system-ui, sans-serif', 'rgba(214, 222, 240, .78)', '0px'],
+  con: ['italic 12px system-ui, sans-serif', 'rgba(130, 160, 220, .85)', '.96px'] };   // [font, colour, letter spacing]
+const SKY_PAD = 4;   // px around the text, for its shadow
+const skyNames = new THREE.Group(); scene.add(skyNames);
+// the sprite of a name; l.w, l.h: the text's box (px, line height 1, as the former labels)
+function skySprite(l) {
+  const [font, colour, spacing] = SKY_FONT[l.star ? 'star' : 'con'], pr = renderer.getPixelRatio();
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+  const setup = () => { ctx.font = font; ctx.letterSpacing = spacing; };
+  setup();
+  const m = ctx.measureText(l.text), size = parseFloat(font.match(/(\d+)px/)[1]);
+  l.w = Math.ceil(m.width); l.h = size;
+  cv.width = Math.ceil((l.w + 2 * SKY_PAD) * pr); cv.height = Math.ceil((l.h + 2 * SKY_PAD) * pr);
+  ctx.scale(pr, pr); setup();
+  // the baseline as in a line of height 1: the font's box centred in it
+  const y = SKY_PAD + (size + m.fontBoundingBoxAscent - m.fontBoundingBoxDescent) / 2, far = 1e4;
+  // the shadows (0 0 3px and 0 0 2px black) alone: the text drawn far to the left, only its shadow moved back here
+  ctx.fillStyle = '#000'; ctx.shadowColor = '#000'; ctx.shadowOffsetX = far * pr;
+  for (const b of [3, 2]) { ctx.shadowBlur = b * pr; ctx.fillText(l.text, SKY_PAD - far, y); }
+  ctx.shadowColor = 'transparent'; ctx.fillStyle = colour; ctx.fillText(l.text, SKY_PAD, y);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter;
+  // not transparent (three.js would draw it after the celestial bodies, over them, see the constellation lines), but
+  // blended over the sky
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, sizeAttenuation: false, transparent: false, depthTest: false, depthWrite: false,
+    toneMapped: false, blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor }));
+  s.frustumCulled = false; s.renderOrder = -8; s.visible = false; skyNames.add(s);
+  return s;
+}
 const SKY_LABELS = [
   ...CONSTELLATIONS.map(([text], k) => {
     const s0 = CONST_NSEG.slice(0, k).reduce((a, b) => a + b, 0), c = new THREE.Vector3();
@@ -3137,11 +3203,11 @@ const SKY_LABELS = [
       const a = SKY_DIRS[CONST_LINES[j]], b = SKY_DIRS[CONST_LINES[j + 1]];
       c.addScaledVector(a.clone().add(b), a.angleTo(b));
     }
-    return { text, dir: c.normalize(), cls: 'skl con', star: false };
+    return { text, dir: c.normalize(), star: false };
   }),
   ...Object.keys(STAR_NAMES).map(Number).sort((a, b) => STARS[a][2] - STARS[b][2])
-    .map(i => ({ text: STAR_NAMES[i], dir: SKY_DIRS[i], si: i, cls: 'skl', star: true })),
-].map(l => { l.el = document.createElement('div'); l.el.className = l.cls; l.el.textContent = l.text; l.el.style.display = 'none'; labelsEl.appendChild(l.el); return l; });
+    .map(i => ({ text: STAR_NAMES[i], dir: SKY_DIRS[i], si: i, star: true })),
+].map(l => { l.s = skySprite(l); return l; });
 const SKY_ORDER = [...SKY_LABELS.filter(l => l.star), ...SKY_LABELS.filter(l => !l.star)];
 const vSky = new THREE.Vector3(), SKY_GAP = 3;   // px kept free around a name
 // the places tried for a name: around its star (right, left, the four diagonals, above, below; then a little farther),
@@ -3167,8 +3233,6 @@ let skyLayoutH = 0;
 function skyLayout() {
   const k = innerHeight / 2 / Math.tan(camera.fov * DEG / 2), size = sky.userData.size, placed = [];
   const Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1), r = new THREE.Vector3(), u = new THREE.Vector3();
-  for (const l of SKY_LABELS) if (!l.w) { const st = l.el.style, was = st.display; st.display = ''; l.w = l.el.offsetWidth; l.h = l.el.offsetHeight; st.display = was; }
-  if (SKY_LABELS.some(l => !l.w)) return;   // (the names cannot be measured yet, e.g. hidden by "H": next frame)
   for (const l of SKY_ORDER) {
     const c = l.dir;
     r.crossVectors(c, Math.abs(c.y) > .99 ? Z : Y).normalize(); u.crossVectors(r, c);   // (the chart's right and up)
@@ -3201,46 +3265,69 @@ function skyLayout() {
 function updateSkyLabels() {
   if (skyLayoutH !== innerHeight) skyLayout();
   if (!skyLayoutH) return;
-  const o = camera.position, k = innerHeight / 2 / Math.tan(camera.fov * DEG / 2), discs = [];
-  // the celestial bodies on the screen (centre, a generous radius), so that only the names near them are masked
-  for (const b of BODIES) {
-    const c = b.group.position, D = o.distanceTo(c), s = b.group.scale.x;
-    if (!b.group.visible) continue;
-    if (D <= s * 1.05) { discs.length = 0; discs.push(null); break; }   // (inside or at a body: coverLabel decides)
-    proj(vSky.copy(c));
-    const rad = Math.tan(Math.asin(s / D)) * k;
-    if (vSky.z < 1 || rad > innerWidth) discs.push(vSky.z < 1 ? [(vSky.x * .5 + .5) * innerWidth, (-vSky.y * .5 + .5) * innerHeight, rad * 1.5 + 4] : null);
-  }
-  const rb = replayBoxScreen();   // (the replay's camera box covers them too, see coverLabel)
-  if (rb) discs.push([rb.cx, rb.cy, rb.rad + 4]);
-  // each name centred on its fixed place (skyLayout)
+  const o = camera.position, k = innerHeight / 2 / Math.tan(camera.fov * DEG / 2);
+  skyNames.position.copy(o);
+  // each name centred on its fixed place (skyLayout), SKY_PAD px larger on each side (its shadow); the picture shown
+  // mirrored top to bottom (picMirror): the text drawn mirrored, so that it is read upright
   for (const l of SKY_LABELS) {
     proj(vSky.copy(l.pos).multiplyScalar(1e7).add(o));
     const sx = (vSky.x * .5 + .5) * innerWidth, sy = (-vSky.y * .5 + .5) * innerHeight;
-    const r = { left: sx - l.w / 2, top: sy - l.h / 2, right: sx + l.w / 2, bottom: sy + l.h / 2, width: l.w, height: l.h };
-    const show = vSky.z > -1 && vSky.z < 1 && r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight;
-    if (show) {
-      if (l.el.style.display === 'none') l.el.style.display = '';
-      l.el.style.transform = `translate3d(${r.left.toFixed(1)}px,${r.top.toFixed(1)}px,0)`;
-      if (discs.some(d => !d || Math.hypot(Math.max(r.left - d[0], 0, d[0] - r.right), Math.max(r.top - d[1], 0, d[1] - r.bottom)) < d[2]))
-        coverLabel(l.el, Infinity, vSky.copy(l.dir).multiplyScalar(1e12).add(o), r);
-      else if (l.el._mask || l.el.style.visibility) { l.el._mask = ''; l.el.style.maskImage = ''; l.el.style.visibility = ''; }
-    } else if (l.el.style.display !== 'none') l.el.style.display = 'none';
+    const show = vSky.z > -1 && vSky.z < 1 && sx + l.w / 2 > 0 && sx - l.w / 2 < innerWidth && sy + l.h / 2 > 0 && sy - l.h / 2 < innerHeight;
+    const s = l.s, t = s.material.map;
+    s.visible = show;
+    if (!show) continue;
+    s.position.copy(l.pos).multiplyScalar(1e7); s.scale.set((l.w + 2 * SKY_PAD) / k, (l.h + 2 * SKY_PAD) / k, 1);
+    if ((t.repeat.y < 0) !== picMirror) { t.repeat.y = picMirror ? -1 : 1; t.offset.y = picMirror ? 1 : 0; }
   }
 }
 
-// short body axes: the rotation axis reaches 2.5 radii from the centre, so that its name fits above the surface; the
-// x, y, z axes through Pluto's centre (parallel to the reference axes) are 2 times longer, 5 radii. Each name is
-// written in the line ("line  x axis  line"), on both outer parts (between the surface and the end of the axis); the
-// x, y, z names show the sign of their half ("+x axis" / "−x axis"), so we know e.g. which side is above the ecliptic [REQ-01]
-// (on the reference celestial body: moved to the new one by setRef)
+// short body axes: the x_ecl, y_ecl, z_ecl axes through Pluto's centre (parallel to the reference axes), 1.4 times the
+// equatorial ones (user, 2026-11-05: 8.12 radii; were 5). Each
+// name is written in the line ("line  +x-ecl  line"), on both outer parts (between the surface and the end of the axis);
+// the names show the sign of their half ("+x-ecl" / "−x-ecl"), so we know e.g. which side is above the ecliptic [REQ-01]
+// (on the reference celestial body: moved to the new one by setRef).
+// The body's equatorial frame (user, 2026-11-05), drawn the same way, paler: z_eq the rotation axis, x_eq along the line
+// where the equator crosses the ecliptic, towards the node where the ecliptic rises north over the equator (as the
+// Earth's real equatorial x, the vernal equinox: for the Earth x_eq is x_ecl; the body frame LPB), y_eq = z_eq × x_eq, all 5.8 radii (0.8 R past the last circle). On the Earth x_eq is not drawn apart: its names
+// are written in the x_ecl axis, before x_ecl's ("surface ---- +x-eq -- +x-ecl -- arrow", 10% of the line each).
+// z_eq is the former rotation axis: "rotation axis" where it was (as on an axis 2.5 R long), and "+z-eq" ("−z-eq")
+// placed on the whole axis as the other names (80% of the line before it, 20% after; left out where it would reach
+// "rotation axis"), with the arrowhead on the + half. In the equator: circles
+// of 2, 3, 4 and 5 radii and four lines at 45° to x_eq and y_eq, to 5.2 radii, without names, drawn as strongly as
+// the axes.
+const eqFrame = new THREE.Group(), EQ_LEN = 5.8, ECL_LEN = 1.4 * EQ_LEN;
+// eqFrame's x, y, z: the body frame's (ecliptic coordinates turned into the scene's by T)
+function setEqFrame(b) {
+  const B = bodyBasis(b.pole).map(v => T(...v).normalize());   // (T: also into scene units)
+  eqFrame.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(...B));
+  b.group.add(eqFrame);
+}
+setEqFrame(REF);
 const BODY_AXES = [
-  bodyAxis(REF.group, new THREE.Vector3(1, 0, 0), 5, 0xff7b7b, '#ff9b9b', ['+x axis', '−x axis'], true),
-  bodyAxis(REF.group, new THREE.Vector3(0, 0, -1), 5, 0x7bdc93, '#9be8b0', ['+y axis', '−y axis'], true),
-  bodyAxis(REF.group, new THREE.Vector3(0, 1, 0), 5, 0x7ba6ff, '#a9c3ff', ['+z axis', '−z axis'], true),
-  bodyAxis(REF.tilt, new THREE.Vector3(0, 1, 0), 2.5, 0xffd9a8, '#ffd9a8', ['rotation axis', 'rotation axis']),
+  bodyAxis(REF.group, new THREE.Vector3(1, 0, 0), ECL_LEN, 0xff7b7b, '#ff9b9b', ['+x-ecl', '−x-ecl'], true, null,
+    { names: ['+x-eq', '−x-eq'], css: '#ffcaca', on: () => REF === EARTH }),
+  bodyAxis(REF.group, new THREE.Vector3(0, 0, -1), ECL_LEN, 0x7bdc93, '#9be8b0', ['+y-ecl', '−y-ecl'], true),
+  bodyAxis(REF.group, new THREE.Vector3(0, 1, 0), ECL_LEN, 0x7ba6ff, '#a9c3ff', ['+z-ecl', '−z-ecl'], true),
+  Object.assign(bodyAxis(eqFrame, new THREE.Vector3(1, 0, 0), EQ_LEN, 0xffbdbd, '#ffcaca', ['+x-eq', '−x-eq'], true), { skip: () => REF === EARTH }),
+  bodyAxis(eqFrame, new THREE.Vector3(0, 1, 0), EQ_LEN, 0xbdedc9, '#cdf3d7', ['+y-eq', '−y-eq'], true),
+  bodyAxis(eqFrame, new THREE.Vector3(0, 0, 1), 2.5, 0xbdd2ff, '#d3e1ff', ['rotation axis', 'rotation axis'], false,
+    { len: EQ_LEN, names: ['+z-eq', '−z-eq'] }),
 ];
-groupNames(BODY_AXES.slice(0, 3));
+// the x, y, z names (both frames) appear together; "rotation axis" from nearer (its own need)
+groupNames([...BODY_AXES.slice(0, 5), BODY_AXES[0].pre, BODY_AXES[5].ext]);
+// the equator's circles and 45° lines
+const eqPlane = (() => {
+  const p = [], N = 128;
+  for (const r of [2, 3, 4, 5]) for (let i = 0; i < N; i++) {
+    const a = i * TAU / N, b = (i + 1) * TAU / N;
+    p.push(r * Math.cos(a), r * Math.sin(a), 0, r * Math.cos(b), r * Math.sin(b), 0);
+  }
+  for (let k = 0; k < 4; k++) { const a = (45 + 90 * k) * DEG; p.push(0, 0, 0, 5.2 * Math.cos(a), 5.2 * Math.sin(a), 0); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+  const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x5b7cc4, transparent: true, opacity: .9 }));
+  l.frustumCulled = false; eqFrame.add(l);
+  return l;
+})();
 
 // The tilted meridian of the W/S move (the one of the move going on, kept from the press of W/S until its release, or the
 // one W/S would take from here), shown in the HUD and the gauge and written in the camera log, only in body mode. (The
@@ -3258,26 +3345,33 @@ const refZ = () => BODY_EQ && C.mode === 'body' ? LPB[2] : [0, 0, 1];
 // arrow: an arrowhead at the + end (user, 2026-10-28, the x, y, z axes: like Word's arrow type "Arrow", size 3, narrow
 // and long): a slim cone in the axis's color, its tip at the end of the axis, pointing outwards in space, 0.175 R long
 // and 0.06 R wide (a third of its length; user, 2026-10-28: half of the first size)
-function bodyAxis(parent, dir, len, color, css, names, arrow) {
+// ext (z_eq): the line goes on to ext.len, with a second pair of names (ext.names) and the arrowhead at its + end.
+// pre (x_ecl on the Earth): while pre.on(), a pair of names (pre.names, colour pre.css) before the axis's own.
+function bodyAxis(parent, dir, len, color, css, names, arrow, ext, pre) {
   const ARROW_LEN = .175, ARROW_W = .06;
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(8 * 3), 3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((ext || pre ? 12 : 8) * 3), 3).setUsage(THREE.DynamicDrawUsage));
   const line = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity: .9 }));
   line.frustumCulled = false; parent.add(line);
-  if (arrow) {
+  if (arrow || ext) {
     const head = new THREE.Mesh(new THREE.ConeGeometry(ARROW_W / 2, ARROW_LEN, 16), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9 }));
-    head.position.copy(dir).multiplyScalar(len - ARROW_LEN / 2);
+    head.position.copy(dir).multiplyScalar((ext ? ext.len : len) - ARROW_LEN / 2);
     head.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);   // (the cone points along its +y)
     line.add(head);   // (with the line: hidden, drawn and ordered as it is)
   }
-  const halves = [1, -1].map((sign, i) => {
-    const el = document.createElement('div'); el.className = 'axl along'; el.textContent = names[i]; el.style.color = css;
-    labelsEl.appendChild(el); el.style.display = ''; const w = el.offsetWidth; el.style.display = 'none';
-    return { el, sign, w, blank: w / names[i].length, ta: len, tb: len };   // monospace: one character's width
-  });
-  // radius on screen (px) from which both names fit, with room to spare (see updateBodyAxis)
-  const need = Math.max(...halves.map(h => (h.w + 2 * h.blank + 20) / (len - 1))) * 1.2;
-  return { line, dir, len, halves, need };
+  const named = (names, len, c = css) => {
+    const halves = [1, -1].map((sign, i) => {
+      const el = document.createElement('div'); el.className = 'axl along'; el.textContent = names[i]; el.style.color = c;
+      labelsEl.appendChild(el); el.style.display = ''; const w = el.offsetWidth; el.style.display = 'none';
+      return { el, sign, w, blank: w / names[i].length, ta: len, tb: len };   // monospace: one character's width
+    });
+    // radius on screen (px) from which both names fit, with room to spare (see updateBodyAxis)
+    return { halves, need: Math.max(...halves.map(h => (h.w + 2 * h.blank + 20) / (len - 1))) * 1.2 };
+  };
+  const ax = { line, dir, len, ...named(names, len) };
+  if (ext) ax.ext = { len: ext.len, ...named(ext.names, ext.len) };
+  if (pre) ax.pre = { on: pre.on, ...named(pre.names, len, pre.css) };
+  return ax;
 }
 // The names come in groups that appear and disappear together: the x, y, z names, and the "rotation axis" names. A
 // group is shown when the body's radius on screen is large enough for the longest name of the group to fit on its axis
@@ -3311,25 +3405,28 @@ function gapEnd(ax, sign, t0, t1, dist, mx, my) {
   }
   return (lo + hi) / 2;
 }
-function updateBodyAxis(ax, centre, radius, named) {
+// rpx: the body's radius on screen (px), for the groups of names (see groupNames)
+function updateBodyAxis(ax, centre, radius, rpx) {
   const obj = ax.line.parent, pos = ax.line.geometry.attributes.position;
   // the body's outline on screen: centre and radius in px
   proj(nC.copy(centre));
   const cx = (nC.x * .5 + .5) * innerWidth, cy = (-nC.y * .5 + .5) * innerHeight;
   const cr = Math.tan(Math.asin(Math.min(1, radius / camera.position.distanceTo(centre)))) / Math.tan(camera.fov * DEG / 2) * innerHeight / 2;
-  for (const h of ax.halves) {
-    nA.copy(ax.dir).multiplyScalar(h.sign); obj.localToWorld(nA);
-    nB.copy(ax.dir).multiplyScalar(h.sign * ax.len); obj.localToWorld(nB);
-    proj(nA); proj(nB);
-    const sx = p => (p.x * .5 + .5) * innerWidth, sy = p => (-p.y * .5 + .5) * innerHeight;
+  const sx = p => (p.x * .5 + .5) * innerWidth, sy = p => (-p.y * .5 + .5) * innerHeight;
+  const at = (v, t, sign) => { v.copy(ax.dir).multiplyScalar(sign * t); obj.localToWorld(v); return proj(v); };
+  // the name of half h on the part of the axis from t0 to t1 (radii): innerOf(free) px of line before its gap, measured
+  // on the screen (free: the part's length less the gap); sets the gap (h.ta, h.tb: t1 when the name is not shown)
+  const place = (h, t0, t1, innerOf, named) => {
+    at(nA, t0, h.sign); at(nB, t1, h.sign);
     const ex = sx(nA), ey = sy(nA), bx = sx(nB), by = sy(nB), D = Math.hypot(bx - ex, by - ey);
-    const gap = h.w + 2 * h.blank, free = D - gap, outer = Math.max(.2 * free, 10), inner = free - outer;
+    const gap = h.w + 2 * h.blank, free = D - gap, inner = innerOf(free);
+    h.D = D;
     let show = named && Math.abs(nA.z) < 1 && Math.abs(nB.z) < 1 && free > 20;
-    h.ta = h.tb = ax.len;
+    h.ta = h.tb = t1;
     let mx, my, ux, uy;
     if (show) {
-      // the name's centre: inner + half the gap px from the surface point on the screen
-      const tc = gapEnd(ax, h.sign, 1, ax.len, inner + gap / 2, ex, ey);
+      // the name's centre: inner + half the gap px from the start of the part on the screen
+      const tc = gapEnd(ax, h.sign, t0, t1, inner + gap / 2, ex, ey);
       nM.copy(ax.dir).multiplyScalar(h.sign * tc); obj.localToWorld(nM);
       show = !behindSphere(nM, centre, radius);
       proj(nM);
@@ -3344,16 +3441,33 @@ function updateBodyAxis(ax, centre, radius, named) {
     }
     h.el.style.display = show ? '' : 'none';
     if (show) {
-      h.ta = gapEnd(ax, h.sign, 1, ax.len, inner, ex, ey); h.tb = gapEnd(ax, h.sign, 1, ax.len, inner + gap, ex, ey);
+      h.ta = gapEnd(ax, h.sign, t0, t1, inner, ex, ey); h.tb = gapEnd(ax, h.sign, t0, t1, inner + gap, ex, ey);
       // never upside down; a vertical axis (the z axis is always vertical on the screen) always reads from bottom to
       // top: its direction is exactly on the limit, and rounding errors while running would flip the name every frame
       let a = Math.atan2(by - ey, bx - ex);
       if (a > Math.PI / 2 - 1e-3) a -= Math.PI; else if (a < -Math.PI / 2 - 1e-3) a += Math.PI;
       h.el.style.transform = `translate3d(${mx.toFixed(1)}px,${my.toFixed(1)}px,0) rotate(${a.toFixed(4)}rad) translate(-50%,-50%)`;
     }
-    const i = h.sign > 0 ? 0 : 4, d = ax.dir, s = h.sign;
-    for (const [k, t] of [[0, 0], [1, h.ta], [2, h.tb], [3, ax.len]]) pos.setXYZ(i + k, d.x * s * t, d.y * s * t, d.z * s * t);
-  }
+  };
+  const pre = ax.pre && ax.pre.on();
+  if (ax.pre && !pre) for (const p of ax.pre.halves) p.el.style.display = 'none';
+  ax.halves.forEach((h, j) => {
+    // x_ecl on the Earth: 10% of the line after its name and 10% between the two names, "+x-eq" before
+    const p = pre && ax.pre.halves[j];
+    const rule = f => f - Math.max(.2 * f, 10);   // (80% of the line before the name, 20% after)
+    if (p) place(h, 1, ax.len, f => f - .1 * (f + h.w + 2 * h.blank), rpx >= ax.need);
+    else place(h, 1, ax.len, rule, rpx >= ax.need);
+    if (p) place(p, 1, h.ta, f => f - .1 * h.D, rpx >= ax.pre.need);
+    // z_eq: "+z-eq" ("−z-eq") on the whole axis by the same rule, left out where it would reach "rotation axis"
+    const e = ax.ext && ax.ext.halves[j];
+    if (e) {
+      place(e, 1, ax.ext.len, rule, rpx >= ax.ext.need);
+      if (e.ta < h.tb) { e.el.style.display = 'none'; e.ta = e.tb = ax.ext.len; }
+    }
+    const ts = e ? [0, h.ta, h.tb, e.ta, e.tb, ax.ext.len] : ax.pre ? (p ? [0, p.ta, p.tb, h.ta, h.tb, ax.len] : [0, 0, 0, h.ta, h.tb, ax.len])
+      : [0, h.ta, h.tb, ax.len], d = ax.dir, s = h.sign;
+    ts.forEach((t, k) => pos.setXYZ(j * ts.length + k, d.x * s * t, d.y * s * t, d.z * s * t));
+  });
   pos.needsUpdate = true;
 }
 // (user, 2026-10-29) a label of a point at distance d from the camera stays behind the celestial bodies nearer than it:
@@ -4586,13 +4700,13 @@ function renderReplayView() {
   viewCam.aspect = innerWidth / innerHeight; viewCam.updateProjectionMatrix(); viewCam.updateMatrixWorld();
   const scale = REF.group.scale.x, minAngle = Math.max(minApparent(REF), MIN_DOT_PX / 2 * camera.fov * DEG / r.height);
   REF.group.scale.setScalar(Math.max(R * U, viewCam.position.distanceTo(REF.group.position) * Math.tan(minAngle)));
-  o.g.visible = false;
+  o.g.visible = skyNames.visible = false;   // (the names of the sky: placed for the screen's camera)
   const x = r.left + 1, y = innerHeight - r.bottom + 1, w = r.width - 2, h = r.height - 2;
   renderer.setScissorTest(true); renderer.setScissor(x, y, w, h); renderer.setViewport(x, y, w, h);
   renderer.render(scene, viewCam);
   if (mir) { scene.scale.y = 1; scene.position.y = 0; scene.updateMatrixWorld(true); }
   renderer.setScissorTest(false); renderer.setViewport(0, 0, innerWidth, innerHeight);
-  o.g.visible = true; REF.group.scale.setScalar(scale);
+  o.g.visible = skyNames.visible = true; REF.group.scale.setScalar(scale);
 }
 addEventListener('resize', resize); resize();
 
@@ -4699,9 +4813,9 @@ function renderScope() {
   for (const tr of trails) { updatePlume(tr, camera.position, 0); updateTrail(tr, camera.position); }
   trailMaterial.resolution.set(w, h);   // (the lines' width in its pixels)
   const mw = milkyWay.material.uniforms.uGain; mw.value = MW_GAIN * MW_SCOPE;
-  sky.userData.trim(pxAngle / Z, 1);
+  sky.userData.trim(pxAngle / Z, 1); skyNames.visible = false;   // (no names in it: listed in its corner)
   renderer.setRenderTarget(scope.rt); renderer.render(scene, c); renderer.setRenderTarget(null);
-  trailMaterial.resolution.set(W, H); mw.value = MW_GAIN; sky.userData.trim(pxAngle, 0);
+  trailMaterial.resolution.set(W, H); mw.value = MW_GAIN; sky.userData.trim(pxAngle, 0); skyNames.visible = true;
   bodyScales(1, pxAngle, farAway);
   if (moonLine.l.visible) updateOrbitLine(moonLine, C.pos);
   scopeQuad.material.uniforms.c.value.set(2 * x / W - 1, 1 - 2 * y / H); scopeQuad.material.uniforms.s.value.set(w / W, h / H);
@@ -4736,6 +4850,7 @@ function setInflated(b, on) {
   if ('emissiveIntensity' in m) { m.transparent = on; m.emissiveIntensity = on ? .7 : 0; m.needsUpdate = true; }
   b.mesh.renderOrder = on ? 10 : 0;
   for (const ax of BODY_AXES) { ax.line.renderOrder = b.mesh.renderOrder; for (const c of ax.line.children) c.renderOrder = b.mesh.renderOrder; }
+  eqPlane.renderOrder = b.mesh.renderOrder;
 }
 // The drawn size of the planets and the Moon: no apparent radius below the minimum (MIN_APPARENT_RADIUS; the Moon half of
 // it), k times (the zoom screen, see SCOPE_MIN); pxAngle: the size of a pixel (radians); spreadMax: see moonSpread
@@ -4787,7 +4902,7 @@ function frame(now) {
   trailT += st; if (st > 0) trailClock += st;   // (the trails' clock stands still while time goes backward)
   for (const pl of PLANETS) pl.p = orbitNow(pl.orbit);
   MOON.p = add(EARTH.p, moonRelT(trailT)); MOON.pole = moonPoleAt(trailT * 365.25);
-  if (REF === MOON) LPB = bodyBasis(MOON.pole);   // (its axis turns slowly with its node)
+  if (REF === MOON) { LPB = bodyBasis(MOON.pole); setEqFrame(MOON); }   // (its axis turns slowly with its node)
   P = REF.p;
   const dP = sub(P, P0);
   if (C.mode === 'body') {
@@ -4901,11 +5016,12 @@ function frame(now) {
   REF.group.updateMatrixWorld(true);
   const rpx = screenRadius(REF.group.position, REF.group.scale.x);
   // the axes of the celestial body are not drawn far away (see AXES_FAR_X)
+  eqPlane.visible = !farAway;
   BODY_AXES.forEach(ax => {
-    const off = farAway;
+    const off = farAway || (ax.skip && ax.skip());
     ax.line.visible = !off;
-    if (off) { for (const h of ax.halves) h.el.style.display = 'none'; return; }
-    updateBodyAxis(ax, REF.group.position, REF.group.scale.x, rpx >= ax.need);
+    if (off) { for (const h of [...ax.halves, ...(ax.ext ? ax.ext.halves : []), ...(ax.pre ? ax.pre.halves : [])]) h.el.style.display = 'none'; return; }
+    updateBodyAxis(ax, REF.group.position, REF.group.scale.x, rpx);
   });
   updateMeridianLine();
 
@@ -4924,11 +5040,12 @@ function frame(now) {
 
 // The reference celestial body (user, 2026-10-28): the body the camera moves around in "celestial body reference system"
 // mode, chosen in the menu (Reference system). setRef makes b the reference: its centre and radius (P, R), its body
-// frame (its rotation axis, LPB), the short axes and the rotation axis drawn on it, the arrow to it; the moves going on
+// frame (its rotation axis, LPB), the short axes and the equatorial frame drawn on it, the arrow to it; the moves going on
 // stop. No Sun locked view on the Sun (it goes to the turntable).
 function setRef(b) {
   REF = b; P = b.p; R = b.r; LPB = bodyBasis(b.pole);
-  BODY_AXES.forEach((ax, i) => (i < 3 ? b.group : b.tilt).add(ax.line));
+  BODY_AXES.forEach((ax, i) => { if (i < 3) b.group.add(ax.line); });   // (the others: in eqFrame)
+  setEqFrame(b);
   const css = '#' + b.color.toString(16).padStart(6, '0');
   pointerLabel.textContent = theName(b); pointerLabel.style.color = css;
   pointerEl.querySelector('path').setAttribute('fill', css);
