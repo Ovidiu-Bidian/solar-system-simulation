@@ -29,6 +29,35 @@ What is not real (visual aids) is listed in the program, in Help → About: for 
 the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds) and
 the background stars, placed at random.
 
+## The ideas behind the simulation
+
+The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 and written down in the requirements:
+
+- **Real paths through absolute space.** Every motion is computed in one fixed space, the absolute space, through which
+  the Sun travels at its real speed and direction. The paths of the planets and of the Moon are not drawn; they come
+  out of the real orbits combined with the Sun's motion, as the spirals of their trails. The camera can stay at rest
+  in this space, travelling with the Sun ("absolute space" mode), or follow a celestial body ("celestial body" mode).
+- **Two reference systems for every view.** The view's own system is where the camera moves: for a celestial body,
+  the body's frame (its center, its rotation axis, and its equator from the node where the ecliptic crosses it going
+  north, on the Earth the vernal equinox). The camera's head system works like a camera on a pan/tilt head: +x is the
+  direction the head faces (forward), +y the tilt axis (left), +z the pan axis (up). Both are drawn on the screen: the
+  ecliptic and the equatorial axes of the body, with the equatorial plane, and, in the test version, the head of the
+  recorded camera in its replay.
+- **A camera path.** Each view moves the camera on a defined path in its own system; for example, the pole view moves
+  it on a circle C around the body, tilted to the equator by the C angle.
+- **Automatic and manual control.** The keys and the mouse wheel are the automatic control: they move the camera
+  along its path and set an automatic view, which keeps the body at its place on the screen. The mouse is the manual
+  control: it always grabs the image, as on a touch screen, and adds a look relative to the automatic view, kept
+  through every movement. The final view is the automatic view plus the manual look: you can look at the sky while
+  the camera walks around the body, and the sky then turns on the screen as the automatic view turns. What is seen
+  never turns faster than 30 degrees per second.
+- **The pole view** is the first view built completely on these principles. In the leveled pan the rotation axis
+  stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
+  the equator (the picture turns by 180 degrees only when the camera clearly passes to the other side: a band of
+  ±10 degrees). In the rotating pan the picture turns evenly as the camera walks around the body, one turn per lap.
+
+The other views will be rebuilt on the same principles.
+
 ## Walk in the sky
 
 In absolute space mode the camera is not tied to any celestial body: it stays at rest relative to the Sun, so it
@@ -101,7 +130,8 @@ an internet connection is needed for the three.js library).
 - the menu (upper left) chooses the reference system: absolute space, or a celestial body that the camera follows;
   each celestial body has several views (tilted meridian, meridian, pole view, Sun locked, turntable);
 - the information panel (upper right) shows the data of the celestial body; "Run/Stop" and "-" / "+" set the motion
-  and the speed of the simulation;
+  and the speed of the simulation; the reference axes button (or the "J" key) chooses which axes of the celestial
+  body are drawn: both, none, the equatorial ones or the ecliptic ones;
 - Help → Controls lists the keys and the mouse controls of the current camera mode.
 
 ## Requirements
