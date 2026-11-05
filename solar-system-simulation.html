@@ -103,7 +103,13 @@
     display: flex; align-items: center; justify-content: center; gap: 8px; }
   #controls button:hover:not(:disabled), #speed-row button:hover:not(:disabled) { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .25); }
   #controls button:disabled, #speed-row button:disabled { opacity: .3; cursor: default; }
-  #slower, #faster, #tdir { font-size: 16px; min-width: 36px; }
+  #slower, #faster, #tdir { font-size: 16px; min-width: 28px; }
+  /* (user, 2026-11-05) narrower, to make room for the axes button at the right */
+  #slower, #run, #tdir, #faster { padding-left: 6px; padding-right: 6px; }
+  #speed-row { gap: 3px; width: 100%; }   /* (the full width: the axes button at the right edge) */
+  #speed-row #run { gap: 5px; }
+  #speed-row #speedval { margin-left: 3px; width: 40px; }   /* (constant: the widest is "3 mo/s") */
+  #speed-row #axes { margin-left: auto; width: 64px; font-size: 11px; padding-left: 4px; padding-right: 4px; }   /* (constant width) */
   #speed-row button, #speedval { white-space: nowrap; }
   /* test aid (user, 2026-10-23): the tilted meridian gauge, a square above the speed buttons (see updateGauge) */
   #gauge { width: 170px; }   /* (the width the speed buttons gave it) */
@@ -113,7 +119,7 @@
   #controls #g-pan-mode { width: 100%; margin-bottom: 4px; }   /* the pole view's pan, above the gauge */
   #g-pan-mode[hidden] { display: none; }
   #gauge[hidden] { display: none; }
-  #run { flex: 1; min-width: 76px; }
+  #run { flex: none; width: 66px; }   /* (user, 2026-11-05: a constant width, Start or Stop; was stretched to the row) */
   #run svg { width: 12px; height: 12px; fill: currentColor; }
   #speedval { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
 
@@ -367,6 +373,7 @@
       <button id="tdir" type="button"></button>
       <button id="faster" type="button" aria-label="Faster" title="Faster">+</button>
       <span id="speedval" title="Simulation speed: Earth hours (h), days (d), weeks (wk), months (mo) or years (yr) per second"></span>
+      <button id="axes" type="button"></button>
     </div>
   </div>
   <!-- (user, 2026-10-30) in the order of REQ-01.1 -->
@@ -425,7 +432,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_2.8 (5 November 2026)</p>
+  <p>Current version: solar system simulation v_2.8.4 (5 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -3290,12 +3297,11 @@ function updateSkyLabels() {
 // where the equator crosses the ecliptic, towards the node where the ecliptic rises north over the equator (as the
 // Earth's real equatorial x, the vernal equinox: for the Earth x_eq is x_ecl; the body frame LPB), y_eq = z_eq × x_eq, all 5.8 radii (0.8 R past the last circle). On the Earth x_eq is not drawn apart: its names
 // are written in the x_ecl axis, before x_ecl's ("surface ---- +x-eq -- +x-ecl -- arrow", 10% of the line each).
-// z_eq is the former rotation axis: "rotation axis" where it was (as on an axis 2.5 R long), and "+z-eq" ("−z-eq")
-// placed on the whole axis as the other names (80% of the line before it, 20% after; left out where it would reach
-// "rotation axis"), with the arrowhead on the + half. In the equator: circles
+// z_eq is the former rotation axis, its names placed as on the Earth's x axis: "rotation axis", 10% of the line,
+// "+z-eq" ("−z-eq"), 10% of the line to the end (the arrowhead on the + half). In the equator: circles
 // of 2, 3, 4 and 5 radii and four lines at 45° to x_eq and y_eq, to 5.2 radii, without names, drawn as strongly as
 // the axes.
-const eqFrame = new THREE.Group(), EQ_LEN = 5.8, ECL_LEN = 1.4 * EQ_LEN;
+const eqFrame = new THREE.Group(), EQ_LEN = 5.8, ECL_LEN = 1.4 * EQ_LEN, ROT_NAME_R = 20;   // (ROT_NAME_R: see updateBodyAxis)
 // eqFrame's x, y, z: the body frame's (ecliptic coordinates turned into the scene's by T)
 function setEqFrame(b) {
   const B = bodyBasis(b.pole).map(v => T(...v).normalize());   // (T: also into scene units)
@@ -3303,31 +3309,51 @@ function setEqFrame(b) {
   b.group.add(eqFrame);
 }
 setEqFrame(REF);
+// The axes button (user, 2026-11-05), at the right of the speed buttons: which of the reference body's frames is drawn,
+// in turn: both, none, only the equatorial one (with its plane), only the ecliptic one. On the Earth, x-eq is drawn on
+// its own line when x-ecl is not drawn.
+const AXES_ECL = 1, AXES_EQ = 2, AXES_ORDER = [AXES_ECL | AXES_EQ, 0, AXES_EQ, AXES_ECL];
+// (button texts, user 2026-11-05: "ref" as in reference system, "both" for ecliptic + equatorial)
+const AXES_TEXT = { 0: ['No ref', 'no reference axes'], [AXES_EQ]: ['Eq ref', 'only the equatorial axes (and plane)'],
+  [AXES_ECL]: ['Ecl ref', 'only the ecliptic axes'], [AXES_ECL | AXES_EQ]: ['Both refs', 'the ecliptic and the equatorial axes'] };
+let axesShown = AXES_ECL | AXES_EQ;
+const axesBtn = $('axes'), showAxes = () => {
+  const [t, d] = AXES_TEXT[axesShown]; axesBtn.textContent = t; axesBtn.title = `Reference axes drawn: ${d} (click: next)`;
+};
+axesBtn.addEventListener('click', () => {
+  axesShown = AXES_ORDER[(AXES_ORDER.indexOf(axesShown) + 1) % AXES_ORDER.length]; showAxes(); axesBtn.blur();
+  toast('Reference axes: ' + AXES_TEXT[axesShown][1]);
+});
+showAxes();
 const BODY_AXES = [
   bodyAxis(REF.group, new THREE.Vector3(1, 0, 0), ECL_LEN, 0xff7b7b, '#ff9b9b', ['+x-ecl', '−x-ecl'], true, null,
-    { names: ['+x-eq', '−x-eq'], css: '#ffcaca', on: () => REF === EARTH }),
+    { names: ['+x-eq', '−x-eq'], css: '#ffcaca', on: () => REF === EARTH && axesShown & AXES_EQ }),
   bodyAxis(REF.group, new THREE.Vector3(0, 0, -1), ECL_LEN, 0x7bdc93, '#9be8b0', ['+y-ecl', '−y-ecl'], true),
   bodyAxis(REF.group, new THREE.Vector3(0, 1, 0), ECL_LEN, 0x7ba6ff, '#a9c3ff', ['+z-ecl', '−z-ecl'], true),
-  Object.assign(bodyAxis(eqFrame, new THREE.Vector3(1, 0, 0), EQ_LEN, 0xffbdbd, '#ffcaca', ['+x-eq', '−x-eq'], true), { skip: () => REF === EARTH }),
+  Object.assign(bodyAxis(eqFrame, new THREE.Vector3(1, 0, 0), EQ_LEN, 0xffbdbd, '#ffcaca', ['+x-eq', '−x-eq'], true), { skip: () => REF === EARTH && axesShown & AXES_ECL }),
   bodyAxis(eqFrame, new THREE.Vector3(0, 1, 0), EQ_LEN, 0xbdedc9, '#cdf3d7', ['+y-eq', '−y-eq'], true),
-  bodyAxis(eqFrame, new THREE.Vector3(0, 0, 1), 2.5, 0xbdd2ff, '#d3e1ff', ['rotation axis', 'rotation axis'], false,
+  bodyAxis(eqFrame, new THREE.Vector3(0, 0, 1), EQ_LEN, 0xbdd2ff, '#d3e1ff', ['rotation axis', 'rotation axis'], false,
     { len: EQ_LEN, names: ['+z-eq', '−z-eq'] }),
 ];
-// the x, y, z names (both frames) appear together; "rotation axis" from nearer (its own need)
+// the x, y, z names (both frames) appear together; "rotation axis" from ROT_NAME_R radii (see updateBodyAxis)
 groupNames([...BODY_AXES.slice(0, 5), BODY_AXES[0].pre, BODY_AXES[5].ext]);
 // the equator's circles and 45° lines
-const eqPlane = (() => {
+// (Saturn, user 2026-11-05: only the circles of 3, 4 and 5 radii, the one of 2 radii would lie on its rings, and the
+// 45° lines from 3 radii: off the rings)
+const eqPlaneGeometry = (radii, r0 = 0) => {
   const p = [], N = 128;
-  for (const r of [2, 3, 4, 5]) for (let i = 0; i < N; i++) {
+  for (const r of radii) for (let i = 0; i < N; i++) {
     const a = i * TAU / N, b = (i + 1) * TAU / N;
     p.push(r * Math.cos(a), r * Math.sin(a), 0, r * Math.cos(b), r * Math.sin(b), 0);
   }
-  for (let k = 0; k < 4; k++) { const a = (45 + 90 * k) * DEG; p.push(0, 0, 0, 5.2 * Math.cos(a), 5.2 * Math.sin(a), 0); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
-  const l = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0x5b7cc4, transparent: true, opacity: .9 }));
-  l.frustumCulled = false; eqFrame.add(l);
-  return l;
-})();
+  for (let k = 0; k < 4; k++) { const a = (45 + 90 * k) * DEG; p.push(r0 * Math.cos(a), r0 * Math.sin(a), 0, 5.2 * Math.cos(a), 5.2 * Math.sin(a), 0); }
+  return new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+};
+const EQ_PLANE_GEOMETRY = { all: eqPlaneGeometry([2, 3, 4, 5]), Saturn: eqPlaneGeometry([3, 4, 5], 3) };
+const eqPlane = new THREE.LineSegments(EQ_PLANE_GEOMETRY.all, new THREE.LineBasicMaterial({ color: 0x5b7cc4, transparent: true, opacity: .9 }));
+eqPlane.frustumCulled = false; eqFrame.add(eqPlane);
+const setEqPlane = b => { eqPlane.geometry = EQ_PLANE_GEOMETRY[b.name] || EQ_PLANE_GEOMETRY.all; };
+setEqPlane(REF);
 
 // The tilted meridian of the W/S move (the one of the move going on, kept from the press of W/S until its release, or the
 // one W/S would take from here), shown in the HUD and the gauge and written in the camera log, only in body mode. (The
@@ -3455,15 +3481,19 @@ function updateBodyAxis(ax, centre, radius, rpx) {
     // x_ecl on the Earth: 10% of the line after its name and 10% between the two names, "+x-eq" before
     const p = pre && ax.pre.halves[j];
     const rule = f => f - Math.max(.2 * f, 10);   // (80% of the line before the name, 20% after)
-    if (p) place(h, 1, ax.len, f => f - .1 * (f + h.w + 2 * h.blank), rpx >= ax.need);
-    else place(h, 1, ax.len, rule, rpx >= ax.need);
-    if (p) place(p, 1, h.ta, f => f - .1 * h.D, rpx >= ax.pre.need);
-    // z_eq: "+z-eq" ("−z-eq") on the whole axis by the same rule, left out where it would reach "rotation axis"
     const e = ax.ext && ax.ext.halves[j];
-    if (e) {
-      place(e, 1, ax.ext.len, rule, rpx >= ax.ext.need);
-      if (e.ta < h.tb) { e.el.style.display = 'none'; e.ta = e.tb = ax.ext.len; }
-    }
+    if (p) {
+      place(h, 1, ax.len, f => f - .1 * (f + h.w + 2 * h.blank), rpx >= ax.need);
+      place(p, 1, h.ta, f => f - .1 * h.D, rpx >= ax.pre.need);
+    } else if (e) {
+      // "rotation axis" shown from 20 radii from the centre (user, 2026-11-05; it appeared only very near the body)
+      const near = camera.position.distanceTo(centre) <= ROT_NAME_R * radius;
+      // z_eq as the Earth's x axis (user, 2026-11-05: "rotation axis" was near the body): "+z-eq" ("−z-eq") with 10%
+      // of the line after it, "rotation axis" 10% before it; alone by the rule when "+z-eq" is not shown
+      place(e, 1, ax.ext.len, f => f - .1 * (f + e.w + 2 * e.blank), rpx >= ax.ext.need);
+      if (e.ta < ax.ext.len) place(h, 1, e.ta, f => f - .1 * e.D, near);
+      else place(h, 1, ax.ext.len, rule, near);
+    } else place(h, 1, ax.len, rule, rpx >= ax.need);
     const ts = e ? [0, h.ta, h.tb, e.ta, e.tb, ax.ext.len] : ax.pre ? (p ? [0, p.ta, p.tb, h.ta, h.tb, ax.len] : [0, 0, 0, h.ta, h.tb, ax.len])
       : [0, h.ta, h.tb, ax.len], d = ax.dir, s = h.sign;
     ts.forEach((t, k) => pos.setXYZ(j * ts.length + k, d.x * s * t, d.y * s * t, d.z * s * t));
@@ -5016,9 +5046,9 @@ function frame(now) {
   REF.group.updateMatrixWorld(true);
   const rpx = screenRadius(REF.group.position, REF.group.scale.x);
   // the axes of the celestial body are not drawn far away (see AXES_FAR_X)
-  eqPlane.visible = !farAway;
-  BODY_AXES.forEach(ax => {
-    const off = farAway || (ax.skip && ax.skip());
+  eqPlane.visible = !farAway && !!(axesShown & AXES_EQ);
+  BODY_AXES.forEach((ax, i) => {
+    const off = farAway || (ax.skip && ax.skip()) || !(axesShown & (i < 3 ? AXES_ECL : AXES_EQ));
     ax.line.visible = !off;
     if (off) { for (const h of [...ax.halves, ...(ax.ext ? ax.ext.halves : []), ...(ax.pre ? ax.pre.halves : [])]) h.el.style.display = 'none'; return; }
     updateBodyAxis(ax, REF.group.position, REF.group.scale.x, rpx);
@@ -5045,7 +5075,7 @@ function frame(now) {
 function setRef(b) {
   REF = b; P = b.p; R = b.r; LPB = bodyBasis(b.pole);
   BODY_AXES.forEach((ax, i) => { if (i < 3) b.group.add(ax.line); });   // (the others: in eqFrame)
-  setEqFrame(b);
+  setEqFrame(b); setEqPlane(b);
   const css = '#' + b.color.toString(16).padStart(6, '0');
   pointerLabel.textContent = theName(b); pointerLabel.style.color = css;
   pointerEl.querySelector('path').setAttribute('fill', css);
