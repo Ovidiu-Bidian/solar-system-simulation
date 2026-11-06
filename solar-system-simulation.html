@@ -432,7 +432,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_2.9 (5 Nov 2026)</p>
+  <p>Current version: solar system simulation v_2.9.1 (6 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -552,7 +552,7 @@
   </div>
 </section>
 <div id="controls" class="panel">
-  <div id="gauge" hidden><button id="g-pan-mode" type="button" hidden title="Pole view: the pan, leveled / rotating">Leveled pan</button><div id="g-lock" hidden>Meridian locked to screen vertical</div><svg viewBox="0 0 100 100" aria-label="Tilted meridian and pan vector to the ecliptic">
+  <div id="gauge" hidden><button id="g-pan-mode" type="button" hidden title="Pole view: the pan, leveled / rotating / polar">Leveled pan</button><div id="g-lock" hidden>Meridian locked to screen vertical</div><svg viewBox="0 0 100 100" aria-label="Tilted meridian and pan vector to the ecliptic">
     <defs><marker id="g-head" viewBox="0 0 30 10" preserveAspectRatio="none" refX="0" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="6" orient="auto-start-reverse">
       <path d="M0 0 L30 5 L0 10 z" fill="#5fd35f"/></marker></defs>
     <rect x=".5" y=".5" width="99" height="99" rx="6" fill="none" stroke="rgba(255,255,255,.18)"/>
@@ -1013,13 +1013,15 @@ function selectView_(v) {
 const moveName = () => TILTED_MERIDIAN ? 'Tilted meridian' : MERIDIAN_VIEW ? 'Meridian' : LEVELED_PAN ? 'Pole view' : SUN_LOCK ? lockName() : 'Turntable';
 // what was chosen in the menu (the information panel's first line): "Neptune - pole view", "Earth - Moon locked", "Absolute space"
 const refTitle = () => C.mode === 'body' ? REF.name + ' - ' + (SUN_LOCK ? lockName() : moveName().toLowerCase()) : 'Absolute space';
-// the pole view's pan, leveled / rotating (the button above the gauge): the same circle C, only the picture turns to its
-// new up (see lpView's entering)
-const panName = () => LP_ROTATING ? 'Rotating pan' : 'Leveled pan';
+// the pole view's pan, leveled / rotating / polar (the button above the gauge, in turn; user 2026-11-06: the polar pan
+// the third): the same circle C, only the picture turns to its new up (see lpView's entering)
+const panName = () => LP_POLAR ? 'Polar pan' : LP_ROTATING ? 'Rotating pan' : 'Leveled pan';
 function switchPan() {
-  LP_ROTATING = !LP_ROTATING;
+  if (!LP_ROTATING) LP_ROTATING = true;
+  else if (!LP_POLAR) LP_POLAR = true;
+  else LP_ROTATING = LP_POLAR = false;
   // (both pans in the same frame, see LP_ROT_AXIS: C kept, the picture turns to its new up)
-  if (LP.valid) { LP.entering = true; LP.cf = null; LP.roll = lpRoll(unit(LP_ROT_AXIS ? toLPB(rel()) : rel()), LP.i, LP.node); lpSouthAfresh(); }
+  if (LP.valid) { LP.entering = true; LP.cf = null; lpSouthAfresh(); LP.roll = lpRoll(unit(LP_ROT_AXIS ? toLPB(rel()) : rel()), LP.i, LP.node); }
   setText($('g-pan-mode'), panName());
   toast('Pole view: ' + panName().toLowerCase());
 }
@@ -1461,7 +1463,24 @@ function lpAuto(q) {
 // the upper part; false: the rule above (the pole walked to always at the top)
 const LP_ROT_ONE_A = true;
 const lpSide = (i, side) => LP_ROT_ONE_A ? 1 : side || (i > 0 ? 1 : i < 0 ? -1 : LP.side || 1);
+// LP_POLAR, the polar pan (user, 2026-11-06, the pan button's third; LP_ROTATING is then true too: the rotating pan's
+// head, view and moves, only its turn ρ is its own). The rotating pan's rule above turns the picture one full turn per
+// lap, always the same way: seen from above each pole the camera goes round the north pole anticlockwise and round the
+// south pole clockwise, so its axis stops and turns back near the south pole (user log 2026-11-06-122613; kept, user:
+// the "normal" view). Tried and dropped (2026-11-06, K key): the axis turning evenly, ρ = u − 90°, and its south pole
+// view mirrored at the north joined by an extra 180° turn around each crossing of the equator, the long or the short
+// way (the axis going past its place and back between the equator and each pole, user: "over angle and correction").
+// The polar pan: ρ = 90°·sin u − 90°, the rotation axis alone: going north it turns anticlockwise on the screen, going
+// south clockwise, 90° per quarter lap (at most 1.57° per degree walked, at the equator, pointing to the right there),
+// and it stops exactly at C's highest point, the north pole at the top, and at its lowest, the south pole at the top
+// (user, 2026-11-06: the break exactly at the poles; only the axes count, the body's reference system); the same at
+// both poles, no net turn per lap. With a negative C angle as the rotating pan (user, 2026-11-06: "consistent with the
+// rotating pan"; a 180° turn when C left the ±10° band, as the leveled pan's, tried the same day and dropped: "a
+// rotation at the equator, that should not be"): A stays at the same node, so the poles are then at the bottom of the
+// screen and the view goes towards the equatorial band
+let LP_POLAR = false;
 const lpRollU = (u, i, side) => !LP_ROTATING ? 0
+  : LP_POLAR ? wrapPi(Math.PI / 2 * (Math.sin(u) - 1) + (lpSide(i, side) < 0 ? Math.PI : 0))
   : wrapPi(u + Math.atan2(Math.cos(i), Math.sin(i) * Math.cos(u)) + (lpSide(i, side) < 0 ? 0 : -Math.PI));
 const lpRoll = (q, i, node) => lpRollU(Math.atan2(dot(q, lpM(i, node)), dot(q, lpN(node))), i);
 const lpRollAt = (q, i, node) => lpRoll(q, i, node);
@@ -1525,7 +1544,7 @@ const lpFlipping = () => LEVELED_PAN && C.mode === 'body' && !SUN_LOCK && LP.val
 // C set afresh from the camera as it is; the view then turns onto the z axis (lpView)
 function lpStart() {
   lpFit(unit(rel()));
-  LP.roll = lpRoll(unit(rel()), LP.i, LP.node); lpSouthAfresh();
+  lpSouthAfresh(); LP.roll = lpRoll(unit(rel()), LP.i, LP.node);
   LP.panA = C.pan; LP.tiltA = C.tilt; LP.valid = true; LP.entering = true; LP.cf = null;
 }
 // the largest part s (0..1) of a move, the camera then at at(s) (relative to O), for which the automatic pan and tilt
@@ -4435,7 +4454,7 @@ function closeReplay() {
 // its lowest point (the south pole at the top). Set by the rule on that line, so a mouse offset of the view does not
 // change it (the box, the camera, shows the view as it was)
 function replayHead(q, f, u, km, free) {
-  if (!free && q.mode === 'body' && q.view === 'Pole view' && q.lp && q.lp.pan === 'Rotating pan') {
+  if (!free && rotLog(q)) {
     const fc = unit(km.map(x => -x)), A = unit(REF.pole), n = A.map((x, k) => x - dot(A, fc) * fc[k]);
     const rho = (typeof q.lp.rho === 'number' ? q.lp.rho : 90 - q.lp.u) * DEG;
     if (len(n) > 1e-9) {
@@ -4518,7 +4537,7 @@ function showReplay() {
 // the camera's pan and tilt shown for sample q (radians): the logged ones, plus the user's with the view free; the tilt
 // kept within ±90° when the logged one is (the mouse never carries it across, as in the app)
 // a logged sample of the rotating pan
-const rotLog = q => q.mode === 'body' && q.view === 'Pole view' && !!q.lp && q.lp.pan === 'Rotating pan';
+const rotLog = q => q.mode === 'body' && q.view === 'Pole view' && !!q.lp && (q.lp.pan === 'Rotating pan' || q.lp.pan === 'Polar pan');   // (the polar pan: the rotating pan's head, its own ρ)
 const levLog = q => q.mode === 'body' && q.view === 'Pole view' && !!q.lp && q.lp.pan === 'Leveled pan';
 // the logged camera's view and up, with the user's offsets (cam control); the rotating pan (user, 2026-11-04): from its
 // head (replayHead, the automatic one) by the look (lp.la, lp.lb, see lpLook; logs without it: taken from the logged
