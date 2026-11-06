@@ -39,24 +39,29 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   the Sun travels at its real speed and direction. The paths of the planets and of the Moon are not drawn; they come
   out of the real orbits combined with the Sun's motion, as the spirals of their trails. The camera can stay at rest
   in this space, travelling with the Sun ("absolute space" mode), or follow a celestial body ("celestial body" mode).
-- **Two reference systems for every view.** The view's own system is where the camera moves: for a celestial body,
+- **Two reference systems for every view.**\
+  The view's own system is where the camera moves: for a celestial body,
   the body's frame (its center, its rotation axis, and its equator from the node where the ecliptic crosses it going
-  north, on the Earth the vernal equinox). The camera's head system works like a camera on a pan/tilt head: +x is the
+  north, on the Earth the vernal equinox).\
+  The camera's head system works like a camera on a pan/tilt head: +x is the
   direction the head faces (forward), +y the tilt axis (left), +z the pan axis (up). Both are drawn on the screen: the
   ecliptic and the equatorial axes of the body, with the equatorial plane, and, in the test version, the head of the
   recorded camera in its replay.
 - **A camera path.** Each view moves the camera on a defined path in its own system; for example, the pole view moves
   it on a circle C around the body, tilted to the equator by the C angle.
-- **Automatic and manual control.** The keys and the mouse wheel are the automatic control: they move the camera
-  along its path and set an automatic view, which keeps the body at its place on the screen. The mouse is the manual
-  control: it always grabs the image, as on a touch screen, and adds a look relative to the automatic view, kept
-  through every movement. The final view is the automatic view plus the manual look: you can look at the sky while
+- **Automatic and manual control.**\
+  The keys and the mouse wheel are the automatic control: they move the camera
+  along its path and set an automatic view, which keeps the body at its place on the screen.\
+  The mouse is the manual control: it always grabs the image, as on a touch screen, and adds a look relative to the automatic view, kept
+  through every movement.\
+  The final view is the automatic view plus the manual look: you can look at the sky while
   the camera walks around the body, and the sky then turns on the screen as the automatic view turns. What is seen
   never turns faster than 30 degrees per second.
-- **The pole view** is the first view built completely on these principles. In the leveled pan the rotation axis
-  stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
+- **The pole view** is the first view built completely on these principles.\
+  In the leveled pan the rotation axis stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
   the equator (the picture turns by 180 degrees only when the camera clearly passes to the other side: a band of
-  ±10 degrees). In the rotating pan the picture turns evenly as the camera walks around the body, one turn per lap.
+  ±10 degrees).\
+  In the rotating pan the picture turns evenly as the camera walks around the body, one turn per lap.\
   In the polar pan the rotation axis swings between the poles: the pole near the camera is at the top while the camera
   goes round it, and the moves are the same at both poles.
 
