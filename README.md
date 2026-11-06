@@ -28,8 +28,9 @@ What is real in the simulation (as known today):
   the center of the galaxy, with its dark dust lanes).
 
 What is not real (visual aids) is listed in the program, in Help → About: for example the minimum apparent size of
-the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds) and
-the background stars, placed at random.
+the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds), the
+background stars, placed at random, and the Moon's trail, drawn as a compressed spiral around the Earth's trail (its
+real path, one loop about 3.6 AU long and only 0.0026 AU wide, would be just a line beside it).
 
 ## The ideas behind the simulation
 
@@ -45,8 +46,8 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   north, on the Earth the vernal equinox).\
   The camera's head system works like a camera on a pan/tilt head: +x is the
   direction the head faces (forward), +y the tilt axis (left), +z the pan axis (up). Both are drawn on the screen: the
-  ecliptic and the equatorial axes of the body, with the equatorial plane, and, in the test version, the head of the
-  recorded camera in its replay.
+  ecliptic and the equatorial axes of the body, with the equatorial plane, and, in the replay of a camera log (a test
+  aid), the head of the recorded camera.
 - **A camera path.** Each view moves the camera on a defined path in its own system; for example, the pole view moves
   it on a circle C around the body, tilted to the equator by the C angle.
 - **Automatic and manual control.**\
@@ -57,15 +58,17 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   The final view is the automatic view plus the manual look: you can look at the sky while
   the camera walks around the body, and the sky then turns on the screen as the automatic view turns. What is seen
   never turns faster than 30 degrees per second.
-- **The pole view** is the first view built completely on these principles.\
+- **All the views** are built on these principles: the pole view first, then the meridian and the tilted meridian views,
+  with the same keys for the same jobs in every view (for example W/S tilt the camera's circle in the pole view and in
+  the tilted meridian view); the Sun locked view and absolute space follow them with rules of their own (the Sun locked
+  view keeps the picture always level, north up).
+- **The pole view** has three pans.\
   In the leveled pan the rotation axis stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
   the equator (the picture turns by 180 degrees only when the camera clearly passes to the other side: a band of
   ±10 degrees).\
   In the rotating pan the picture turns evenly as the camera walks around the body, one turn per lap.\
   In the polar pan the rotation axis swings between the poles: the pole near the camera is at the top while the camera
   goes round it, and the moves are the same at both poles.
-
-The other views will be rebuilt on the same principles.
 
 ## Walk in the sky
 
@@ -137,10 +140,14 @@ Open the live demo, or download `solar-system-simulation.html` and open it in a 
 an internet connection is needed for the three.js library).
 
 - the menu (upper left) chooses the reference system: absolute space, or a celestial body that the camera follows;
-  each celestial body has several views (tilted meridian, meridian, pole view, Sun locked, turntable);
+  each celestial body has several views (tilted meridian, meridian, pole view, Sun locked; on the Earth also Moon
+  locked, on the Moon Earth locked);
 - the information panel (upper right) shows the data of the celestial body; "Run/Stop" and "-" / "+" set the motion
   and the speed of the simulation; the reference axes button (or the "J" key) chooses which axes of the celestial
   body are drawn: both, none, the equatorial ones or the ecliptic ones;
+- the "T" key opens the zoom screen, a telescope that follows the mouse: 4× to 20× ("+" / "-"), with the stars and the
+  celestial bodies magnified (from far away the Sun up to 80% of its height) and, from 7.6×, the Moon's spiral around
+  the Earth's trail;
 - Help → Controls lists the keys and the mouse controls of the current camera mode.
 
 ## Requirements
