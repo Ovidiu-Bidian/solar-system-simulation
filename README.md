@@ -57,6 +57,8 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
   the equator (the picture turns by 180 degrees only when the camera clearly passes to the other side: a band of
   ±10 degrees). In the rotating pan the picture turns evenly as the camera walks around the body, one turn per lap.
+  In the polar pan the rotation axis swings between the poles: the pole near the camera is at the top while the camera
+  goes round it, and the moves are the same at both poles.
 
 The other views will be rebuilt on the same principles.
 
