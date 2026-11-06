@@ -432,7 +432,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_2.9.1 (6 Nov 2026)</p>
+  <p>Current version: solar system simulation v_3.0 (6 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -485,6 +485,10 @@
       10 000 times fainter than the full Moon);</li>
     <li>the dark side of the celestial bodies: lit a little, as the Earth's night side by a full Moon, so that its surface can
       be seen;</li>
+    <li>the Moon's trail: its real path is a spiral around the Earth's trail so stretched (one loop about 3.6 AU long and
+      0.0026 AU wide) that it would be only a line beside it; it is drawn as a compressed spiral, 2 Earth-Moon distances per
+      loop, shrinking to the Earth's trail over 10 loops, seen near the Earth and through the zoom screen (its directions
+      around the Earth stay real);</li>
     <li>in the Moon locked view the Moon is drawn as large as the Earth, and in the Earth locked view the Earth as small as
       the Moon, so that the Moon's phases and the Moon's face turned to the Earth can be seen (their places, paths, light
       and shadows stay real);</li>
@@ -816,9 +820,9 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 // ecliptic, so the camera never turns around its view direction. Tilt 0 is horizontal, ±90° straight up / down; past ±90°
 // (only through a meridian move, W/S) the camera has tilted over the top / under the bottom, looks backward and the
 // picture is upside down. Both angles are kept in [-180°, +180°].
-// roll: the picture's turn around the view direction away from level, left by a tilted meridian move (the camera turns
-// rigidly with its plane, see stepTilted) or by Q / E; leveling: the picture is going back to level in LEVEL_TIME (A/D, switching
-// to absolute mode or to the turntable). head: the pan/tilt head's frame turned with the camera by tilted meridian moves (its x, y, z axes in
+// roll: the picture's turn around the view direction away from level, left by a tilted meridian move (until
+// 2026-11-06: the meridian views set their own, see MV); leveling: the picture is going back to level in LEVEL_TIME (switching
+// to absolute mode or to the Sun locked view). head: the pan/tilt head's frame turned with the camera by tilted meridian moves (its x, y, z axes in
 // space; z is the head's pan axis), null = not turned (the axes of space); the mouse pans and tilts in it (see headMouse)
 const C = { mode: 'body', pos: [0, 0, 0], pan: 0, tilt: 0, r: 0, lat: 0, lon: 0, wheel: 0, turn: 0, roll: 0, leveling: false,
   levelSpeed: 0, head: null, homing: null };   // levelSpeed: rad/s of the levelling going on (0: not started); homing: the
@@ -899,6 +903,7 @@ function goHome_() {
   C.pos = add(P, sphericalPos(C.r, C.lat, C.lon));
   C.wheel = 0; motion.v = motion.h = motion.r = null;
   if (LEVELED_PAN && C.mode === 'body') lpHome();   // its own view at Home: the automatic one
+  if (bodyCentre() && C.mode === 'body') mvHome();
 }
 
 // The way to Home (user, 2026-10-22; in two steps, user 2026-10-23, so that the body does not swing across the screen):
@@ -916,7 +921,7 @@ const frameQuat = (f, u) => new THREE.Quaternion().setFromRotationMatrix(new THR
 const smooth = t => t * t * (3 - 2 * t);
 function startHome() { bodyFramed(startHome_); }
 function startHome_() {
-  motion.v = motion.h = motion.r = null; C.wheel = 0; C.leveling = false; C.levelSpeed = 0; LP.valid = false; SL.valid = false;
+  motion.v = motion.h = motion.r = null; C.wheel = 0; C.leveling = false; C.levelSpeed = 0; LP.valid = false; MV.valid = false; SL.valid = false;
   const level = !C.roll && !C.turn && !upsideDown(), f = viewDir(), u = picUp(), b = unit(rel().map(x => -x));
   const off = Math.atan2(len(cross(f, b)), dot(f, b));   // the view's angle from Pluto's centre
   C.homing = { step: 1, t: 0, level, f0: f, u0: u, b, off, time: CENTER_TIME * Math.max(.3, Math.sqrt(Math.min(1, off / (Math.PI / 2)))),
@@ -976,8 +981,8 @@ function setMode(mode) {
     if (C.roll) C.leveling = true;
     C.head = null;
   } else syncSpherical();
-  C.mode = mode; C.wheel = 0; motion.v = motion.h = motion.r = null; LP.valid = false; SL.valid = false;
-  // (into body mode on the equator, BODY_EQ: the turntable needs a picture level to the equator: it levels)
+  C.mode = mode; C.wheel = 0; motion.v = motion.h = motion.r = null; LP.valid = false; MV.valid = false; SL.valid = false;
+  // (into body mode: the Sun locked view needs a level picture: it levels)
   if (mode === 'body') bodyFramed(() => { if (!bodyCentre() && !LEVELED_PAN && C.roll) C.leveling = true; });
   toast(refTitle());
 }
@@ -986,14 +991,14 @@ function setMode(mode) {
 // celestial body → its view; until then a button in the information panel switched them in turn): tilted meridian,
 // meridian (user, 2026-10-24), pole view (user, 2026-10-25: the leveled pan of 2026-10-24, with its two pans, leveled /
 // rotating, chosen with the button above the gauge), Sun locked (not on the Sun), Moon locked (on the Earth) / Earth
-// locked (on the Moon), turntable. The pole view and the turntable need a level picture: switching to them brings the
-// picture back to level (around the line to the body's centre, as the switch to absolute mode; once level, the head is
-// that of space again; already level: the head is that of space at once).
-const VIEWS = [['tilted', 'Tilted meridian'], ['meridian', 'Meridian'], ['pole', 'Pole view'], ['sun', 'Sun locked'], ['other', ''], ['turntable', 'Turntable']];
+// locked (on the Moon). The Sun locked view needs a level picture: switching to it brings the picture back to level.
+// (The turntable, the CAD programs' turntable orbit, removed 2026-11-06, user: on the new principles it was the meridian
+// view with a level head.)
+const VIEWS = [['tilted', 'Tilted meridian'], ['meridian', 'Meridian'], ['pole', 'Pole view'], ['sun', 'Sun locked'], ['other', '']];
 // the views of body b, in the menu's order
 const viewsFor = b => VIEWS.filter(([k]) => k === 'sun' ? b !== SUN : k === 'other' ? b === EARTH || b === MOON : true)
   .map(([k, name]) => [k, k === 'other' ? (b === EARTH ? MOON : EARTH).name + ' locked' : name]);
-const viewKey = () => TILTED_MERIDIAN ? 'tilted' : MERIDIAN_VIEW ? 'meridian' : LEVELED_PAN ? 'pole' : SUN_LOCK ? (LOCK === SUN ? 'sun' : 'other') : 'turntable';
+const viewKey = () => TILTED_MERIDIAN ? 'tilted' : MERIDIAN_VIEW ? 'meridian' : LEVELED_PAN ? 'pole' : SUN_LOCK ? (LOCK === SUN ? 'sun' : 'other') : 'meridian';
 function selectView(v) {
   if (v === viewKey()) return;
   bodyFramed(() => selectView_(v));
@@ -1007,10 +1012,11 @@ function selectView_(v) {
   // the Moon locked and the Earth locked views at 1 day per second (user, 2026-10-29: faster, the Moon goes round too
   // fast to follow)
   if (v === 'other') { simSpeed = SIM_SPEEDS.findIndex(s => s[1] === '1 d/s'); showSpeed(); }
-  motion.v = motion.h = motion.r = null; lastMove.v = null; lastMove.h = null; resetMeridian(); LP.valid = false; SL.valid = false;
+  motion.v = motion.h = motion.r = null; lastMove.v = null; lastMove.h = null; resetMeridian(); LP.valid = false; MV.valid = false; SL.valid = false;
   if (!bodyCentre()) { if (C.roll) C.leveling = true; else C.head = null; }
+  else { C.leveling = false; C.levelSpeed = 0; }   // (the meridian views set their own picture, see MV)
 }
-const moveName = () => TILTED_MERIDIAN ? 'Tilted meridian' : MERIDIAN_VIEW ? 'Meridian' : LEVELED_PAN ? 'Pole view' : SUN_LOCK ? lockName() : 'Turntable';
+const moveName = () => TILTED_MERIDIAN ? 'Tilted meridian' : MERIDIAN_VIEW ? 'Meridian' : LEVELED_PAN ? 'Pole view' : SUN_LOCK ? lockName() : 'Meridian';
 // what was chosen in the menu (the information panel's first line): "Neptune - pole view", "Earth - Moon locked", "Absolute space"
 const refTitle = () => C.mode === 'body' ? REF.name + ' - ' + (SUN_LOCK ? lockName() : moveName().toLowerCase()) : 'Absolute space';
 // the pole view's pan, leveled / rotating / polar (the button above the gauge, in turn; user 2026-11-06: the polar pan
@@ -1048,29 +1054,15 @@ addEventListener('keydown', e => {
     const a = KEYMAP[k];
     C.homing = null;   // a camera key stops the way to Home where it is
     if (a === 'fwd' || a === 'back') lastMove.h = null;
-    else if (a === 'left' || a === 'right') {
-      lastMove.v = null;
-      // the parallel keeps the picture level: one turned by a tilted meridian move goes back to level first, around the
-      // line to the body's centre (user, 2026-10-22; see levelStep), while the camera already moves
-      // (not in the tilted meridian view: referred to the body's centre, its picture is not kept level, user 2026-10-23)
-      // (nor in the leveled pan: its picture's turn is set by its place on C, see lpRoll)
-      if (C.mode === 'body' && !bodyCentre() && !LEVELED_PAN && !SUN_LOCK) bodyFramed(() => {   // (level: to the equator, BODY_EQ)
-        if (C.roll) C.leveling = true;
-        if (merAxis && !leanSpeed) leanSpeed = Math.max(1e-6, Math.abs(meridianLean(unit(rel())))) / LEVEL_TIME;
-      });
-    } else forgetMoves();
+    else if (a === 'left' || a === 'right') lastMove.v = null;
+    else forgetMoves();
     held.add(a); e.preventDefault(); return;
   }
   if (camCtrl() && (k === 'home' || k === 'l')) { e.preventDefault(); return; }   // only the moves for the camera
   // (no "m" key any more, user 2026-10-28: the reference system is chosen in the menu, see chooseRef)
-  if (k === 'l') {
-    if (C.mode === 'body' && TILTED_MERIDIAN) {
-      merLock = !merLock; motion.v = null;
-      toast(merLock ? "Tilted meridian locked to the screen's vertical (L)" : 'Tilted meridian unlocked (L)');
-    } else toast('L: only in the tilted meridian view');
-    e.preventDefault();
-  }
-  else if (k === 'home') { if (lpFlipping()) { e.preventDefault(); return; } forgetMoves(); resetMeridian(); startHome(); toast('Home view'); e.preventDefault(); }
+  // (L, the tilted meridian locked to the screen's vertical, removed 2026-11-06: the tilted meridian view's automatic
+  // picture always has it up the screen, see MV)
+  if (k === 'home') { if (lpFlipping()) { e.preventDefault(); return; } forgetMoves(); resetMeridian(); startHome(); toast('Home view'); e.preventDefault(); }
   // R (user, 2026-10-30): run / stop, as the button (no need to move the mouse, e.g. away from the zoom screen's place);
   // the camera's recording moved to Shift+R
   else if (k === 'r') { if (e.shiftKey) toggleRecord(); else runBtn.click(); e.preventDefault(); }
@@ -1137,6 +1129,7 @@ addEventListener('mousemove', e => {
   if (SUN_LOCK && C.mode === 'body' && SL.valid && !C.leveling) sunFramed(() => cameraMouse(e)); else bodyFramed(() => cameraMouse(e));
 });
 function cameraMouse(e) {
+  if (C.mode === 'body' && bodyCentre() && MV.valid && MV.cf) { mvLook(e.movementX, e.movementY); return; }
   if (C.mode === 'body' && C.head) { headMouse(e.movementX, e.movementY); return; }
   const mx0 = e.movementX, my0 = picMirror ? -e.movementY : e.movementY;   // (mirrored picture: the image still follows)
   // the pole view's picture turned by C.roll around the view direction: the mouse grabs the picture as it is seen, so
@@ -1250,8 +1243,8 @@ function rotate(v, k, a) {
 // screen; the ecliptic is then no longer level on the screen (the picture turns around the view direction, C.roll, and
 // may go upside down). The pan and the tilt are those of f, the rest is the roll. The turn stays when W/S is released (a
 // new press goes on from the picture as it is) and when the mouse is used (user, 2026-10-22: no levelling in this mode;
-// the head turns with the camera, see headMouse); A/D, the switch to absolute mode or to the turntable and Home bring
-// it back to level.
+// the head turns with the camera, see headMouse); the switch to absolute mode or to the Sun locked view
+// and Home bring it back to level.
 // Π (user, 2026-10-22: set only with Q / E, never by the view, so the mouse does not change it): Π is the meridian
 // through the camera (90°, merAxis null) until Q / E turn the picture around the line to the body's centre; Π then turns
 // with it around that line by the same angle (merAxis keeps its axis). W/S keep to it, A/D turn it with the camera around
@@ -1259,7 +1252,6 @@ function rotate(v, k, a) {
 // of the W/S move reset it. W goes forward / up as seen on the screen, S back on the same circle.
 // Speed: ANGULAR_SPEED along the circle (user, 2026-10-22: no limit on the pan's change, it slowed the move too much near
 // the poles).
-// TILTED_MERIDIAN = false: the turntable move of test_simulation_v_1.1 (the view is chosen in the menu, see VIEWS).
 let TILTED_MERIDIAN = false;   // chosen in the menu (see selectView)
 // The meridian view (user, 2026-10-24): the classic latitude / longitude one, on the body centre reference as the tilted
 // meridian view (the head's pan axis the camera radius, the mouse the same, nothing levelled): W/S walk the real
@@ -1268,6 +1260,147 @@ let TILTED_MERIDIAN = false;   // chosen in the menu (see selectView)
 // no function.
 let MERIDIAN_VIEW = false;
 const bodyCentre = () => TILTED_MERIDIAN || MERIDIAN_VIEW;   // the views on the body centre reference
+// The meridian view on the pole view's principles (user, 2026-11-06, branch views_upgrade: "up = the way W walks, pan
+// plane as in pole view"; until then the moves were rigid, the picture's up whatever they and the mouse left, and the
+// mouse panned around the camera radius, turning the picture around the body: the body could not be moved sideways).
+// The head: its plane across the line from the camera to the body's centre O (pan axis z = the camera radius, outwards),
+// the camera tilted −90° in it, looking at O (the automatic view); its pan vector x, the automatic picture's up, is the
+// way W walks on the real meridian through the camera: the pole ahead at the top (north up until the camera passes the
+// north pole, then the pole just passed at the bottom, the way W goes still up the screen; S walks the other way); A/D
+// (the parallel, around the rotation axis) keep it. The user's look from it (MV.oa, MV.ob, the mouse grabbing the image:
+// the pole view's lpLook) is kept through every move, so the body keeps its place on the screen and can be anywhere.
+// Entering the view the look is taken from the camera as it is and the centred frame's turn (MV.cr) goes to the rule's
+// at LP_ANGLE_SPEED (the camera waits). All in the body frame (bodyFramed). MV.up: the automatic up, carried by the moves
+// (over the poles), held to its line (mvLine) where that is defined well.
+// The tilted meridian view the same way (user, 2026-11-06, option A: "consistency across views: keys, moves,
+// principles"; until then rigid as the meridian view, the picture at any angle to the circle, L locking it to the
+// screen's vertical): the automatic up is the way E walks on the tilted meridian, so the circle always runs up the
+// screen (L removed); W/S tilt the circle around its line of nodes, the camera riding on it, as the pole view's circle
+// C (M from 0° to 90°), at ANGULAR_SPEED; E/C walk on it, A/D across it (on its "equator": around
+// the circle's direction at the camera, D towards the automatic picture's right). At M = 90° it is the meridian view.
+const MV = { valid: false, up: null, cr: 0, entering: false, cf: null, oa: 0, ob: 0, node: null, wSign: 0 };
+// the north at q (unit): the rotation axis seen in the plane across q (z − (z·q)·q), or null at a pole
+const mvNorth = q => { const n = [-q[2] * q[0], -q[2] * q[1], 1 - q[2] * q[2]]; return len(n) > 1e-6 ? unit(n) : null; };
+// the automatic up's line at q, or null where it is not defined well: the meridian view's north (not within 0.8° of a
+// pole), the tilted meridian view's way along the circle (its axis × q; the real meridian's axis z × q, not at a pole)
+function mvLine(q) {
+  if (MERIDIAN_VIEW) return Math.abs(q[2]) < .9999 ? mvNorth(q) : null;
+  let n = merAxis ? merAxis.map((x, i) => x - dot(merAxis, q) * q[i]) : cross([0, 0, 1], q);
+  if (len(n) < 1e-3) return null;
+  const t = cross(unit(n), q);
+  return len(t) > 1e-6 ? unit(t) : null;
+}
+// the automatic up at q: MV.up across q, on its line (mvLine) where that is defined (else as carried)
+function mvAutoUp(q) {
+  let u = MV.up.map((x, i) => x - dot(MV.up, q) * q[i]);
+  const n = mvLine(q);
+  if (len(u) < 1e-9) u = n || mvNorth(q) || unit(cross(q, Math.abs(q[2]) < .9 ? [0, 0, 1] : [1, 0, 0]));
+  u = unit(u);
+  if (n) u = n.map(x => x * (Math.sign(dot(u, n)) || 1));
+  MV.up = u;
+}
+// the centred frame (right, up, view) at q with the picture turned by cr around the view (+: anticlockwise)
+function mvFrame(q, cr) {
+  const f = q.map(x => -x), u = rotate(MV.up, f, cr);
+  return [cross(f, u), u, f];
+}
+// entering: the automatic up from the picture as it is (the pole on the screen's upper side at the top), the look and
+// the centred frame's turn so that nothing changes on the screen
+function mvStart() {
+  const q = unit(rel()), f = viewDir(), u = picUp(), n = mvLine(q) || mvNorth(q);
+  const uq = u.map((x, i) => x - dot(u, q) * q[i]);
+  MV.up = n ? n.map(x => x * (Math.sign(dot(uq, n)) || 1)) : unit(len(uq) > 1e-9 ? uq : cross(q, [1, 0, 0]));
+  const fc = q.map(x => -x), u0 = u.map((x, k) => x - dot(u, fc) * fc[k]);
+  let cr = len(u0) > 1e-6 ? Math.atan2(dot(cross(MV.up, u0), fc), dot(MV.up, u0)) : 0;
+  for (let k = 0; k < 30; k++) {
+    const F = mvFrame(q, cr), [a, b] = lpLookOf(F, f), u2 = lpLookDir(F, a, b)[1];
+    const m = Math.atan2(dot(cross(u2, u), f), dot(u2, u));
+    cr = wrapPi(cr + m); MV.oa = a; MV.ob = b;
+    if (Math.abs(m) < 1e-12) break;
+  }
+  MV.cr = cr; MV.entering = Math.abs(cr) > 1e-9; MV.valid = true; MV.cf = null;
+}
+// Home: the automatic view (north up), no look
+function mvHome() {
+  const q = unit(rel());
+  MV.up = mvNorth(q) || [1, 0, 0]; MV.node = null; MV.wSign = 0; MV.oa = MV.ob = MV.cr = 0; MV.entering = false; MV.valid = true;
+  mvView(0);
+}
+// one frame of the keys: walking (vKey: the meridian view's W/S, the tilted meridian view's E/C) on the meridian / the
+// tilted meridian towards / away from the automatic up; A/D on the parallel / across the tilted meridian (D the way
+// that is towards the automatic picture's right when pressed); the tilted meridian's W/S (tKey) turning it; the wheel;
+// then the view
+function stepMeridian(dt, vKey, hKey, tKey) {
+  if (!MV.valid) mvStart();
+  mvAutoUp(unit(rel()));
+  if (!MV.entering) {
+    if (tKey && TILTED_MERIDIAN) {
+      // W/S as the pole view's (user, 2026-11-06: "change to the pole view's way"; until then they turned the circle
+      // around the camera radius, the camera kept, so M could only go from the camera's latitude to 90°): the circle
+      // turns around its line of nodes (on the equator; MV.node, kept where the circle is the equator) and the camera
+      // rides on it (it keeps its place on the circle), W raising the M angle up to 90° (the real meridian), S lowering
+      // it down to 0° (the equator), at ANGULAR_SPEED; the automatic picture is carried with the camera
+      const q = unit(rel()), z = [0, 0, 1], n0 = tiltedAxis(), m0 = Math.acos(Math.min(1, Math.abs(dot(n0, z))));
+      const nn = cross(z, n0);
+      if (len(nn) > 1e-6) MV.node = unit(nn);
+      if (!MV.node) MV.node = unit(len(cross(z, q)) > 1e-6 ? cross(z, q) : [1, 0, 0]);
+      const target = tKey > 0 ? Math.PI / 2 : 0, step = Math.min(ANGULAR_SPEED * dt, Math.abs(target - m0));
+      if (step > 1e-12) {
+        // the way around the line of nodes that takes M towards the target; where both ways do (M at 0°, the equator, for
+        // W; at 90°, the real meridian, for S): W the way that takes the camera north, S back the way W came (MV.wSign,
+        // the last W's way: S then W, or W then S, retrace the same tilt)
+        const mAt = d => Math.acos(Math.min(1, Math.abs(dot(rotate(n0, MV.node, d), z))));
+        const ep = Math.abs(mAt(step) - target), em = Math.abs(mAt(-step) - target);
+        let d = ep < em ? step : -step;
+        if (Math.abs(ep - em) < 1e-9) d = tKey > 0 ? (rotate(q, MV.node, step)[2] >= rotate(q, MV.node, -step)[2] ? step : -step) : -(MV.wSign || 1) * step;
+        MV.wSign = Math.sign(d) * tKey;
+        const p = add(P, rotate(rel(), MV.node, d));
+        if (insideBox(p)) {
+          const n1 = rotate(n0, MV.node, d);
+          merAxis = tKey > 0 && step >= Math.abs(target - m0) - 1e-12 ? null : n1;   // (at 90°: the real meridian)
+          C.pos = p; MV.up = rotate(MV.up, MV.node, d); syncSpherical();
+        }
+      }
+    }
+    if (vKey) {
+      const q = unit(rel()), ax = unit(cross(q, MV.up)), a = vKey * ANGULAR_SPEED * dt, p = add(P, rotate(rel(), ax, a));
+      if (insideBox(p)) { C.pos = p; MV.up = rotate(MV.up, ax, a); syncSpherical(); }
+    }
+    if (hKey) {
+      // the axis: the rotation axis (the parallel), or the tilted meridian's direction at the camera (its "equator"), kept
+      // while the key is held
+      if (!motion.h || motion.h.key !== hKey) {
+        const q = unit(rel()), right = cross(q.map(x => -x), MV.up), axis = TILTED_MERIDIAN ? MV.up.slice() : [0, 0, 1];
+        motion.h = { key: hKey, axis, sign: (Math.sign(dot(cross(axis, q), right)) || 1) * hKey };
+      }
+      const ax = motion.h.axis, dl = motion.h.sign * ANGULAR_SPEED * dt, p = add(P, rotate(rel(), ax, dl));
+      if (insideBox(p)) {
+        if (TILTED_MERIDIAN) merAxis = rotate(tiltedAxis(), ax, dl);   // (the circle moves with the camera)
+        C.pos = p; MV.up = rotate(MV.up, ax, dl); syncSpherical();
+      }
+    } else motion.h = null;
+  }
+  wheelStep(dt);
+  mvView(dt);
+}
+// the view: the centred frame (its turn going to the rule's while entering) + the user's look; the head with it
+function mvView(dt) {
+  const q = unit(rel());
+  mvAutoUp(q);
+  if (MV.entering) {
+    MV.cr = wrapPi(MV.cr - clamp(MV.cr, -LP_ANGLE_SPEED * dt, LP_ANGLE_SPEED * dt));
+    if (Math.abs(MV.cr) < 1e-9) { MV.cr = 0; MV.entering = false; }
+  }
+  const F = mvFrame(q, MV.cr), [f, u] = lpLookDir(F, MV.oa, MV.ob);
+  setView(f, u); MV.cf = F;
+  C.head = lpHeadAxes(F);
+}
+// the mouse: the look, as the pole view's (the image grabbed, up / down within ±90°)
+function mvLook(mx, my) {
+  const H = Math.PI / 2 - 1e-6;
+  MV.oa = wrapPi(MV.oa + mx * MOUSE_SENS); MV.ob = clamp(MV.ob + my * MOUSE_SENS, -H, H);
+  const [f, u] = lpLookDir(MV.cf, MV.oa, MV.ob); setView(f, u);
+}
 // The pole view (user, 2026-10-24, named leveled pan until 2026-10-25), on the ecliptic reference: the head's pan plane always parallel to the
 // ecliptic (pan axis = z), the picture always level and upright. The camera moves on circle C: centre O (the body's
 // centre), radius the camera's distance, its plane at the angle i to the body ecliptic (−80°..+80°), crossing it on the
@@ -1278,7 +1411,7 @@ const bodyCentre = () => TILTED_MERIDIAN || MERIDIAN_VIEW;   // the views on the
 //        meridian at ANGULAR_SPEED, W north, S south, up to ±80° of latitude; C turns with it, rigidly, around the
 //        horizontal axis through O across the camera's meridian (e = (−sin λ, cos λ, 0)), so i (and Ω) change; it stops
 //        where |i| would go past 80°.
-//   A/D: C turns around z (Ω) at ANGULAR_SPEED, i and u kept: the camera moves on its parallel (as the turntable's A/D);
+//   A/D: C turns around z (Ω) at ANGULAR_SPEED, i and u kept: the camera moves on its parallel (as the meridian view's A/D);
 //        D the way that is towards the screen's right when pressed, A the other way.
 //   E/C (user, 2026-10-25: one above the other on the keyboard, forward / backward): the camera moves along C (u), at
 //        ANGULAR_SPEED; E forward, always the same way: u growing, so the camera's longitude and the pan grow
@@ -1493,10 +1626,9 @@ const lpRollAt = (q, i, node) => lpRoll(q, i, node);
 // other node); the Home numbers are taken in it, so Home moved with it): every frame the
 // camera (place, view, picture's up) is turned into it, the pole view's code runs there as it is, and it is turned back
 // (lpSwap). Both pans: switching between them keeps C.
-// All the views of "celestial body" mode on the equator (user, 2026-10-27: the tilted meridian, meridian and turntable
+// All the views of "celestial body" mode on the equator (user, 2026-10-27: the tilted meridian and meridian
 // too): BODY_EQ. The same body frame, for every body-mode step (bodyFramed): the meridians and parallels are the
-// celestial body's own (over its rotation poles), the M angle and the levelling are to the equator, the turntable turns
-// around an axis parallel to the equator and its head's pan axis is the rotation axis. Absolute mode stays on the
+// celestial body's own (over its rotation poles), the M angle is to the equator. Absolute mode stays on the
 // ecliptic.
 const BODY_EQ = true;
 const LP_ROT_AXIS = BODY_EQ;
@@ -1509,17 +1641,13 @@ let LPB = bodyBasis(REF.pole);   // (the reference body's; see setRef)
 const toLPB = v => LPB.map(a => dot(a, v)), fromLPB = v => [0, 1, 2].map(k => LPB[0][k] * v[0] + LPB[1][k] * v[1] + LPB[2][k] * v[2]);
 // the camera turned into (into = true) or back from the body frame: its place, view and picture's up, and with them the
 // head's frame, the tilted meridian's axis and the axes of the moves going on (outside a body-mode step they are always
-// in space's frame). The turntable keeps its upside-down picture as a tilt past ±90° with no picture turn (setView
-// would give the same view as a tilt within ±90° turned by 180°). (The way to Home, C.homing, is kept in the frame it
-// was started in: it starts and runs only within body-mode steps.)
+// in space's frame). (The way to Home, C.homing, is kept in the frame it was started in: it starts and runs only within
+// body-mode steps.)
 let inBodyFrame = false;
 function lpSwap(into) {
   const T = into ? toLPB : fromLPB, f = T(viewDir()), u = T(picUp());
   C.pos = add(P, T(rel()));
   setView(f, u);
-  if (C.mode === 'body' && !bodyCentre() && !LEVELED_PAN && Math.abs(C.roll) > Math.PI / 2) {
-    C.pan = wrapPi(C.pan + Math.PI); C.tilt = (C.tilt >= 0 ? 1 : -1) * Math.PI - C.tilt; C.roll = wrapPi(C.roll + Math.PI);
-  }
   if (Math.abs(C.roll) < 1e-9) C.roll = 0;
   if (C.head) C.head = C.head.map(T);
   if (merAxis) merAxis = T(merAxis);
@@ -1771,21 +1899,6 @@ function lpPlaceAngles(q, w, t0) {
 }
 const LEVEL_TIME = 2;   // s, the picture going back to level (user, 2026-10-22)
 let merAxis = null;   // the tilted meridian's axis set with Q / E, or null: the meridian through the camera
-// L (user, 2026-10-23): the tilted meridian locked to the screen's vertical: while on, it is always the circle through the
-// camera that runs up / down the screen (its plane holds the camera radius and the picture's up), so W/S walk up / down
-// the screen and A/D (its equator) right / left, as on a classic meridian / parallel system whose equator is tilted as
-// the picture is turned (the mouse's pan turns it). Kept over Home (at Home it is the real meridian).
-let merLock = false;
-// the tilted meridian view's head (user, 2026-10-23): its pan axis (z) the camera's direction from the body's centre, its
-// x axis the head's direction for the view and picture as they are (f = cos t·x + sin t·z, u = −sin t·x + cos t·z, so
-// x = (u·z)·f − (f·z)·u), so nothing changes on the screen
-function radialHead() {
-  const Z = unit(rel()), f = viewDir(), u = picUp();
-  let X = f.map((x, i) => dot(u, Z) * x - dot(f, Z) * u[i]);
-  X = len(X) > 1e-9 ? unit(X) : unit(cross(Z, Math.abs(Z[2]) < .9 ? [0, 0, 1] : [1, 0, 0]));
-  return [X, cross(Z, X), Z];
-}
-const radialOk = () => C.head && dot(C.head[2], unit(rel())) > 1 - 1e-9;
 const wrapTau = a => ((a % TAU) + TAU) % TAU;
 const unit = v => { const l = len(v); return v.map(x => x / l); };
 // O's place on the screen for the view as it is now: w = (right, up, view) components of the direction to O
@@ -1810,32 +1923,7 @@ function meridianLean(q) {
   if (a > Math.PI / 2) a -= Math.PI; else if (a <= -Math.PI / 2) a += Math.PI;
   return a;
 }
-// a new tilted meridian move, from the camera as it is now
-function startTilted(vKey) {
-  // from the picture as it is now (also turned by an earlier move, or still going back to level: it stops there)
-  const m = { key: vKey };
-  C.leveling = false; C.levelSpeed = 0;
-  // W goes the way of the view direction (with the pole view, the top of the screen, when looking at the centre), S the
-  // other way (user, 2026-10-21). Where the circle runs across the screen (the head's direction across the circle's
-  // plane: the view direction gives no way along it, within 1°), W goes towards the right edge of the screen, S towards
-  // the left (user, 2026-10-23).
-  m.axis = tiltedAxis();
-  m.sign = wSign(m.axis) * vKey;
-  return m;
-}
-// L: the tilted meridian set to the circle that runs up / down the screen. Looking along the picture's up (no such
-// circle) it stays as it is.
-function lockMeridian() {
-  const qu = unit(rel()), u = picUp(), up = u.map((x, i) => x - dot(u, qu) * qu[i]);
-  if (len(up) < 1e-6) return;
-  merAxis = unit(cross(qu, up));
-}
-// the way W goes on the circle with this axis (±1 for a turn around it), see startTilted
-function wSign(axis) {
-  const t = unit(cross(axis, rel())), fw = unit(add(viewDir(), picUp())), c = dot(t, fw);
-  return (Math.abs(c) > Math.sin(DEG) ? Math.sign(c) : Math.sign(dot(t, cross(viewDir(), picUp()))) || 1);
-}
-// Going back to level (user, 2026-10-22), only when switching to absolute mode or to the turntable, or with A/D (in body
+// Going back to level (user, 2026-10-22), only when switching to absolute mode or to the Sun locked view (in body
 // mode the picture otherwise stays as the tilted meridian left it): the camera turns around the line from it to the
 // body's centre, so the body keeps its place on the screen, evenly in LEVEL_TIME (the speed is set at the start, from
 // the turn needed then), until the picture is level and upright. Where no turn around that line can make it level (the body far from the screen centre, the camera high above /
@@ -1910,42 +1998,22 @@ function levelStep(dt) {
     if (Math.abs(C.roll) < 1e-9) { C.roll = 0; C.head = null; }   // level: the head is that of space again
   }
 }
-// one frame of move m: dth along the circle. The camera, its view, the picture's up and the head turn by dth around the
-// circle's axis from where they are now, so η, ζ and the body's place stay as they are; the mouse may change the view
-// while W/S are held (user, 2026-10-23: free view while walking) and the move goes on from the new view, on the same
-// circle. Looking straight up / down the pan is not defined and stays as it is (setView).
-function stepTilted(m, dth) {
-  const a = m.sign * dth, p = add(P, rotate(rel(), m.axis, a));
-  if (!insideBox(p)) return;
-  C.pos = p;
-  setView(rotate(viewDir(), m.axis, a), rotate(picUp(), m.axis, a));
-  C.head = (C.head || [[1, 0, 0], [0, 1, 0], [0, 0, 1]]).map(v => rotate(v, m.axis, a));
-  syncSpherical();
-}
 
 function updateBody(dt) {
   const vKey = held.has('fwd') !== held.has('back') ? (held.has('fwd') ? 1 : -1) : 0;
   const hKey = held.has('right') !== held.has('left') ? (held.has('right') ? 1 : -1) : 0;
 
-  // The tilted meridian view (user, 2026-10-23) is referred to the body's centre: the head's pan axis is always the
-  // camera's direction from the centre (radialHead), whatever the camera does; the picture is not kept level (A/D do not
-  // level it here).
-  if (bodyCentre() && !radialOk()) C.head = radialHead();
   if (SUN_LOCK) {
     // (while the picture still levels after entering, it only turns with the Sun: no keys)
     const w = placeNow();
     stepSunLock(dt, C.leveling ? 0 : vKey, C.leveling ? 0 : hKey, w);   // (stepSunLock skips the body's place while levelling)
     return;
   }
-  if (TILTED_MERIDIAN && merLock) lockMeridian();
+  // the meridian and tilted meridian views (their own moves and view, see MV): the meridian view walks with W/S; the
+  // tilted meridian view with the keys of the pole view, E/C walking on the circle, W/S tilting it
+  if (MERIDIAN_VIEW) { stepMeridian(dt, vKey, hKey, 0); return; }
+  if (TILTED_MERIDIAN) { stepMeridian(dt, held.has('turnR') !== held.has('turnC') ? (held.has('turnR') ? 1 : -1) : 0, hKey, vKey); return; }
 
-  // Q / E (user, 2026-10-23): they only turn the tilted meridian around the camera radius (the line from the camera to
-  // the body's centre), at ANGULAR_SPEED, Q anticlockwise as seen from the camera, E clockwise, in a loop; the camera and
-  // the picture stay as they are, so nothing moves on the screen but the tilted meridian. Its tilt can then go between
-  // the camera's latitude and 90° (its plane holds the camera radius); W/S, A/D take the camera elsewhere for other
-  // tilts. With L on the picture turns with it, so that it stays the circle up / down the screen. It stops a W/S move
-  // going on (a new press starts on the new circle).
-  let rKey = held.has('turnL') !== held.has('turnR') ? (held.has('turnL') ? 1 : -1) : 0;
   if (LEVELED_PAN) {
     const cKey = held.has('turnR') !== held.has('turnC') ? (held.has('turnR') ? 1 : -1) : 0;   // E forward, C backward
     lpFramed(() => {
@@ -1955,110 +2023,6 @@ function updateBody(dt) {
     });
     return;
   }
-  // the tilted meridian view with the keys of the pole view (user, 2026-10-29): W/S tilt the circle (W as Q was:
-  // anticlockwise on the screen, S as E was), E/C walk on it (E forward, as W was, C backward); Q has no function
-  let wKey = vKey;
-  if (TILTED_MERIDIAN) {
-    rKey = vKey;
-    wKey = held.has('turnR') !== held.has('turnC') ? (held.has('turnR') ? 1 : -1) : 0;
-  }
-  if (rKey && TILTED_MERIDIAN) {
-    // W / S within the range (user, 2026-10-29: no loop any more): W turns the circle towards the real meridian, up to
-    // the largest M angle (90°), S towards the smallest one (the camera's latitude: the circle's axis as near the
-    // vertical as it can be, across the camera radius), the shorter way, at ANGULAR_SPEED, and they stop there
-    const q = unit(rel()), k = q.map(x => -x), n0 = tiltedAxis(), z = [0, 0, 1];
-    let tgt = rKey > 0 ? plainAxis(q) : z.map((v, i) => v - dot(z, q) * q[i]);
-    if (len(tgt) < 1e-9) tgt = n0; else tgt = unit(tgt);
-    if (dot(tgt, n0) < 0) tgt = tgt.map(x => -x);   // (an axis and its opposite are the same circle)
-    const full = Math.atan2(dot(cross(n0, tgt), k), dot(n0, tgt)), lim = ANGULAR_SPEED * dt;
-    const a = clamp(full, -lim, lim);
-    merAxis = rKey > 0 && Math.abs(full) <= lim ? null : rotate(n0, k, a);   // (at 90°: the real meridian)
-    if (merLock) {
-      setView(rotate(viewDir(), k, a), rotate(picUp(), k, a));
-      C.head = C.head.map(v => rotate(v, k, a));
-    }
-    C.leveling = false; C.levelSpeed = 0; leanSpeed = 0; motion.v = null;
-  }
-
-  if (bodyCentre()) {
-    if (wKey) {
-      if (!motion.v || motion.v.key !== wKey) motion.v = startTilted(wKey);
-      stepTilted(motion.v, ANGULAR_SPEED * dt);
-    } else motion.v = null;   // released: the next press starts afresh
-  } else
-  // meridian ("turntable" move, as in the turntable orbit of CAD programs): the whole camera turns rigidly around the
-  // horizontal sideways axis (parallel to the bottom screen edge) through Pluto's centre. Pluto stays still on the screen
-  // and the horizon stays level. The camera moves on a vertical circle, centred on Pluto only when the view lies in the
-  // vertical plane through the camera and Pluto's centre. The turning axis is parallel to the tilt axis, so only the tilt
-  // changes, by exactly the turned angle; past straight up or down it simply goes beyond ±90° and the picture is upside
-  // down (the pan never changes) [REQ-02.2].
-  if (vKey) {
-    const side = camRight();   // turning by +a around it raises the view by a on the screen
-    if (!motion.v || motion.v.key !== vKey) {
-      let sign;
-      if (lastMove.v) sign = lastMove.v.key === vKey ? lastMove.v.sign : -lastMove.v.sign;
-      else {
-        // "forward" = the direction we look at, taken on the screen as forward/up, compared with the camera's velocity
-        const f = viewDir(), u = camUp(), fwd = [f[0] + u[0], f[1] + u[1], f[2] + u[2]];
-        sign = (Math.sign(dot(fwd, cross(side, rel()))) || 1) * vKey;
-      }
-      motion.v = { key: vKey, sign };
-      lastMove.v = { key: vKey, sign };
-    }
-    const a = motion.v.sign * ANGULAR_SPEED * dt, p = add(P, rotate(rel(), side, a));
-    if (insideBox(p)) { C.pos = p; C.tilt = wrapPi(C.tilt + a); syncSpherical(); }
-  } else motion.v = null;
-
-  // the tilted meridian view's A/D (user, 2026-10-23: the "equator" of the tilted meridian, not a parallel, which was
-  // hard to follow): A/D go across the tilted meridian, on the great circle through the camera that crosses it at right
-  // angles, turning rigidly with the view, picture and head around the tilted meridian's direction at the camera, through
-  // the body's centre (the axis is kept while the key is held). The body keeps its place on the screen, the head's pan
-  // axis stays the camera radius. D to the right of the way W goes (90° clockwise from it on the screen: at Home the
-  // right edge of the screen), A to the left. The tilted meridian turns with the camera around the same axis, so the
-  // camera stays on it.
-  if (hKey && TILTED_MERIDIAN) {
-    const q = rel();
-    if (!motion.h || motion.h.key !== hKey) {
-      const n = tiltedAxis(), w = cross(n, q).map(x => x * wSign(n)), axis = unit(w), right = cross(viewDir(), w);   // W's way turned clockwise
-      motion.h = { key: hKey, axis, sign: (Math.sign(dot(cross(axis, q), right)) || 1) * hKey };
-    }
-    const Pa = motion.h.axis, n0 = tiltedAxis();   // the circle before the move
-    const a = motion.h.sign * ANGULAR_SPEED * dt, p = add(P, rotate(q, Pa, a));
-    if (insideBox(p)) {
-      C.pos = p;
-      setView(rotate(viewDir(), Pa, a), rotate(picUp(), Pa, a));
-      if (C.head) C.head = C.head.map(v => rotate(v, Pa, a));
-      syncSpherical();
-      merAxis = rotate(n0, Pa, a);
-      if (motion.v) motion.v = null;
-    }
-  } else
-  // parallel: circle around the vertical axis through the centre; the pan follows so the angle stays constant
-  if (hKey) {
-    if (!motion.h || motion.h.key !== hKey) {
-      let sign;
-      if (lastMove.h) sign = lastMove.h.key === hKey ? lastMove.h.sign : -lastMove.h.sign;
-      else {
-        // (on the body centre reference: the picture's right, whatever its turn)
-        const right = cross(viewDir(), bodyCentre() ? picUp() : camUp());
-        const tangent = [-Math.sin(C.lon) * Math.cos(C.lat), Math.cos(C.lon) * Math.cos(C.lat), 0];
-        sign = (Math.sign(dot(right, tangent)) || 1) * hKey;
-      }
-      motion.h = { key: hKey, sign };
-      lastMove.h = { key: hKey, sign };
-    }
-    const dl = motion.h.sign * ANGULAR_SPEED * dt, p = add(P, sphericalPos(C.r, C.lat, C.lon + dl));
-    if (insideBox(p)) {
-      C.lon += dl; C.pan += dl; C.pos = p;
-      if (C.head) C.head = C.head.map(a => rotate(a, [0, 0, 1], dl));   // the head turns with the camera
-      // the tilted meridian turns with the camera around the z axis, so the camera stays on it (user, 2026-10-21); a W/S
-      // move going on at the same time starts again from here
-      if (merAxis) merAxis = rotate(merAxis, [0, 0, 1], dl);
-      if (bodyCentre() && motion.v) motion.v = null;
-    }
-  } else motion.h = null;
-
-  wheelStep(dt);
 }
 // wheel: closer / farther from the centre, minimum 2·R
 function wheelStep(dt) {
@@ -2673,7 +2637,15 @@ function trail(o, r, drawn, moon) {
   // (a point every 1/180 of the orbit; Mercury and Venus, user 2026-10-28: every TRAIL_AGE / TRAIL_KEEP, about 2 days, so
   // that the whole trail fits; near the camera the pieces are split anyway, see seg)
   const h = o ? Math.max(o.period / 180, TRAIL_AGE / TRAIL_KEEP) : 1;
-  const posAt = moon ? moonAt : t => o ? orbitAt(o, o.M - TAU * (trailT - t) / o.period) : [0, 0, 0];   // where the body was at t
+  // where the body was at t; kept (user, 2026-11-06, performance_upgrade: Kepler's equation was solved again every picture
+  // for the same moments where the trail is split near the camera, 7-11% of the program's time): the place at a moment
+  // never changes (o.M and trailT go on together), so each one is solved once (the store emptied when it grows large)
+  const known = new Map(), at0 = t => o ? orbitAt(o, o.M - TAU * (trailT - t) / o.period) : [0, 0, 0];
+  const posAt = moon ? moonAt : t => {
+    let v = known.get(t);
+    if (!v) { if (known.size > 50000) known.clear(); v = at0(t); known.set(t, v); }
+    return v;
+  };
   return { l, o, r, drawn, posAt, h, moon, last: trailT - h, pts: [], buf: g.attributes.instanceStart.data,   // pts: [x, y, z, t] – where the body was at t
     gap: 0, plume: plume(), near: nearLine(), base: 0, blocks: new Map() };   // base: the points dropped so far (see trailBlock)
 }
@@ -2689,22 +2661,40 @@ const TRAIL_BLOCK = 512;
 const undrifted = p => { const d = -TRAIL_SPEED * p[4]; return [(p[0] + TRAIL_DIR[0] * d) * U, (p[2] + TRAIL_DIR[2] * d) * U, -(p[1] + TRAIL_DIR[1] * d) * U]; };
 function trailBlock(tr, k) {
   let b = tr.blocks.get(k);
-  if (b) return b;
-  const i0 = k * TRAIL_BLOCK - tr.base, pts = tr.pts, O = undrifted(pts[i0]), arr = [], lo = [Infinity, Infinity, Infinity], hi = lo.map(x => -x);
+  if (!b) { b = makeBlock(tr, k * TRAIL_BLOCK, (k + 1) * TRAIL_BLOCK); tr.blocks.set(k, b); }
+  return b;
+}
+// The newest block, still growing (user, 2026-11-06, performance_upgrade: its points, up to TRAIL_BLOCK - 1 of them, were
+// placed one by one every picture, about 1 500 segments a picture for Mercury to Mars, far from the camera, where only
+// the drift changes): made of what it has (from its first point to PART_KEEP points before the newest) and made again
+// each time PART_STEP more points have come; drawn as the others (see blockFits). The newest points stay drawn one by one
+// (the gap and the plume at the body).
+const PART_STEP = 32, PART_KEEP = 16;
+function dropBlock(b) { if (b && b.m) { scene.remove(b.m); b.m.geometry.dispose(); } }
+function partBlock(tr) {
+  const newest = tr.base + tr.pts.length - 1, lo = Math.floor(newest / TRAIL_BLOCK) * TRAIL_BLOCK, hi = newest - PART_KEEP;
+  let p = tr.part;
+  if (p && (p.lo !== lo || hi < p.hi)) { dropBlock(p); p = tr.part = null; }   // (a new block started, or points gone)
+  if (lo < tr.base || hi - lo < PART_STEP) return null;
+  if (!p || hi - p.hi >= PART_STEP) { dropBlock(p); p = tr.part = Object.assign(makeBlock(tr, lo, hi), { lo, hi }); }
+  return p;
+}
+// a block of trail tr: the segments between its points lo and hi (counted from the first point the trail ever had)
+function makeBlock(tr, lo0, hi0) {
+  const i0 = lo0 - tr.base, i1 = hi0 - tr.base, pts = tr.pts, O = undrifted(pts[i0]), arr = [], lo = [Infinity, Infinity, Infinity], hi = lo.map(x => -x);
   let maxL = 0;
-  for (let i = i0; i < i0 + TRAIL_BLOCK; i++) {
+  for (let i = i0; i < i1; i++) {
     if (!joined(pts[i + 1], pts[i])) continue;   // (pieces not joined are not connected, see joined)
     const A = undrifted(pts[i + 1]), B = undrifted(pts[i]);
     maxL = Math.max(maxL, Math.hypot(A[0] - B[0], A[1] - B[1], A[2] - B[2]));
     for (const q of [A, B]) for (let j = 0; j < 3; j++) { arr.push(q[j] - O[j]); lo[j] = Math.min(lo[j], q[j]); hi[j] = Math.max(hi[j], q[j]); }
   }
-  b = { O, cMin: pts[i0][4], cMax: pts[i0 + TRAIL_BLOCK][4], maxL, c: lo.map((x, j) => (x + hi[j]) / 2), r: Math.hypot(...lo.map((x, j) => (hi[j] - x) / 2)), m: null };
+  const b = { O, cMin: pts[i0][4], cMax: pts[i1][4], maxL, c: lo.map((x, j) => (x + hi[j]) / 2), r: Math.hypot(...lo.map((x, j) => (hi[j] - x) / 2)), m: null };
   if (arr.length) {
     const g = new LineSegmentsGeometry();
     g.setPositions(new Float32Array(arr));
     b.m = new LineSegments2(g, trailMaterial); b.m.visible = false; scene.add(b.m);
   }
-  tr.blocks.set(k, b);
   return b;
 }
 // is block b drawn as a block now (see trailBlock)? D: the drift now (scene units), tEnd: the trail's end
@@ -2862,8 +2852,97 @@ function updatePlume(tr, cam, flow) {
   pl.m.material.uniforms.axis.value.set(...d);
   pl.m.position.copy(cam);
 }
-const trails = [trail(null, SUN_R, () => sunBody.scale.x), ...PLANETS.map(pl => trail(pl.orbit, pl.r, () => pl.group.scale.x)),
-  trail(EARTH.orbit, MOON.r, () => MOON.group.scale.x, true)];
+const trails = [trail(null, SUN_R, () => sunBody.scale.x), ...PLANETS.map(pl => trail(pl.orbit, pl.r, () => pl.group.scale.x))];
+// The Moon's trail (user, 2026-11-06, telescope_upgrade; until then its real path, a trail as the planets' (see trail's
+// moon): the trails drift 48.5 AU a year, so a turn of it is 3.6 AU long and 0.0026 AU wide, and near the Earth it was a
+// short line by the Earth's trail): a compressed spiral around the Earth's trail, a visual aid as the plumes. It starts
+// at the Moon and goes back along the Earth's trail, SPIRAL_PITCH Earth-Moon distances per turn (not 3.6 AU), one turn
+// per sidereal month, around it in the Moon's real directions (its offset from the Earth at each moment), at the real
+// distance (in the zoom screen enlarged as the Moon's disc is, moonSpread, its turns' length too), shrinking evenly to the Earth's trail over
+// SPIRAL_TURNS turns. It is seen only near the Earth: fully within SPIRAL_FULL Earth-Moon distances, not at all beyond
+// SPIRAL_NEAR, fading between (as the plumes); in the zoom screen the distance divided by the zoom, and from the zoom
+// level SPIRAL_ZOOM (7.6×) on at any distance. Near the Earth (20 Earth-Moon distances = 0.05 AU) the Earth's trail is a
+// straight line, so the graphics card makes it (user: "send only the Moon's coordinates"): each point, the Moon's offset
+// from the Earth at a moment of a time grid (MOON_MONTH / 180), is computed once and sent with its time; per picture only
+// the Earth's place, the trail's direction, the time, the enlargement and the fade are sent (see moonSpiral.view).
+const SPIRAL_TURNS = 10, SPIRAL_PITCH = 2, SPIRAL_NEAR = 20, SPIRAL_FULL = 10, SPIRAL_ZOOM = 2;
+const moonSpiral = (() => {
+  const h = MOON_MONTH / 180, span = SPIRAL_TURNS * MOON_MONTH, R = Math.ceil(span / h) + 2, N = R + 1;   // (slot R: from the last grid point to the Moon now)
+  const g = new LineSegmentsGeometry(); g.setPositions(new Float32Array(N * 6));
+  const tb = new THREE.InstancedInterleavedBuffer(new Float32Array(N * 2).fill(1e9), 2, 1);   // (the times of each segment's ends; 1e9: none)
+  g.setAttribute('instanceTStart', new THREE.InterleavedBufferAttribute(tb, 1, 0));
+  g.setAttribute('instanceTEnd', new THREE.InterleavedBufferAttribute(tb, 1, 1));
+  const pb = g.attributes.instanceStart.data, pa = pb.array, ta = tb.array, slots = new Array(R).fill(null);
+  // (uAx: the spiral's axis, AX + 1 points of the Earth's trail as it is drawn, from the Earth back over the spiral's
+  // length, relative to the camera: user 2026-11-06, the spiral's end must be on the Earth's trail; a straight axis left
+  // it open beside the trail in the zoom screen, where the spiral is long enough for the trail to bend)
+  const AX = 64, axPts = Array.from({ length: AX + 1 }, () => new THREE.Vector3());
+  const u = { uAx: { value: axPts }, uNow: { value: 0 }, uSpan: { value: span }, uSpread: { value: 1 } };
+  const m = new LineMaterial({ color: 0xffd84a, linewidth: TRAIL_WIDTH, transparent: true, opacity: trailMaterial.opacity, depthWrite: false });
+  m.uniforms.resolution.value = trailMaterial.resolution;   // the same screen size, kept up to date by resize
+  // a point: the Earth's place, then back along the trail by its age, then its offset from the Earth, enlarged and
+  // shrunk by its age; a segment not wholly within the spiral's time (from now back to its end) is not drawn
+  m.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader.replace('void main() {', `attribute float instanceTStart, instanceTEnd;
+      uniform vec3 uAx[${AX + 1}]; uniform float uNow, uSpan, uSpread;
+      vec3 spiralAt(vec3 off, float t) {
+        float a = uNow - t, s = clamp(a / uSpan, 0., 1.) * ${AX}.; int i = int(min(floor(s), ${AX - 1}.));
+        return mix(uAx[i], uAx[i + 1], s - float(i)) + off * (uSpread * max(0., 1. - a / uSpan));
+      }
+      void main() {`)
+      .replace('vec4 start = modelViewMatrix * vec4( instanceStart, 1.0 );', 'vec4 start = modelViewMatrix * vec4( spiralAt( instanceStart, instanceTStart ), 1.0 );')
+      .replace('vec4 end = modelViewMatrix * vec4( instanceEnd, 1.0 );', 'vec4 end = modelViewMatrix * vec4( spiralAt( instanceEnd, instanceTEnd ), 1.0 );')
+      .replace('gl_Position = clip;', 'gl_Position = clip; if ( instanceTEnd > uNow + 1e-7 || uNow - instanceTStart > uSpan ) gl_Position = vec4( 2., 2., 0., 1. );');
+  };
+  const l = new LineSegments2(g, m); l.frustumCulled = false; l.visible = false; scene.add(l);
+  let tBase = null;
+  const slotOf = i => ((i % R) + R) % R;
+  // the Moon's offset from the Earth at time t, scene units (sent once)
+  const offAt = t => T(...moonRelT(t));
+  function setEnd(seg, which, v, t) { pa.set([v.x, v.y, v.z], seg * 6 + which * 3); ta[seg * 2 + which] = t; }
+  // the grid's points from the spiral's end to now (only the missing ones: a new one about every 3.6 hours of the
+  // simulation's time), and the last piece to the Moon now
+  function update() {
+    const now = trailT;
+    if (tBase === null || Math.abs(now - tBase) > 20) { tBase = now; slots.fill(null); ta.fill(1e9); }   // (times kept small: 32 bits)
+    const i1 = Math.floor(now / h), i0 = Math.max(Math.ceil((now - span) / h) - 1, i1 - R + 1);
+    let changed = false;
+    for (let i = i0; i <= i1; i++) {
+      const s = slotOf(i);
+      if (slots[s] === i) continue;
+      const t = i * h, v = offAt(t);
+      slots[s] = i; setEnd(s, 0, v, t - tBase); ta[s * 2 + 1] = 1e9;   // (its end: the next point, when it is there)
+      const sp = slotOf(i - 1); if (slots[sp] === i - 1) setEnd(sp, 1, v, t - tBase);
+      const sn = slotOf(i + 1); if (slots[sn] === i + 1) setEnd(s, 1, T(...moonRelT((i + 1) * h)), (i + 1) * h - tBase);
+      changed = true;
+    }
+    const sl = slotOf(i1);
+    if (slots[sl] === i1) { setEnd(R, 0, new THREE.Vector3(pa[sl * 6], pa[sl * 6 + 1], pa[sl * 6 + 2]), i1 * h - tBase); setEnd(R, 1, offAt(now), now - tBase); }
+    pb.needsUpdate = true; tb.needsUpdate = true;
+  }
+  // a picture's view (the screen or the zoom screen): the enlargement (moonSpread) and the fade
+  function view(spread, fade) {
+    l.visible = fade > 0;
+    if (!l.visible) return;
+    m.opacity = trailMaterial.opacity * fade;
+    l.position.copy(camera.position);
+    // the axis: the Earth's trail, SPIRAL_PITCH Moon distances per month of the spiral, so a point of the spiral of age
+    // a is at the trail's point made a·k ago (the trail runs away from the Earth at v); the turns' length enlarged as
+    // their width (user, 2026-11-06: in the zoom screen from far away the spiral was a yellow disc by the Earth, 50 times
+    // wider than long)
+    const o = EARTH.orbit, v = len(add(TRAIL_DIR.map(x => x * TRAIL_SPEED), orbitVel(EARTH).map(x => -x)));
+    const k = SPIRAL_PITCH * MOON_A_AU / MOON_MONTH * spread / v;
+    axPts.forEach((q, j) => {
+      const a = j / AX * span * k, e = orbitAt(o, o.M - TAU * a / o.period), d = TRAIL_SPEED * a;
+      q.copy(T(e[0] + TRAIL_DIR[0] * d, e[1] + TRAIL_DIR[1] * d, e[2] + TRAIL_DIR[2] * d)).sub(camera.position);
+    });
+    u.uNow.value = trailT - tBase; u.uSpread.value = spread;
+  }
+  // the fade at the camera's distance from the Earth (Earth-Moon distances) seen at zoom Z
+  const fadeAt = (Z, zoomed) => zoomed ? 1 : clamp((SPIRAL_NEAR - len(sub(C.pos, EARTH.p)) / MOON_A_AU / Z) / (SPIRAL_NEAR - SPIRAL_FULL), 0, 1);
+  return { update, view, fadeAt };
+})();
 const MOON_STEP = MOON_MONTH / 180;   // years: the Moon's trail at 2° of its orbit where its loops can be seen
 // a trail segment is split while it is longer than TRAIL_SPLIT times its distance from the camera (about 3 degrees seen
 // from the camera), at most TRAIL_SPLIT_DEPTH times (Pluto: 1.38 years / 2^16, about 11 minutes)
@@ -2912,6 +2991,7 @@ function updateTrail(tr, cam) {
   while (pts.length - k > 2 && pts[k + 1][4] <= tEnd) k++;
   if (pts.length - k > TRAIL_POINTS) k = pts.length - TRAIL_POINTS;
   if (k) { pts.splice(0, k); tr.base += k; }
+  if (tr.part && tr.part.m) tr.part.m.visible = false;
   for (const [kb, b] of tr.blocks) {   // blocks whose first point is gone are no longer needed
     if (b.m) b.m.visible = false;
     if (kb * TRAIL_BLOCK < tr.base) { if (b.m) { scene.remove(b.m); b.m.geometry.dispose(); } tr.blocks.delete(kb); }
@@ -2950,8 +3030,13 @@ function updateTrail(tr, cam) {
   // (pieces of trail not joined, see joined, are not connected: after time went backward); at the newest segment of a
   // whole block (see trailBlock) that can be drawn as a block, its segments are left out here
   const dd = TRAIL_SPEED * trailClock, D = [TRAIL_DIR[0] * dd * U, TRAIL_DIR[2] * dd * U, -TRAIL_DIR[1] * dd * U];
+  const part = partBlock(tr);
   for (let i = pts.length - 1; i >= 0; i--) {
     const j = tr.base + i, kb = (j + 1) / TRAIL_BLOCK - 1;
+    if (started && part && j + 1 === part.hi && blockFits(tr, part, cam, D, tEnd)) {   // (the growing block, see partBlock)
+      if (part.m) { part.m.visible = true; part.m.position.set(part.O[0] + D[0], part.O[1] + D[1], part.O[2] + D[2]); }
+      i = part.lo - tr.base; a = pts[i]; continue;
+    }
     if (started && i < pts.length - 1 && Number.isInteger(kb) && kb * TRAIL_BLOCK >= tr.base) {
       const b = trailBlock(tr, kb);
       if (blockFits(tr, b, cam, D, tEnd)) {
@@ -3074,9 +3159,10 @@ const stars = (() => {
   g.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
   g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
   const m = new THREE.ShaderMaterial({
-    uniforms: { uPR: { value: renderer.getPixelRatio() } }, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
-    vertexShader: `attribute vec3 aColor; attribute float aSize; uniform float uPR; varying vec3 vC;
-      void main(){ vC = aColor; gl_PointSize = aSize * uPR; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
+    // (uZoom: the stars' sizes in the zoom screen, see STAR_SCOPE; 1 on the screen)
+    uniforms: { uPR: { value: renderer.getPixelRatio() }, uZoom: { value: 1 } }, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
+    vertexShader: `attribute vec3 aColor; attribute float aSize; uniform float uPR, uZoom; varying vec3 vC;
+      void main(){ vC = aColor; gl_PointSize = aSize * uPR * uZoom; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
     fragmentShader: `varying vec3 vC; void main(){ float a = smoothstep(.5, .05, length(gl_PointCoord - .5)); gl_FragColor = vec4(vC * a, 1.); }`,
   });
   const p = new THREE.Points(g, m); p.frustumCulled = false; p.renderOrder = -10; scene.add(p);
@@ -3122,6 +3208,12 @@ function bvColour(bv) {
   return c0.map((v, k) => v + (c1[k] - v) * t);
 }
 const SKY_DIRS = STARS.map(([ra, dec]) => skyDir(ra, dec));
+// The stars in the zoom screen (user, 2026-11-06, telescope_upgrade: they were not magnified, the same dots as on the
+// screen): the brightest one's seen radius (0.3 of its size, STAR_SIZE_MAX px) is STAR_SCOPE of the Moon's minimum
+// apparent radius there (60%, user 2026-11-06; was 20%: too small; it grows with the zoom, see SCOPE_SUN_MIN), the others in proportion (their brightness
+// kept), and no star smaller than on the screen; the background stars the same. The gap between a line and its stars
+// (SKY_GUARD on the screen) grows there with the zoom: SKY_GUARD at 4×, 5 times that at 20× (see renderScope)
+const STAR_SIZE_MAX = 9.5, STAR_SCOPE = .6;
 const SKY_LINE = 1, SKY_GUARD = 2;   // px: the constellation lines' width (user, 2026-11-05: 1, was 2), the black gap between a line and its stars (user, 2026-11-02)
 const sky = (() => {
   const n = STARS.length, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n);
@@ -3155,16 +3247,17 @@ const sky = (() => {
   // Milky Way) (user, 2026-11-02; nothing around the star): its ends moved towards each other along the sky, by an
   // angle of (seen radius of the star + SKY_GUARD + half the line's width: its round end) px at the angle of one pixel
   // of the picture drawn (pxAngle: also that of the zoom screen); a line shorter than that is hidden
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), lastPx = [0, 0];
-  o.userData.trim = (pxAngle, z) => {   // (z: 0 the screen, 1 the zoom screen)
+  // (in the zoom screen, user 2026-11-06: the stars larger, f, see STAR_SCOPE, and the gap g px growing with the zoom)
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), lastPx = [0, 0], lastF = [1, 1], lastG = [SKY_GUARD, SKY_GUARD];
+  o.userData.trim = (pxAngle, z, f = 1, g = SKY_GUARD) => {   // (z: 0 the screen, 1 the zoom screen)
     ls.forEach((l, k) => { l.visible = k === z; });
-    if (pxAngle === lastPx[z]) return; lastPx[z] = pxAngle;
+    if (pxAngle === lastPx[z] && f === lastF[z] && g === lastG[z]) return; lastPx[z] = pxAngle; lastF[z] = f; lastG[z] = g;
     const lb = ls[z].geometry.attributes.instanceStart.data, la = lb.array;
     for (let i = 0; i < CONST_LINES.length; i += 2) {
       const i0 = CONST_LINES[i], i1 = CONST_LINES[i + 1]; a.copy(SKY_DIRS[i0]); b.copy(SKY_DIRS[i1]);
-      const w = a.angleTo(b), k = Math.sin(w), r0 = .3 * size[i0], r1 = .3 * size[i1], h = SKY_LINE / 2;
+      const w = a.angleTo(b), k = Math.sin(w), r0 = .3 * size[i0] * f, r1 = .3 * size[i1] * f, h = SKY_LINE / 2;
       const at = t => a.clone().multiplyScalar(Math.sin(w - t) / k).addScaledVector(b, Math.sin(t) / k);   // (slerp from a by t)
-      const t0 = (r0 + SKY_GUARD + h) * pxAngle, t1 = (r1 + SKY_GUARD + h) * pxAngle;
+      const t0 = (r0 + g + h) * pxAngle, t1 = (r1 + g + h) * pxAngle;
       const short = t0 + t1 >= w, mid = a.clone().add(b).normalize();
       const p0 = short ? mid : at(t0), p1 = short ? mid : at(w - t1);
       la.set(p0.toArray(), i * 3); la.set(p1.toArray(), i * 3 + 3);
@@ -3641,7 +3734,7 @@ document.addEventListener('pointerleave', () => { hover.on = false; });
 const vHov = new THREE.Vector3();
 // In the zoom screen (Z: its zoom, with its own body sizes) the bodies whose disc there touches the focus frame (user
 // 2026-10-30), all of them.
-function hoverNames(Z = 0) {
+function hoverNames(Z = 0, hx = hover.x, hy = hover.y) {
   const names = [];
   if (hover.on && !dragging) {
     const o = camera.position, k = innerHeight / 2 / Math.tan(camera.fov * DEG / 2) * (Z || 1);
@@ -3652,8 +3745,8 @@ function hoverNames(Z = 0) {
       if (vHov.z <= -1 || vHov.z >= 1) continue;
       const x = (vHov.x * .5 + .5) * innerWidth, y = (-vHov.y * .5 + .5) * innerHeight;
       const r = Math.max(Math.tan(Math.asin(s / D)) * k, MIN_DOT_PX / 2);
-      if (Z ? Math.hypot(Math.max(0, Math.abs(x - hover.x) * Z - SCOPE_AF[0] / 2), Math.max(0, Math.abs(y - hover.y) * Z - SCOPE_AF[1] / 2)) > r
-        : Math.hypot(x - hover.x, y - hover.y) > r + HOVER_PX) continue;
+      if (Z ? Math.hypot(Math.max(0, Math.abs(x - hx) * Z - SCOPE_AF[0] / 2), Math.max(0, Math.abs(y - hy) * Z - SCOPE_AF[1] / 2)) > r
+        : Math.hypot(x - hx, y - hy) > r + HOVER_PX) continue;
       if (BODIES.some(a => a !== b && a.group.visible && behindSphere(c, a.group.position, a.group.scale.x))) continue;
       names.push(b.name);
     }
@@ -3669,7 +3762,7 @@ function updateHoverNames() {
   const w = el.offsetWidth, h = el.offsetHeight;
   let x = hover.x + 14 + w > innerWidth ? hover.x - 8 - w : hover.x + 14, y = hover.y + 18 + h > innerHeight ? hover.y - 8 - h : hover.y + 18;
   if (scope.on) {   // in the zoom screen's lower right corner (beside its corner bracket), away from the target, user 2026-10-30
-    const r = hover.x + Math.round(innerWidth * SCOPE_SIZE) / 2, b = hover.y + Math.round(innerHeight * SCOPE_SIZE) / 2;
+    const r = scope.cx + Math.round(innerWidth * SCOPE_SIZE) / 2, b = scope.cy + Math.round(innerHeight * SCOPE_SIZE) / 2;
     x = clamp(r - 36 - w, 4, innerWidth - 4 - w); y = clamp(b - 12 - h, 4, innerHeight - 4 - h);
   }
   el.style.transform = `translate(${x}px, ${y}px)`;
@@ -3680,36 +3773,55 @@ const fmtLen = au => au < .01 ? fmtKm(au * AU_KM) + ' km' : au.toFixed(2) + ' AU
 const fmtAng = a => noNegZero((wrapAngle(a) / DEG).toFixed(1)) + '°';
 const pad = (s, n) => s.padStart(n);
 const HINTS = {
-  body: [['Drag', 'look around (tilt / pan)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'move on the meridian (forward / backward); tilted meridian: tilt it (turn it around the line to the centre); pole view: the angle of circle C up / down (−80° to +80°)'],
-    ['A D ← →', 'move on the parallel (left / right), level the picture; pole view: on the parallel, circle C turns around z'],
-    ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['L', "tilted meridian: lock to the screen's vertical (on / off)"], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 14\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
+  body: [['Drag', 'look around (tilt / pan)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'move on the meridian (forward / backward); tilted meridian: tilt it (around its line of nodes, M 0° to 90°, the camera riding on it); pole view: the angle of circle C up / down (−80° to +80°)'],
+    ['A D ← →', 'move on the parallel (left / right); tilted meridian: across it; pole view: on the parallel, circle C turns around z'],
+    ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
   absolute: [['Drag', 'look around (tilt ±90°, pan)'], ['W S ↑ ↓', 'move forward / backward (dolly)'], ['Wheel', 'move forward / backward, parallel to the ecliptic'], ['PgUp PgDn', 'move up / down (crane)'],
-    ['A D ← →', 'move left / right (truck)'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 14\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
+    ['A D ← →', 'move left / right (truck)'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
 };
 let hintMode = '';
-function updateHud() {
-  if (typeof hudSlide !== 'undefined') hudSlide.fit();   // (its content changes size: the line and the button follow)
-  setText($('mode-t'), refTitle());
+// The information panel's values are written HUD_PERIOD apart (user, 2026-11-06, performance_upgrade: 4 times a second;
+// every picture they took 4-6% of the program's time, and nobody reads them faster); its title, the menu's marks and the
+// gauge (the camera's own angles) still every picture, with a change of the view or the reference at once
+const HUD_PERIOD = 250;   // ms
+let hudT = -Infinity, hudKey = '';
+function updateHud(now) {
+  const key = refTitle();
+  setText($('mode-t'), key);
   showRefMenu();
   document.body.classList.toggle('absolute', C.mode === 'absolute');
+  const full = now - hudT >= HUD_PERIOD || key !== hudKey;
+  if (full) { hudT = now; hudKey = key; }
+  if (full && typeof hudSlide !== 'undefined') hudSlide.fit();   // (its content changes size: the line and the button follow)
   const p = C.pos, q = rel(), d = len(q);
-  // (user, 2026-10-30) compact: the three values one space apart, without padding to a fixed width
-  setText($('pos-au'), p.map(v => noNegZero(v.toFixed(2))).join(' ') + ' AU');
-  // close to the reference body the AU values hardly change: the position relative to its centre is shown in km as well
-  const near = d < .01;
-  setText($('pos-km-l'), near ? 'From ' + REF.name + ' x, y, z' : '');
-  setText($('pos-km'), near ? q.map(v => fmtKm(v * AU_KM)).join(' ') + ' km' : '');
-  setText($('angles'), fmtAng(C.pan) + ' / ' + fmtAng(C.tilt) + (Math.abs(wrapPi(C.roll)) > .05 * DEG ? ', turn ' + fmtAng(wrapPi(C.roll)) : ''));
+  if (full) {
+    // (user, 2026-10-30) compact: the three values one space apart, without padding to a fixed width
+    setText($('pos-au'), p.map(v => noNegZero(v.toFixed(2))).join(' ') + ' AU');
+    // close to the reference body the AU values hardly change: the position relative to its centre is shown in km as well
+    const near = d < .01;
+    setText($('pos-km-l'), near ? 'From ' + REF.name + ' x, y, z' : '');
+    setText($('pos-km'), near ? q.map(v => fmtKm(v * AU_KM)).join(' ') + ' km' : '');
+    setText($('angles'), fmtAng(C.pan) + ' / ' + fmtAng(C.tilt) + (Math.abs(wrapPi(C.roll)) > .05 * DEG ? ', turn ' + fmtAng(wrapPi(C.roll)) : ''));
+  }
   // the tilted meridian and its M angle (only in the tilted meridian view)
   const showMer = SHOW_MERIDIAN && TILTED_MERIDIAN && C.mode === 'body';
   setText($('meridian-l'), showMer ? 'Tilted meridian' : '');
   // its tilt to the body's ecliptic plane: 90° = a meridian (through the ecliptic poles), 0° = the equator
   const merTilt = showMer && lastMeridianAxis ? Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ())))) / DEG : 0;
-  setText($('meridian'), showMer ? merTilt.toFixed(1) + (merLock ? '° (locked)' : '°') : '');
+  setText($('meridian'), showMer ? merTilt.toFixed(1) + '°' : '');
   // the leveled pan: circle C and its angle i to the body ecliptic, in the same row
   const showLp = LEVELED_PAN && C.mode === 'body' && LP.valid;
   if (showLp) { setText($('meridian-l'), 'Circle C'); setText($('meridian'), fmtAng(LP.i)); }
   updateGauge(showMer, showLp);
+  if (full) updateHudValues(p, d);
+  if (hintMode !== C.mode) {
+    hintMode = C.mode;
+    $('hint-title').textContent = C.mode === 'body' ? 'Controls · celestial body mode' : 'Controls · absolute space mode';
+    $('hint-rows').innerHTML = HINTS[C.mode].map(([k, t]) => `<span>${k.split(' ').map(x => `<kbd>${x}</kbd>`).join('')}</span><span>${t}</span>`).join('');
+  }
+}
+// the information panel's values (see updateHud), p: the camera's place, d: its distance to the reference body
+function updateHudValues(p, d) {
   setText($('dist-l'), 'Distance to ' + theName(REF)); setText($('dist'), fmtLen(d));
   setText($('dist-sun'), fmtLen(len(p)));
   // the reference celestial body (in absolute space mode the last one chosen): its speed in absolute space, its data
@@ -3730,11 +3842,6 @@ function updateHud() {
   const camS = camAbsSpeed().toFixed(2) + ' km/s';
   setText($('speed'), camS);
   setText($('abs'), abs ? camS : absSpeed(b).toFixed(2) + ' km/s');
-  if (hintMode !== C.mode) {
-    hintMode = C.mode;
-    $('hint-title').textContent = C.mode === 'body' ? 'Controls · celestial body mode' : 'Controls · absolute space mode';
-    $('hint-rows').innerHTML = HINTS[C.mode].map(([k, t]) => `<span>${k.split(' ').map(x => `<kbd>${x}</kbd>`).join('')}</span><span>${t}</span>`).join('');
-  }
 }
 const setText = (el, s) => { if (el.textContent !== s) el.textContent = s; };
 // 1.30 × 10²² (large values, with 2 decimals)
@@ -3753,7 +3860,6 @@ function updateGauge(show, lp) {
   const g = $('gauge');
   if (g.hidden !== !(show || lp)) g.hidden = !(show || lp);
   if (!lp && (!show || !lastMeridianAxis)) return;
-  if ($('g-lock').hidden !== !(merLock && !lp)) $('g-lock').hidden = !(merLock && !lp);
   if ($('g-pan-mode').hidden !== !lp) $('g-pan-mode').hidden = !lp;   // the pole view's pan button
   const a = lp ? LP.i : Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ())))), f = viewDir(), u = picUp();
   // the tilt axis (the screen's left-right edge) at its angle to the reference plane: the body ecliptic, or in the pole
@@ -3764,7 +3870,8 @@ function updateGauge(show, lp) {
   const set = (el, x1, y1, x2, y2) => { el.setAttribute('x1', x1.toFixed(2)); el.setAttribute('y1', y1.toFixed(2)); el.setAttribute('x2', x2.toFixed(2)); el.setAttribute('y2', y2.toFixed(2)); };
   // (user, 2026-11-04: the segment kept between the texts, 4 below the C / M angle's line and 4 above the lowest text
   // line under it: each half cut there, so it never runs between the letters)
-  const ha = lp ? lpHeadNow() : null, hd = !!ha, yTop = 14, yBot = hd ? 77 : 86;
+  // (the head's own pan and tilt: the pole view's and, user 2026-11-06, the tilted meridian view's: see MV)
+  const ha = lp ? lpHeadNow() : TILTED_MERIDIAN && MV.valid && MV.cf ? lpLookHead(MV.cf, MV.oa, MV.ob) : null, hd = !!ha, yTop = 14, yBot = hd ? 77 : 86;
   const half = sg => { const dx = sg * Math.cos(a), dy = -sg * Math.sin(a), l = Math.min(M, dy < 0 ? (50 - yTop) / -dy : dy > 0 ? (yBot - 50) / dy : M); return [50 + l * dx, 50 + l * dy]; };
   set($('g-mer'), ...half(-1), ...half(1));
   // (the arrowhead, as the axes' arrows: narrow and long, 12 long; 6 wide at its base, user 2026-10-28: 4 was hard to
@@ -4229,10 +4336,14 @@ function recordSample(now) {
   camLog.samples.push({ t: +((performance.now() - camLog.t0) / 1000).toFixed(3),   // the clock of the notes and of the pause
     x: +q[0].toFixed(1), y: +q[1].toFixed(1), z: +q[2].toFixed(1),
     pan: +(C.pan / DEG).toFixed(3), tilt: +(C.tilt / DEG).toFixed(3), roll: +(wrapPi(C.roll) / DEG).toFixed(3),
+    yr: +trailT.toFixed(9),   // the bodies' clock (Earth years, see trailT): the replay puts the bodies there (user, 2026-11-06)
     keys: [...held].join(' '), mode: C.mode, view: moveName(),
     // what the user has selected, as seen (user, 2026-11-05): the information panel's title, the reference axes button
     title: refTitle(), axes: AXES_TEXT[axesShown][0],
-    lp: LEVELED_PAN && LP.valid ? { i: +(LP.i / DEG).toFixed(3), node: +(LP.node / DEG).toFixed(3), u: +(LP.u / DEG).toFixed(3), panA: +(LP.panA / DEG).toFixed(3), tiltA: +(LP.tiltA / DEG).toFixed(3), pan: panName(), mirror: picMirror, rho: +(LP.roll / DEG).toFixed(3), south: LP.south, cr: +(LP.cr / DEG).toFixed(3), ...(lpHeadNow() ? (([hp, ht]) => ({ la: +(LP.oa / DEG).toFixed(3), lb: +(LP.ob / DEG).toFixed(3), hp: +(hp / DEG).toFixed(3), ht: +(ht / DEG).toFixed(3) }))(lpHeadNow()) : {}) } : null, lean: +(bodyFramed(() => meridianLean(unit(rel()))) / DEG).toFixed(3), mangle: lastMeridianAxis ? +(Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ())))) / DEG).toFixed(3) : null, mer: lastMeridianAxis ? lastMeridianAxis.map(v => +v.toFixed(5)) : null });
+    lp: LEVELED_PAN && LP.valid ? { i: +(LP.i / DEG).toFixed(3), node: +(LP.node / DEG).toFixed(3), u: +(LP.u / DEG).toFixed(3), panA: +(LP.panA / DEG).toFixed(3), tiltA: +(LP.tiltA / DEG).toFixed(3), pan: panName(), mirror: picMirror, rho: +(LP.roll / DEG).toFixed(3), south: LP.south, cr: +(LP.cr / DEG).toFixed(3), ...(lpHeadNow() ? (([hp, ht]) => ({ la: +(LP.oa / DEG).toFixed(3), lb: +(LP.ob / DEG).toFixed(3), hp: +(hp / DEG).toFixed(3), ht: +(ht / DEG).toFixed(3) }))(lpHeadNow()) : {}) } : null,
+    // the meridian view (views_upgrade): the look (two turns), the centred frame's turn, the head pan / tilt of the view
+    mv: bodyCentre() && C.mode === 'body' && MV.valid && MV.cf ? (([hp, ht]) => ({ la: +(MV.oa / DEG).toFixed(3), lb: +(MV.ob / DEG).toFixed(3), cr: +(MV.cr / DEG).toFixed(3), hp: +(hp / DEG).toFixed(3), ht: +(ht / DEG).toFixed(3) }))(lpLookHead(MV.cf, MV.oa, MV.ob)) : null,
+    lean: +(bodyFramed(() => meridianLean(unit(rel()))) / DEG).toFixed(3), mangle: lastMeridianAxis ? +(Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ())))) / DEG).toFixed(3) : null, mer: lastMeridianAxis ? lastMeridianAxis.map(v => +v.toFixed(5)) : null });
   if (n % 10 === 0) setText($('rec'), `REC ${camLog.samples[n].t.toFixed(1)} s · ${n + 1} samples · ${camLog.notes.length} notes`);
 }
 // N: a note at the current time, while recording (the recording goes on, the camera waits) or in the replay
@@ -4344,8 +4455,9 @@ function startReplay(text, name) {
   if (!ss || !ss.length) { toast('This is not a camera log'); return; }
   if (camLog.on) toggleRecord();
   const wasRunning = replay.on ? replay.wasRunning : running;   // (another log loaded in the replay: the state before the first)
+  const yr0 = replay.on ? replay.yr0 : trailT;   // (the same: the time before the first)
   closeReplay();
-  replay.wasRunning = wasRunning;
+  replay.wasRunning = wasRunning; replay.yr0 = yr0;
   replay.on = true; replay.samples = ss; replay.i = 0; replay.t = ss[0].t; replay.dir = 0; replay.way = 1; replay.playing = false;
   if (!Array.isArray(data.notes)) data.notes = [];
   if (typeof data.description !== 'string') data.description = '';
@@ -4436,6 +4548,7 @@ function closeReplay() {
   if (!replay.on) return;
   replay.on = false; document.body.classList.remove('replaying');
   running = replay.wasRunning !== false; showRun();   // the simulation as it was before the replay: running or stopped (user, 2026-11-02)
+  if (typeof replay.yr0 === 'number') timeTarget = replay.yr0;   // (and at its time again)
   if (replay.objs) { for (const a of replay.objs.axNames) a.el.remove(); }
   if (replay.objs) { replay.objs.g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); scene.remove(replay.objs.g); replay.objs = null; }
 }
@@ -4444,7 +4557,7 @@ function closeReplay() {
 // top of the head). The camera never turns in its head, so the
 // tilt axis is the screen's right, and the pan axis is in the plane of the view direction f and the picture's up u,
 // with the same angle to f as the view's own pan axis A: space's z in absolute mode and the Sun / Moon / Earth locked
-// views, the rotation axis in the pole view and the turntable (on the equator, see BODY_EQ), the camera radius in the
+// views, the rotation axis in the pole view (on the equator, see BODY_EQ), the camera radius in the
 // tilted meridian and meridian views. (A ⟂ the right: the pan axis is A itself, also with the tilt past ±90°; not in the
 // pole view, whose tilt stays within ±90°: with the picture turned by exactly 180° that would flip the head)
 // The rotating pan's head (user, 2026-11-03): its plane perpendicular to the line from the camera to the body's centre,
@@ -4454,6 +4567,13 @@ function closeReplay() {
 // its lowest point (the south pole at the top). Set by the rule on that line, so a mouse offset of the view does not
 // change it (the box, the camera, shows the view as it was)
 function replayHead(q, f, u, km, free) {
+  // the meridian view (views_upgrade): the automatic head, the logged view turned back by its logged look (mv.la, mv.lb;
+  // see lpLookDir: the right stays across both turns), whatever the user's offsets (the pan segment shows those)
+  if (!free && merLog(q)) {
+    const [f0, u0] = loggedView(q), b = q.mv.lb * DEG, a = q.mv.la * DEG, r1 = cross(f0, u0);
+    const uc = rotate(u0, r1, -b), fc = rotate(rotate(f0, r1, -b), uc, -a);
+    return lpHeadAxes([cross(fc, uc), uc, fc]);
+  }
   if (!free && rotLog(q)) {
     const fc = unit(km.map(x => -x)), A = unit(REF.pole), n = A.map((x, k) => x - dot(A, fc) * fc[k]);
     const rho = (typeof q.lp.rho === 'number' ? q.lp.rho : 90 - q.lp.u) * DEG;
@@ -4469,7 +4589,7 @@ function replayHead(q, f, u, km, free) {
     if (len(h) > 1e-9) { const x = unit(h.map(v => -v)); return [x, cross(z, x), z]; }
   }
   const right = cross(f, u), body = !free && q.mode === 'body';
-  const A = !body ? [0, 0, 1] : q.view === 'Pole view' || q.view === 'Turntable' ? unit(REF.pole)
+  const A = !body ? [0, 0, 1] : q.view === 'Pole view' ? unit(REF.pole)
     : q.view === 'Tilted meridian' || q.view === 'Meridian' ? unit(km) : [0, 0, 1];
   const a = clamp(dot(A, f), -1, 1);
   const z = q.view !== 'Pole view' && Math.abs(dot(A, right)) < 1e-6 ? A : unit(add(f.map(x => x * a), u.map(x => x * Math.sqrt(1 - a * a))));
@@ -4508,7 +4628,7 @@ function showReplay() {
   if (fr) setText($('replay-info'), `free camera (from sample ${i + 1}/${ss.length}, t ${q.t.toFixed(2)} s)   ${(d / REF.km).toFixed(2)} R   lat ${num(lat, 6)}°\n` +
     `pan ${num(wrapAngle(fr.pan) / DEG, 7)}°   tilt ${num(fr.tilt / DEG, 6)}°`);
   else setText($('replay-info'), `t ${num(q.t, 7, 2)} s   sample ${String(i + 1).padStart(String(ss.length).length)}/${ss.length}   ${(d / REF.km).toFixed(2)} R   lat ${num(lat, 6)}°\n` +
-    (hp ? `head pan ${num(hp.pan / DEG, 7)}°   tilt ${num(hp.tilt / DEG, 6)}°   ${replay.path ? `(+ yours ${num(replay.offPan / DEG, 6)}° ${num(replay.offTilt / DEG, 6)}°)   ` : ''}rho ${num(q.lp.rho, 7)}°`
+    (hp ? `head pan ${num(hp.pan / DEG, 7)}°   tilt ${num(hp.tilt / DEG, 6)}°   ${replay.path ? `(+ yours ${num(replay.offPan / DEG, 6)}° ${num(replay.offTilt / DEG, 6)}°)   ` : ''}${q.lp ? `rho ${num(q.lp.rho, 7)}°` : ''}`
       : `pan ${num(q.pan, 7)}°   tilt ${num(q.tilt, 6)}°   ${replay.path ? `(+ yours ${num(replay.offPan / DEG, 6)}° ${num(replay.offTilt / DEG, 6)}°)   ` : ''}turn ${num(q.roll || 0, 7)}°`) + `   keys ${(q.keys || '-').padEnd(10)} ${q.mangle != null ? 'M ' + q.mangle.toFixed(1) + '°  ' : q.mset !== undefined ? 'set ' + q.mset.toFixed(1) + '°  ' : ''}${q.lean !== undefined ? 'lean ' + q.lean.toFixed(1) + '°' : q.locked ? 'locked' : 'free'}`);
   $('rp-path').textContent = PATH_NAMES[replay.path];
   $('rp-path').classList.toggle('on', replay.path > 0);
@@ -4539,12 +4659,18 @@ function showReplay() {
 // a logged sample of the rotating pan
 const rotLog = q => q.mode === 'body' && q.view === 'Pole view' && !!q.lp && (q.lp.pan === 'Rotating pan' || q.lp.pan === 'Polar pan');   // (the polar pan: the rotating pan's head, its own ρ)
 const levLog = q => q.mode === 'body' && q.view === 'Pole view' && !!q.lp && q.lp.pan === 'Leveled pan';
+const merLog = q => q.mode === 'body' && (q.view === 'Meridian' || q.view === 'Tilted meridian') && !!q.mv;   // (views_upgrade: with its look)
+// the logged camera's view and up (no offsets)
+function loggedView(q) {
+  const p = q.pan * DEG, t = q.tilt * DEG, h = [Math.cos(p), Math.sin(p), 0], f = [Math.cos(t) * h[0], Math.cos(t) * h[1], Math.sin(t)];
+  return [f, rotate([-Math.sin(t) * h[0], -Math.sin(t) * h[1], Math.cos(t)], f, (q.roll || 0) * DEG)];
+}
 // the logged camera's view and up, with the user's offsets (cam control); the rotating pan (user, 2026-11-04): from its
 // head (replayHead, the automatic one) by the look (lp.la, lp.lb, see lpLook; logs without it: taken from the logged
 // view) + the user's offsets, the mouse grabbing the image as in the app; hp: { pan, tilt (the head's own, final, see
 // headAngles), pv (the pan vector) }
 function replayView(q, km) {
-  const fr = replay.free, rot = !fr && rotLog(q), [p, t] = rot ? [q.pan * DEG, q.tilt * DEG] : replayAngles(q), h = [Math.cos(p), Math.sin(p), 0];
+  const fr = replay.free, rot = !fr && (rotLog(q) || merLog(q)), [p, t] = rot ? [q.pan * DEG, q.tilt * DEG] : replayAngles(q), h = [Math.cos(p), Math.sin(p), 0];
   const f = [Math.cos(t) * h[0], Math.cos(t) * h[1], Math.sin(t)];
   const up = rotate([-Math.sin(t) * h[0], -Math.sin(t) * h[1], Math.cos(t)], f, fr ? 0 : (q.roll || 0) * DEG);
   if (!rot && !fr && levLog(q)) {
@@ -4564,8 +4690,9 @@ function replayView(q, km) {
     return [f2, u2, { pan: hp, tilt: ht, pv: H[0].map((x, k) => Math.cos(hp) * x + Math.sin(hp) * H[1][k]) }];
   }
   if (!rot) return [f, up, null];
-  const H = replayHead(q, f, up, km, null), F = headFrame(H);
-  let [a, b] = typeof q.lp.la === 'number' ? [q.lp.la * DEG, q.lp.lb * DEG] : lpLookOf(F, f);
+  // (the rotating / polar pan and the meridian view: the automatic head + the logged look)
+  const H = replayHead(q, f, up, km, null), F = headFrame(H), lk = q.lp || q.mv;
+  let [a, b] = typeof lk.la === 'number' ? [lk.la * DEG, lk.lb * DEG] : lpLookOf(F, f);
   if (replay.path) { const L = Math.PI / 2 - 1e-6; a = wrapPi(a + replay.offPan); b = clamp(b + replay.offTilt, -L, L); }
   const [f2, u2] = lpLookDir(F, a, b), [hp, ht] = headAngles(H, f2, u2);
   return [f2, u2, { pan: hp, tilt: ht, pv: H[0].map((x, k) => Math.cos(hp) * x + Math.sin(hp) * H[1][k]) }];
@@ -4584,7 +4711,7 @@ function replayMouse(mx, my) {
   if (fr) { [fr.pan, fr.tilt] = mouseTurn(fr.pan, fr.tilt, mx, my, false); fr.pan = wrapPi(fr.pan); showReplay(); return; }
   const q = replay.samples[replay.i];
   // the rotating pan: the look, as the app's mouse there (lpLook)
-  if (rotLog(q) || levLog(q)) { replay.offPan = wrapPi(replay.offPan + mx * MOUSE_SENS); replay.offTilt = clamp(replay.offTilt + my * MOUSE_SENS, -Math.PI, Math.PI); showReplay(); return; }
+  if (rotLog(q) || levLog(q) || merLog(q)) { replay.offPan = wrapPi(replay.offPan + mx * MOUSE_SENS); replay.offTilt = clamp(replay.offTilt + my * MOUSE_SENS, -Math.PI, Math.PI); showReplay(); return; }
   const [p, t] = replayAngles(q), r = (q.roll || 0) * DEG;
   if (r) { const c = Math.cos(r), sn = Math.sin(r); [mx, my] = [mx * c - my * sn, mx * sn + my * c]; }
   const [p2, t2] = mouseTurn(p, t, mx, my, false);
@@ -4795,14 +4922,28 @@ addEventListener('resize', resize); resize();
 
 // The zoom screen (user, 2026-10-30; first a round telescope lens): T switches it on / off. As the screen of a digital
 // camera at full zoom: a rectangle centred on the mouse, SCOPE_SIZE of the screen's width and height (the same shape),
-// shows the area under it larger (SCOPE_ZOOMS, chosen with + and -; SCOPE_START when switched on, user 2026-10-30), as it is drawn on the screen,
+// shows the area under it larger (SCOPE_ZOOMS, chosen with + and -; the third when switched on), as it is drawn on the screen,
 // drawn again for the narrower field (sharp, not enlarged pixels); lines keep their width in pixels. In it the planets'
 // minimum apparent radius is SCOPE_MIN of the usual one (30% of the Sun's minimum instead of 50%), the Moon's too.
 // Around it the camera's body (#scope), over it corner brackets, a focus frame at the mouse, the zoom and a W-T bar
 // (#scope-v). The names written over the picture are left out there. The mouse still moves the camera as usual; while
 // dragging the zoom screen stays where the drag started.
-const SCOPE_ZOOMS = [4, 6, 8, 10, 12, 14], SCOPE_START = 8, SCOPE_MIN = .3 / .5, SCOPE_SIZE = .4, SCOPE_BODY = 14, SCOPE_AF = [72, 54];   // (the focus frame, px: as in the CSS)
-const scope = { on: false, z: 0, rt: null, cam: new THREE.PerspectiveCamera(), scene: new THREE.Scene(), oc: new THREE.Camera(), w: 0, h: 0, names: [] };
+// Always inside the main screen (user, 2026-11-06, telescope_upgrade: near the edges it went partly off the screen): the
+// rectangle with its body follows the mouse but stops at the screen's edges (scope.cx, scope.cy: its centre); it always
+// shows the area under the mouse, magnified at its centre (with the focus frame), so the target stays in view.
+const SCOPE_MIN = .3 / .5, SCOPE_SIZE = .4, SCOPE_BODY = 6, SCOPE_AF = [72, 54];   // (the focus frame, px: as in the CSS; the body 6 px, user 2026-11-06: was 14)
+// The zoom levels (user, 2026-11-06, option b; were 4× to 14×; tried the same day and dropped: levels set by the Sun's
+// real disc, from Pluto 645× to 1 290×, with the zoom locked on the body under the mouse, "not possible to put (easy) the
+// telescope on a body"; and a Sun's minimum fixed at 8% of the zoom screen at every zoom, so that zooming in did not
+// make it larger): 4× to 20× in SCOPE_STEPS equal steps (×5^(1/5): 4, 5.5, 7.6, 10.5, 14.5, 20×). In the zoom screen the
+// Sun's minimum apparent radius is an angle, SCOPE_SUN_MIN of the zoom screen's height at the smallest zoom (8%), so it
+// grows with the zoom up to 40% (a disc of 80% of the height) at the largest; the planets' and the Moon's minimums keep
+// their ratio to it (SCOPE_MIN: the planets 30% of it, the Moon half of that).
+const SCOPE_STEPS = 5, SCOPE_ZOOMS = Array.from({ length: SCOPE_STEPS + 1 }, (_, i) => 4 * 5 ** (i / SCOPE_STEPS)), SCOPE_SUN_MIN = .08;
+const scopeZooms = () => SCOPE_ZOOMS;
+const scopeZoom = () => { const zs = scopeZooms(); scope.z = clamp(scope.z, 0, zs.length - 1); return zs[scope.z]; };
+const fmtZoom = z => (z < 100 ? Math.round(z * 10) / 10 : Math.round(z)) + '\u00d7';
+const scope = { on: false, z: 0, rt: null, cam: new THREE.PerspectiveCamera(), scene: new THREE.Scene(), oc: new THREE.Camera(), w: 0, h: 0, names: [], cx: 0, cy: 0, namesT: -Infinity };
 const scopeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
   uniforms: { map: { value: null }, c: { value: new THREE.Vector2() }, s: { value: new THREE.Vector2() } },
   vertexShader: `uniform vec2 c, s; varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(c + position.xy * s, 0., 1.); }`,
@@ -4815,21 +4956,22 @@ const scopeQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.Shader
   depthTest: false, depthWrite: false }));
 scopeQuad.frustumCulled = false; scope.scene.add(scopeQuad);
 function showZoom() {
-  const z = SCOPE_ZOOMS[scope.z], v = $('scope-v');
-  v.querySelector('b').textContent = z + '\u00d7';
-  v.querySelector('em').style.width = (100 * scope.z / (SCOPE_ZOOMS.length - 1)) + '%';
+  const z = scopeZoom(), n = scopeZooms().length, v = $('scope-v');
+  setText(v.querySelector('b'), fmtZoom(z));
+  const wd = (n > 1 ? 100 * scope.z / (n - 1) : 100).toFixed(1) + '%', em = v.querySelector('em').style;
+  if (em.width !== wd) em.width = wd;
 }
 function toggleScope() {
   scope.on = !scope.on;
   if (scope.on && !hover.seen) { hover.x = innerWidth / 2; hover.y = innerHeight / 2; }
   for (const id of ['scope', 'scope-v']) $(id).style.display = scope.on ? 'block' : 'none';
   document.body.classList.toggle('zoom-on', scope.on);   // (no mouse pointer and no centre cross over the target)
-  if (scope.on) { scope.z = SCOPE_ZOOMS.indexOf(SCOPE_START); showZoom(); } else { const l = $('labels').style; l.maskImage = l.maskSize = l.maskPosition = l.maskRepeat = l.maskComposite = ''; }
-  toast(scope.on ? 'Zoom: ' + SCOPE_ZOOMS[scope.z] + '\u00d7 (+ / -: zoom, T: off)' : 'Zoom off');
+  if (scope.on) { scope.z = 2; showZoom(); }   // (7.6×, near the 8× it started with before) else { const l = $('labels').style; l.maskImage = l.maskSize = l.maskPosition = l.maskRepeat = l.maskComposite = ''; }
+  toast(scope.on ? 'Zoom: ' + fmtZoom(scopeZoom()) + ' (+ / -: zoom, T: off)' : 'Zoom off');
 }
 function zoomScope(dz) {
-  scope.z = clamp(scope.z + dz, 0, SCOPE_ZOOMS.length - 1); showZoom();
-  toast('Zoom: ' + SCOPE_ZOOMS[scope.z] + '\u00d7');
+  scope.z = clamp(scope.z + dz, 0, scopeZooms().length - 1); showZoom();
+  toast('Zoom: ' + fmtZoom(scopeZoom()));
 }
 // The constellations and the named stars seen in the zoom screen (user, 2026-10-30): their names, hidden over the zoom
 // screen, are listed in its lower right corner after the celestial bodies: the constellations, then the stars from the
@@ -4853,14 +4995,14 @@ function segInRect(a, b, cx, cy, hw, hh) {
   }
   return true;
 }
-function scopeStars(hw, hh) {
+function scopeStars(hw, hh, hx = hover.x, hy = hover.y) {
   const names = [], o = camera.position;
   for (const c of SKY_CONS) {
     const l = skyPx(c.label);
-    let seen = l && Math.abs(l[0] - hover.x) <= hw && Math.abs(l[1] - hover.y) <= hh;
+    let seen = l && Math.abs(l[0] - hx) <= hw && Math.abs(l[1] - hy) <= hh;
     for (let i = 0; !seen && i < c.segs.length; i += 2) {
       const a = skyPx(SKY_DIRS[c.segs[i]]), b = a && skyPx(SKY_DIRS[c.segs[i + 1]]);
-      seen = !!b && segInRect(a, b, hover.x, hover.y, hw, hh);
+      seen = !!b && segInRect(a, b, hx, hy, hw, hh);
     }
     if (seen) names.push(c.name);
   }
@@ -4868,12 +5010,22 @@ function scopeStars(hw, hh) {
     proj(vSky.copy(l.dir).multiplyScalar(1e7).add(o));
     if (vSky.z <= -1 || vSky.z >= 1) continue;
     const x = (vSky.x * .5 + .5) * innerWidth, y = (-vSky.y * .5 + .5) * innerHeight;
-    if (Math.abs(x - hover.x) > hw || Math.abs(y - hover.y) > hh) continue;
+    if (Math.abs(x - hx) > hw || Math.abs(y - hy) > hh) continue;
     vSky.copy(l.dir).multiplyScalar(1e12).add(o);
     if (BODIES.some(b => b.group.visible && behindSphere(vSky, b.group.position, b.group.scale.x))) continue;
     names.push(l.text);
   }
   return names;
+}
+// can the start of body b's trail (its gap and its plume, PLUME_LEN radii as drawn) be in the field of the zoom screen
+// camera c (w × h px)? (its centre, as c sees it, within that much of the field's edges)
+const vNear = new THREE.Vector3();
+function scopeNear(c, b, w, h) {
+  vNear.copy(b.group.position).project(c);
+  if (vNear.z <= -1 || vNear.z >= 1) return false;
+  const D = camera.position.distanceTo(b.group.position), k = h / 2 / Math.tan(c.fov * DEG / 2) * c.view.fullHeight / c.view.height;
+  const m = (PLUME_LEN + TRAIL_GAP + 2) * b.group.scale.x / Math.max(D, 1e-9) * k;   // (px of the zoom screen)
+  return Math.abs(vNear.x) <= 1 + 2 * m / w && Math.abs(vNear.y) <= 1 + 2 * m / h;
 }
 function renderScope() {
   const W = innerWidth, H = innerHeight, w = Math.round(W * SCOPE_SIZE), h = Math.round(H * SCOPE_SIZE), pr = renderer.getPixelRatio();
@@ -4882,29 +5034,56 @@ function renderScope() {
     scope.w = w * pr; scope.h = h * pr; scope.rt = new THREE.WebGLRenderTarget(scope.w, scope.h, { samples: 4, type: THREE.HalfFloatType });
     scopeQuad.material.uniforms.map.value = scope.rt.texture;
   }
-  // the mouse in the picture as drawn (the canvas is shown mirrored top to bottom with picMirror)
-  const x = hover.x, y = picMirror ? H - hover.y : hover.y, Z = SCOPE_ZOOMS[scope.z], c = scope.cam;
-  c.position.copy(camera.position); c.quaternion.copy(camera.quaternion);
-  c.fov = camera.fov; c.near = camera.near; c.far = camera.far; c.aspect = W / H;
-  c.setViewOffset(W * Z, H * Z, x * Z - w / 2, y * Z - h / 2, w, h); c.updateMatrixWorld();
+  const Z = scopeZoom(), c = scope.cam;
   // its own minimum sizes (and where the trails start from them, see updatePlume), then back
   const pxAngle = camera.fov * DEG / H, farAway = alongSun(C.pos) < AXES_FAR_X;
   const moonLine = orbitLines[orbitLines.length - 1];
-  bodyScales(SCOPE_MIN, pxAngle / Z, farAway, Infinity);
+  // the Sun's minimum: SCOPE_SUN_MIN of the zoom screen's height at the smallest zoom (an angle: larger on the screen as
+  // it zooms in); the planets' and the Moon's in their ratio to it (SCOPE_MIN, as to the Sun's minimum in the picture)
+  const sunMinZ = Math.atan(SCOPE_SUN_MIN * h * Math.tan(pxAngle / SCOPE_ZOOMS[0])), sunS = sunBody.scale.x;
+  bodyScales(SCOPE_MIN * sunMinZ / SUN_MIN_APPARENT_RADIUS, pxAngle / Z, farAway, Infinity);
+  sunBody.scale.setScalar(Math.max(SUN_R * U, camera.position.length() * Math.tan(farAway ? 0 : Math.max(sunMinZ, MIN_DOT_PX / 2 * pxAngle / Z))));
   if (moonLine.l.visible) updateOrbitLine(moonLine, C.pos);
-  scope.names = [...hoverNames(Z), ...scopeStars(w / Z / 2, h / Z / 2)];
-  for (const tr of trails) { updatePlume(tr, camera.position, 0); updateTrail(tr, camera.position); }
+  // the mouse in the picture as drawn (the canvas is shown mirrored top to bottom with picMirror)
+  const tx = hover.x, ty = hover.y, x = tx, y = picMirror ? H - ty : ty;
+  c.position.copy(camera.position); c.quaternion.copy(camera.quaternion);
+  c.fov = camera.fov; c.near = camera.near; c.far = camera.far; c.aspect = W / H;
+  c.setViewOffset(W * Z, H * Z, x * Z - w / 2, y * Z - h / 2, w, h); c.updateMatrixWorld();
+  // (user, 2026-11-06, performance_upgrade: the names in its corner 4 times a second, as the information panel's values)
+  const t = performance.now();
+  if (!(t - scope.namesT < HUD_PERIOD)) { scope.namesT = t; scope.names = [...hoverNames(Z, tx, ty), ...scopeStars(w / Z / 2, h / Z / 2, tx, ty)]; }
+  // the trails (user, 2026-11-06, performance_upgrade: they were all made again for it, the same camera): only those of
+  // the bodies whose start (the gap and the plume, made for the body's size in it) can be in its field are made again;
+  // the others are the screen's
+  for (let i = 0; i < trails.length; i++) {
+    const tr = trails[i], b = i ? PLANETS[i - 1] : SUN;
+    if (scopeNear(c, b, w, h)) { updatePlume(tr, camera.position, 0); updateTrail(tr, camera.position); }
+  }
+  moonSpiral.view(moonSpread, moonSpiral.fadeAt(Z, scope.z >= SPIRAL_ZOOM));   // (the Moon's trail: enlarged as the Moon's disc)
   trailMaterial.resolution.set(w, h);   // (the lines' width in its pixels)
   const mw = milkyWay.material.uniforms.uGain; mw.value = MW_GAIN * MW_SCOPE;
-  sky.userData.trim(pxAngle / Z, 1); skyNames.visible = false;   // (no names in it: listed in its corner)
+  // the stars' sizes (see STAR_SCOPE): the Moon's minimum radius in its pixels (half the planets', see SCOPE_MIN)
+  const moonPx = Math.tan(SCOPE_MIN * sunMinZ / SUN_MIN_APPARENT_RADIUS * MOON_MIN_APPARENT_RADIUS) / Math.tan(pxAngle / Z);
+  const starF = Math.max(1, STAR_SCOPE * moonPx / (.3 * STAR_SIZE_MAX));
+  stars.material.uniforms.uZoom.value = scope.starF = starF;
+  // the gap between a constellation line and its stars growing with the zoom (user, 2026-11-06): SKY_GUARD at the
+  // smallest zoom, as the Sun's minimum grows (see SCOPE_SUN_MIN)
+  scope.gap = SKY_GUARD * Z / SCOPE_ZOOMS[0];
+  sky.userData.trim(pxAngle / Z, 1, starF, scope.gap); skyNames.visible = false;   // (no names in it: listed in its corner)
   renderer.setRenderTarget(scope.rt); renderer.render(scene, c); renderer.setRenderTarget(null);
   trailMaterial.resolution.set(W, H); mw.value = MW_GAIN; sky.userData.trim(pxAngle, 0); skyNames.visible = true;
-  bodyScales(1, pxAngle, farAway);
-  if (moonLine.l.visible) updateOrbitLine(moonLine, C.pos);
-  scopeQuad.material.uniforms.c.value.set(2 * x / W - 1, 1 - 2 * y / H); scopeQuad.material.uniforms.s.value.set(w / W, h / H);
+  stars.material.uniforms.uZoom.value = 1;
+  // (the screen's body sizes back, for what is placed after the pictures; the Moon's orbit line not: the next picture
+  // makes it again, user 2026-11-06, performance_upgrade)
+  bodyScales(1, pxAngle, farAway); sunBody.scale.setScalar(sunS);
+  // its place: centred on the mouse, but with its body within the screen (the canvas is mirrored with picMirror)
+  const B = SCOPE_BODY, cx = clamp(hover.x, w / 2 + B, W - w / 2 - B), cy = clamp(hover.y, h / 2 + B, H - h / 2 - B);
+  scope.cx = cx; scope.cy = cy; showZoom();   // (the levels change with the camera's distance from the Sun)
+  const cyc = picMirror ? H - cy : cy;
+  scopeQuad.material.uniforms.c.value.set(2 * cx / W - 1, 1 - 2 * cyc / H); scopeQuad.material.uniforms.s.value.set(w / W, h / H);
   renderer.autoClear = false; renderer.render(scope.scene, scope.oc); renderer.autoClear = true;
   // the camera's body and its marks, and no names over them
-  const x0 = hover.x - w / 2, y0 = hover.y - h / 2, B = SCOPE_BODY;
+  const x0 = cx - w / 2, y0 = cy - h / 2;
   for (const id of ['scope', 'scope-v']) {
     const e = $(id).style;
     e.width = w + 'px'; e.height = h + 'px'; e.transform = `translate(${x0}px, ${y0}px)`;
@@ -4936,7 +5115,7 @@ function setInflated(b, on) {
   eqPlane.renderOrder = b.mesh.renderOrder;
 }
 // The drawn size of the planets and the Moon: no apparent radius below the minimum (MIN_APPARENT_RADIUS; the Moon half of
-// it), k times (the zoom screen, see SCOPE_MIN); pxAngle: the size of a pixel (radians); spreadMax: see moonSpread
+// it), k times (the zoom screen, see SCOPE_MIN and SCOPE_SUN_MIN); pxAngle: the size of a pixel (radians); spreadMax: see moonSpread
 const MOON_SPREAD = 1.2;
 let moonSpread = 1;
 function bodyScales(k, pxAngle, farAway, spreadMax = 1) {
@@ -4972,6 +5151,7 @@ function bodyScales(k, pxAngle, farAway, spreadMax = 1) {
     }
   }
 }
+let timeTarget = null;   // the bodies' clock to go to in the next frame (Earth years), or null (see frame)
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = clamp((now - last) / 1000, 0, .1); last = now;
@@ -4979,7 +5159,12 @@ function frame(now) {
   // the planets move on their orbits (only while running, see the start / stop button); in body mode the camera travels
   // with the reference body (same offset, same view direction), stopped by the walls of the space; in absolute mode it
   // stays put
-  const st = running ? timeDir * dt * SIM_SPEEDS[simSpeed][0] : 0;   // Earth years (negative: time backward)
+  // (the replay, user 2026-11-06: the bodies where they were at the sample shown, logs with the bodies' clock (yr); a log
+  // recorded while running was seen with the Sun elsewhere; closing it, back to the time before it: timeTarget)
+  const ry = replay.on ? replay.samples[replay.i] && replay.samples[replay.i].yr : timeTarget;
+  const st = typeof ry === 'number' ? ry - trailT : running ? timeDir * dt * SIM_SPEEDS[simSpeed][0] : 0;   // Earth years (negative: time backward)
+  const follow = typeof ry === 'number' && C.mode !== 'body';   // (then the observer moves with the reference body)
+  timeTarget = null;
   const prev = BODIES.map(b => b.p), cam0 = C.pos, P0 = P;   // for the swept check of keepOutside
   for (const o of ORBITS) o.M = wrapPi(o.M + TAU * st / o.period);
   trailT += st; if (st > 0) trailClock += st;   // (the trails' clock stands still while time goes backward)
@@ -4992,7 +5177,11 @@ function frame(now) {
     const p = add(C.pos, dP);
     C.pos = intoBox(p);
     if (C.pos.some((x, i) => x !== p[i])) syncSpherical();
+  } else if (follow && (dP[0] || dP[1] || dP[2])) {
+    C.pos = add(C.pos, dP);
+    if (replay.free) replay.free.pos = add(replay.free.pos, dP);
   }
+  if (replay.on && replay.objs) replay.objs.g.position.copy(T(...P));   // (the logged path goes with the body)
   const pushed = keepOutside(C.pos, cam0, prev);
   if (pushed.some((x, i) => x !== C.pos[i])) { C.pos = pushed; if (C.mode === 'body') syncSpherical(); }
 
@@ -5061,6 +5250,7 @@ function frame(now) {
   { const e = T(...sub(EARTH.p, MOON.p)).normalize().applyQuaternion(MOON.tilt.quaternion.clone().invert()); MOON.mesh.rotation.y = Math.atan2(-e.z, e.x); }
   for (const ol of orbitLines) { ol.l.visible = !farAway && guides; if (ol.l.visible) updateOrbitLine(ol, C.pos); }
   for (const tr of trails) { updatePlume(tr, camera.position, running && timeDir > 0 ? dt : 0); updateTrail(tr, camera.position); }
+  moonSpiral.update(); moonSpiral.view(1, moonSpiral.fadeAt(1, false));   // (the Moon's trail, see moonSpiral)
   // the reference body, when shown larger than real (far away): fully lit and drawn over the axis lines (setInflated)
   // (not in the Moon / Earth locked views: there the reference body keeps its light and shadow, for its phases)
   const inflated = !lockMinAngle(REF) && REF.group.scale.x > R * U * (1 + 1e-9);
@@ -5110,7 +5300,7 @@ function frame(now) {
 
   updatePointer(f, u);
   updateCamVel(dt, st);
-  updateHud();
+  updateHud(now);
   if (camLog.on && !camLog.paused) recordSample(now);
   if (replay.on) updateReplay(dt);
   if (replay.objs) updateCamAxes();
@@ -5124,7 +5314,7 @@ function frame(now) {
 // The reference celestial body (user, 2026-10-28): the body the camera moves around in "celestial body reference system"
 // mode, chosen in the menu (Reference system). setRef makes b the reference: its centre and radius (P, R), its body
 // frame (its rotation axis, LPB), the short axes and the equatorial frame drawn on it, the arrow to it; the moves going on
-// stop. No Sun locked view on the Sun (it goes to the turntable).
+// stop. No Sun locked view on the Sun (it goes to the meridian view).
 function setRef(b) {
   REF = b; P = b.p; R = b.r; LPB = bodyBasis(b.pole);
   BODY_AXES.forEach((ax, i) => { if (i < 3) b.group.add(ax.line); });   // (the others: in eqFrame)
@@ -5133,8 +5323,8 @@ function setRef(b) {
   pointerLabel.textContent = theName(b); pointerLabel.style.color = css;
   pointerEl.querySelector('path').setAttribute('fill', css);
   forgetMoves(); resetMeridian(); motion.v = motion.h = motion.r = null; C.wheel = 0;
-  LP.valid = false; SL.valid = false; C.head = null;
-  if (SUN_LOCK && b === SUN) { SUN_LOCK = false; if (C.roll) C.leveling = true; }
+  LP.valid = false; MV.valid = false; SL.valid = false; C.head = null;
+  if (SUN_LOCK && b === SUN) { SUN_LOCK = false; MERIDIAN_VIEW = true; C.leveling = false; C.levelSpeed = 0; }
   if (LOCK !== SUN && LOCK !== lockOther()) LOCK = SUN;   // (Moon locked only on the Earth, Earth locked only on the Moon)
   syncSpherical();
 }
