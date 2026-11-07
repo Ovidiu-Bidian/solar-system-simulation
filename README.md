@@ -58,9 +58,11 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   The final view is the automatic view plus the manual look: you can look at the sky while
   the camera walks around the body, and the sky then turns on the screen as the automatic view turns. What is seen
   never turns faster than 30 degrees per second.
-- **All the views** are built on these principles: the pole view first, then the meridian and the tilted meridian views,
-  with the same keys for the same jobs in every view (for example W/S tilt the camera's circle in the pole view and in
-  the tilted meridian view); the Sun locked view and absolute space follow them with rules of their own (the Sun locked
+- **All the views** are built on these principles: the pole view first, then the tilted meridian view, with the same
+  keys for the same jobs in every view (for example W/S tilt the camera's circle and E/C walk on it, in the pole view and
+  in the tilted meridian view, and A/D move the camera on its parallel in both); at an M angle of 90 degrees the tilted
+  meridian view is the classic view on latitude and longitude, so a separate meridian view is no longer needed; the
+  Sun locked view and absolute space follow them with rules of their own (the Sun locked
   view keeps the picture always level, north up).
 - **The pole view** has three pans.\
   In the leveled pan the rotation axis stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
@@ -140,7 +142,7 @@ Open the live demo, or download `solar-system-simulation.html` and open it in a 
 an internet connection is needed for the three.js library).
 
 - the menu (upper left) chooses the reference system: absolute space, or a celestial body that the camera follows;
-  each celestial body has several views (tilted meridian, meridian, pole view, Sun locked; on the Earth also Moon
+  each celestial body has several views (tilted meridian, pole view, Sun locked; on the Earth also Moon
   locked, on the Moon Earth locked);
 - the information panel (upper right) shows the data of the celestial body; "Run/Stop" and "-" / "+" set the motion
   and the speed of the simulation; the reference axes button (or the "J" key) chooses which axes of the celestial
