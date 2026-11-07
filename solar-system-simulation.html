@@ -432,7 +432,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_3.0.1 (7 Nov 2026)</p>
+  <p>Current version: solar system simulation v_3.1 (7 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -1276,8 +1276,9 @@ const bodyCentre = () => TILTED_MERIDIAN || MERIDIAN_VIEW;   // the views on the
 // principles"; until then rigid as the meridian view, the picture at any angle to the circle, L locking it to the
 // screen's vertical): the automatic up is the way E walks on the tilted meridian, so the circle always runs up the
 // screen (L removed); W/S tilt the circle around its line of nodes, the camera riding on it, as the pole view's circle
-// C (M from 0° to 90°), at ANGULAR_SPEED; E/C walk on it, A/D across it (on its "equator": around
-// the circle's direction at the camera, D towards the automatic picture's right). At M = 90° it is the meridian view.
+// C (M from 0° to 90°), at ANGULAR_SPEED; E/C walk on it, A/D as the pole view's: the circle turns around the rotation
+// axis, M kept, the camera on its parallel (D towards the automatic picture's right; until 2026-11-07 across the circle,
+// which changed M). At M = 90° it is the meridian view.
 const MV = { valid: false, up: null, cr: 0, entering: false, cf: null, oa: 0, ob: 0, node: null, wSign: 0 };
 // the north at q (unit): the rotation axis seen in the plane across q (z − (z·q)·q), or null at a pole
 const mvNorth = q => { const n = [-q[2] * q[0], -q[2] * q[1], 1 - q[2] * q[2]]; return len(n) > 1e-6 ? unit(n) : null; };
@@ -1327,7 +1328,7 @@ function mvHome() {
   mvView(0);
 }
 // one frame of the keys: walking (vKey: the meridian view's W/S, the tilted meridian view's E/C) on the meridian / the
-// tilted meridian towards / away from the automatic up; A/D on the parallel / across the tilted meridian (D the way
+// tilted meridian towards / away from the automatic up; A/D on the parallel, in both views (D the way
 // that is towards the automatic picture's right when pressed); the tilted meridian's W/S (tKey) turning it; the wheel;
 // then the view
 function stepMeridian(dt, vKey, hKey, tKey) {
@@ -1367,15 +1368,17 @@ function stepMeridian(dt, vKey, hKey, tKey) {
       if (insideBox(p)) { C.pos = p; MV.up = rotate(MV.up, ax, a); syncSpherical(); }
     }
     if (hKey) {
-      // the axis: the rotation axis (the parallel), or the tilted meridian's direction at the camera (its "equator"), kept
-      // while the key is held
+      // the axis: the rotation axis, the camera on its parallel, in both views (the tilted meridian view as the pole view's
+      // A/D, user 2026-11-07: "M angle to be modified only by W/S"; until then around the circle's direction at the
+      // camera, its "equator", which tilted the circle: M changed): the tilted meridian turns around it with the camera,
+      // so its M angle and the camera's place on it are kept, only its line of nodes turns
       if (!motion.h || motion.h.key !== hKey) {
-        const q = unit(rel()), right = cross(q.map(x => -x), MV.up), axis = TILTED_MERIDIAN ? MV.up.slice() : [0, 0, 1];
+        const q = unit(rel()), right = cross(q.map(x => -x), MV.up), axis = [0, 0, 1];
         motion.h = { key: hKey, axis, sign: (Math.sign(dot(cross(axis, q), right)) || 1) * hKey };
       }
       const ax = motion.h.axis, dl = motion.h.sign * ANGULAR_SPEED * dt, p = add(P, rotate(rel(), ax, dl));
       if (insideBox(p)) {
-        if (TILTED_MERIDIAN) merAxis = rotate(tiltedAxis(), ax, dl);   // (the circle moves with the camera)
+        if (TILTED_MERIDIAN && merAxis) merAxis = rotate(tiltedAxis(), ax, dl);   // (the circle turns with the camera; null: the real meridian, still so)
         C.pos = p; MV.up = rotate(MV.up, ax, dl); syncSpherical();
       }
     } else motion.h = null;
@@ -3780,7 +3783,7 @@ const fmtAng = a => noNegZero((wrapAngle(a) / DEG).toFixed(1)) + '°';
 const pad = (s, n) => s.padStart(n);
 const HINTS = {
   body: [['Drag', 'look around (tilt / pan)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'move on the meridian (forward / backward); tilted meridian: tilt it (around its line of nodes, M 0° to 90°, the camera riding on it); pole view: the angle of circle C up / down (−80° to +80°)'],
-    ['A D ← →', 'move on the parallel (left / right); tilted meridian: across it; pole view: on the parallel, circle C turns around z'],
+    ['A D ← →', 'move on the parallel (left / right); tilted meridian and pole view: their circle turns around z with the camera'],
     ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
   absolute: [['Drag', 'look around (tilt ±90°, pan)'], ['W S ↑ ↓', 'move forward / backward (dolly)'], ['Wheel', 'move forward / backward, parallel to the ecliptic'], ['PgUp PgDn', 'move up / down (crane)'],
     ['A D ← →', 'move left / right (truck)'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
