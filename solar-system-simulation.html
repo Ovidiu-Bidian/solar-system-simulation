@@ -432,7 +432,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_3.1 (7 Nov 2026)</p>
+  <p>Current version: solar system simulation v_3.2 (7 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -994,11 +994,12 @@ function setMode(mode) {
 // locked (on the Moon). The Sun locked view needs a level picture: switching to it brings the picture back to level.
 // (The turntable, the CAD programs' turntable orbit, removed 2026-11-06, user: on the new principles it was the meridian
 // view with a level head.)
-const VIEWS = [['tilted', 'Tilted meridian'], ['meridian', 'Meridian'], ['pole', 'Pole view'], ['sun', 'Sun locked'], ['other', '']];
+// (the meridian view removed, user 2026-11-07: it was the tilted meridian view at M = 90°, its W/S walk the E/C walk)
+const VIEWS = [['tilted', 'Tilted meridian'], ['pole', 'Pole view'], ['sun', 'Sun locked'], ['other', '']];
 // the views of body b, in the menu's order
 const viewsFor = b => VIEWS.filter(([k]) => k === 'sun' ? b !== SUN : k === 'other' ? b === EARTH || b === MOON : true)
   .map(([k, name]) => [k, k === 'other' ? (b === EARTH ? MOON : EARTH).name + ' locked' : name]);
-const viewKey = () => TILTED_MERIDIAN ? 'tilted' : MERIDIAN_VIEW ? 'meridian' : LEVELED_PAN ? 'pole' : SUN_LOCK ? (LOCK === SUN ? 'sun' : 'other') : 'meridian';
+const viewKey = () => TILTED_MERIDIAN ? 'tilted' : LEVELED_PAN ? 'pole' : SUN_LOCK ? (LOCK === SUN ? 'sun' : 'other') : 'tilted';
 function selectView(v) {
   if (v === viewKey()) return;
   bodyFramed(() => selectView_(v));
@@ -1007,7 +1008,7 @@ function selectView(v) {
   if (SUN_LOCK && C.mode === 'body' && Math.abs(wrapPi(C.roll)) > 1e-9) { C.leveling = true; C.levelSpeed = 0; }
 }
 function selectView_(v) {
-  TILTED_MERIDIAN = v === 'tilted'; MERIDIAN_VIEW = v === 'meridian'; LEVELED_PAN = v === 'pole';
+  TILTED_MERIDIAN = v === 'tilted'; LEVELED_PAN = v === 'pole';
   SUN_LOCK = v === 'sun' || v === 'other'; LOCK = v === 'other' ? lockOther() : SUN;
   // the Moon locked and the Earth locked views at 1 day per second (user, 2026-10-29: faster, the Moon goes round too
   // fast to follow)
@@ -1016,7 +1017,7 @@ function selectView_(v) {
   if (!bodyCentre()) { if (C.roll) C.leveling = true; else C.head = null; }
   else { C.leveling = false; C.levelSpeed = 0; }   // (the meridian views set their own picture, see MV)
 }
-const moveName = () => TILTED_MERIDIAN ? 'Tilted meridian' : MERIDIAN_VIEW ? 'Meridian' : LEVELED_PAN ? 'Pole view' : SUN_LOCK ? lockName() : 'Meridian';
+const moveName = () => TILTED_MERIDIAN ? 'Tilted meridian' : LEVELED_PAN ? 'Pole view' : SUN_LOCK ? lockName() : 'Tilted meridian';
 // what was chosen in the menu (the information panel's first line): "Neptune - pole view", "Earth - Moon locked", "Absolute space"
 const refTitle = () => C.mode === 'body' ? REF.name + ' - ' + (SUN_LOCK ? lockName() : moveName().toLowerCase()) : 'Absolute space';
 // the pole view's pan, leveled / rotating / polar (the button above the gauge, in turn; user 2026-11-06: the polar pan
@@ -1253,13 +1254,14 @@ function rotate(v, k, a) {
 // Speed: ANGULAR_SPEED along the circle (user, 2026-10-22: no limit on the pan's change, it slowed the move too much near
 // the poles).
 let TILTED_MERIDIAN = false;   // chosen in the menu (see selectView)
+// (REMOVED 2026-11-07, user: "meridian view = tilted meridian with M = 90": the tilted meridian view at its Home, the
+// real meridian, is the same picture and moves, E/C walking where W/S walked; history below kept.)
 // The meridian view (user, 2026-10-24): the classic latitude / longitude one, on the body centre reference as the tilted
 // meridian view (the head's pan axis the camera radius, the mouse the same, nothing levelled): W/S walk the real
 // meridian through the camera (as the tilted meridian view's real meridian, merAxis stays null), A/D the real parallel
 // (around the vertical axis through the body's centre, turning rigidly with the view, picture and head); Q/E and L have
 // no function.
-let MERIDIAN_VIEW = false;
-const bodyCentre = () => TILTED_MERIDIAN || MERIDIAN_VIEW;   // the views on the body centre reference
+const bodyCentre = () => TILTED_MERIDIAN;   // the view on the body centre reference (the meridian view removed 2026-11-07)
 // The meridian view on the pole view's principles (user, 2026-11-06, branch views_upgrade: "up = the way W walks, pan
 // plane as in pole view"; until then the moves were rigid, the picture's up whatever they and the mouse left, and the
 // mouse panned around the camera radius, turning the picture around the body: the body could not be moved sideways).
@@ -1282,10 +1284,9 @@ const bodyCentre = () => TILTED_MERIDIAN || MERIDIAN_VIEW;   // the views on the
 const MV = { valid: false, up: null, cr: 0, entering: false, cf: null, oa: 0, ob: 0, node: null, wSign: 0 };
 // the north at q (unit): the rotation axis seen in the plane across q (z − (z·q)·q), or null at a pole
 const mvNorth = q => { const n = [-q[2] * q[0], -q[2] * q[1], 1 - q[2] * q[2]]; return len(n) > 1e-6 ? unit(n) : null; };
-// the automatic up's line at q, or null where it is not defined well: the meridian view's north (not within 0.8° of a
-// pole), the tilted meridian view's way along the circle (its axis × q; the real meridian's axis z × q, not at a pole)
+// the automatic up's line at q, or null where it is not defined well: the tilted meridian view's way along the circle
+// (its axis × q; the real meridian's axis z × q, not at a pole)
 function mvLine(q) {
-  if (MERIDIAN_VIEW) return Math.abs(q[2]) < .9999 ? mvNorth(q) : null;
   let n = merAxis ? merAxis.map((x, i) => x - dot(merAxis, q) * q[i]) : cross([0, 0, 1], q);
   if (len(n) < 1e-3) return null;
   const t = cross(unit(n), q);
@@ -1327,8 +1328,8 @@ function mvHome() {
   MV.up = mvNorth(q) || [1, 0, 0]; MV.node = null; MV.wSign = 0; MV.oa = MV.ob = MV.cr = 0; MV.entering = false; MV.valid = true;
   mvView(0);
 }
-// one frame of the keys: walking (vKey: the meridian view's W/S, the tilted meridian view's E/C) on the meridian / the
-// tilted meridian towards / away from the automatic up; A/D on the parallel, in both views (D the way
+// one frame of the keys: walking (vKey: the tilted meridian view's E/C) on the tilted meridian towards / away from the
+// automatic up; A/D on the parallel (D the way
 // that is towards the automatic picture's right when pressed); the tilted meridian's W/S (tKey) turning it; the wheel;
 // then the view
 function stepMeridian(dt, vKey, hKey, tKey) {
@@ -2012,9 +2013,9 @@ function updateBody(dt) {
     stepSunLock(dt, C.leveling ? 0 : vKey, C.leveling ? 0 : hKey, w);   // (stepSunLock skips the body's place while levelling)
     return;
   }
-  // the meridian and tilted meridian views (their own moves and view, see MV): the meridian view walks with W/S; the
-  // tilted meridian view with the keys of the pole view, E/C walking on the circle, W/S tilting it
-  if (MERIDIAN_VIEW) { stepMeridian(dt, vKey, hKey, 0); return; }
+  // the tilted meridian view (its own moves and view, see MV), with the keys of the pole view: E/C walking on the circle,
+  // W/S tilting it (the meridian view, which walked with W/S on the real meridian, removed 2026-11-07: it was this view
+  // at M = 90°)
   if (TILTED_MERIDIAN) { stepMeridian(dt, held.has('turnR') !== held.has('turnC') ? (held.has('turnR') ? 1 : -1) : 0, hKey, vKey); return; }
 
   if (LEVELED_PAN) {
@@ -3782,7 +3783,7 @@ const fmtLen = au => au < .01 ? fmtKm(au * AU_KM) + ' km' : au.toFixed(2) + ' AU
 const fmtAng = a => noNegZero((wrapAngle(a) / DEG).toFixed(1)) + '°';
 const pad = (s, n) => s.padStart(n);
 const HINTS = {
-  body: [['Drag', 'look around (tilt / pan)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'move on the meridian (forward / backward); tilted meridian: tilt it (around its line of nodes, M 0° to 90°, the camera riding on it); pole view: the angle of circle C up / down (−80° to +80°)'],
+  body: [['Drag', 'look around (tilt / pan)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'tilted meridian: tilt it (around its line of nodes, M 0° to 90°, the camera riding on it); pole view: the angle of circle C up / down (−80° to +80°); Sun locked: move on the meridian (forward / backward)'],
     ['A D ← →', 'move on the parallel (left / right); tilted meridian and pole view: their circle turns around z with the camera'],
     ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
   absolute: [['Drag', 'look around (tilt ±90°, pan)'], ['W S ↑ ↓', 'move forward / backward (dolly)'], ['Wheel', 'move forward / backward, parallel to the ecliptic'], ['PgUp PgDn', 'move up / down (crane)'],
@@ -5323,7 +5324,7 @@ function frame(now) {
 // The reference celestial body (user, 2026-10-28): the body the camera moves around in "celestial body reference system"
 // mode, chosen in the menu (Reference system). setRef makes b the reference: its centre and radius (P, R), its body
 // frame (its rotation axis, LPB), the short axes and the equatorial frame drawn on it, the arrow to it; the moves going on
-// stop. No Sun locked view on the Sun (it goes to the meridian view).
+// stop. No Sun locked view on the Sun (it goes to the tilted meridian view, on the real meridian: M 90°).
 function setRef(b) {
   REF = b; P = b.p; R = b.r; LPB = bodyBasis(b.pole);
   BODY_AXES.forEach((ax, i) => { if (i < 3) b.group.add(ax.line); });   // (the others: in eqFrame)
@@ -5333,7 +5334,7 @@ function setRef(b) {
   pointerEl.querySelector('path').setAttribute('fill', css);
   forgetMoves(); resetMeridian(); motion.v = motion.h = motion.r = null; C.wheel = 0;
   LP.valid = false; MV.valid = false; SL.valid = false; C.head = null;
-  if (SUN_LOCK && b === SUN) { SUN_LOCK = false; MERIDIAN_VIEW = true; C.leveling = false; C.levelSpeed = 0; }
+  if (SUN_LOCK && b === SUN) { SUN_LOCK = false; TILTED_MERIDIAN = true; C.leveling = false; C.levelSpeed = 0; }   // (M 90°: merAxis null)
   if (LOCK !== SUN && LOCK !== lockOther()) LOCK = SUN;   // (Moon locked only on the Earth, Earth locked only on the Moon)
   syncSpherical();
 }
