@@ -432,7 +432,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_3.0 (6 Nov 2026)</p>
+  <p>Current version: solar system simulation v_3.0.1 (7 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -2525,6 +2525,11 @@ eclipse(EARTH, MOON); eclipse(MOON, EARTH, [.32, .11, .035]);
 // plane, from the Solar System Scope ring map (its colour and transparency from the inner edge to the outer one; the map
 // spans 69 950 to 141 040 km: there its Cassini division starts at 117 580 km and the A ring ends at 136 775 km). They
 // turn with the planet's axis, not with its spin; drawn larger with it far away (the minimum apparent radius).
+// Trails and orbit lines behind / in front of them (user, 2026-11-07: the trails behind the rings flickered, shown or
+// hidden by the camera's place: both are see-through, and three.js chose which is drawn first by their centres only):
+// the trails, the Moon's spiral and the orbit lines keep their depth, and the rings are drawn after them (renderOrder 1),
+// so per pixel a line behind the rings is covered by them as much as they are opaque (the B ring hides it, the Cassini
+// division shows it) and a line in front of them stays whole.
 const SATURN_RINGS = { inner: 69950, outer: 141040 };
 {
   const sat = PLANETS.find(pl => pl.name === 'Saturn'), r0 = SATURN_RINGS.inner / sat.km, r1 = SATURN_RINGS.outer / sat.km;
@@ -2534,6 +2539,7 @@ const SATURN_RINGS = { inner: 69950, outer: 141040 };
   const map = new THREE.Texture(await loadImage('tex-saturn-ring'));
   map.colorSpace = THREE.SRGBColorSpace; map.needsUpdate = true;
   sat.rings = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map, transparent: true, side: THREE.DoubleSide, depthWrite: false, roughness: 1, metalness: 0 }));
+  sat.rings.renderOrder = 1;
   sat.tilt.add(sat.rings);
 }
 
@@ -2548,7 +2554,7 @@ const ORBIT_SAMPLES = 720;
 // o: { at(s): the point for the parameter s (0 … 2π, around the orbit), points(): the ORBIT_SAMPLES points at
 // s = 2π·i / ORBIT_SAMPLES, size: its scale (AU) }
 function orbitLine(o, color) {
-  const l = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color, transparent: true, opacity: .45, depthWrite: false }));
+  const l = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color, transparent: true, opacity: .45, depthWrite: true }));   // depth: see SATURN_RINGS
   l.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array((ORBIT_SAMPLES + 200) * 3), 3).setUsage(THREE.DynamicDrawUsage));
   l.frustumCulled = false; scene.add(l);
   return { o, l };
@@ -2617,7 +2623,7 @@ function updateOrbitLine({ o, l }, cam) {
 // strips). A point needs about 166 years to reach the -x wall (one Neptune period at 230 km/s), so Earth's trail holds
 // about 30 000 points: the loop below allocates nothing.
 const TRAIL_POINTS = 32000, TRAIL_WIDTH = 2, TRAIL_KEEP = 30000;   // TRAIL_KEEP: the points a trail keeps at most
-const trailMaterial = new LineMaterial({ color: 0xffd84a, linewidth: TRAIL_WIDTH, transparent: true, opacity: .85, depthWrite: false });
+const trailMaterial = new LineMaterial({ color: 0xffd84a, linewidth: TRAIL_WIDTH, transparent: true, opacity: .85, depthWrite: true });   // depth: see SATURN_RINGS
 // trailClock (user, 2026-10-29): the trails' own clock; it goes on only while time goes forward, so that backward the
 // trails stand still (no drift, no new points, none cut). A trail point is [x, y, z, t, c]: the body's place at the
 // simulation time t, made at c on the trails' clock; forward both go on together, and two points belong to one piece
@@ -2713,7 +2719,7 @@ function nearLine() {
   const g = new LineSegmentsGeometry();
   g.setPositions(new Float32Array(128 * 6)); g.setColors(new Float32Array(128 * 6));
   const m = new LineMaterial({ color: 0xffffff, linewidth: TRAIL_WIDTH, vertexColors: true, transparent: true,
-    blending: THREE.AdditiveBlending, depthWrite: false });
+    blending: THREE.AdditiveBlending, depthWrite: true });   // depth: see SATURN_RINGS
   m.uniforms.resolution.value = trailMaterial.resolution;   // the same screen size, kept up to date by resize
   const l = new LineSegments2(g, m);
   l.frustumCulled = false; l.visible = false; scene.add(l);
@@ -2878,7 +2884,7 @@ const moonSpiral = (() => {
   // it open beside the trail in the zoom screen, where the spiral is long enough for the trail to bend)
   const AX = 64, axPts = Array.from({ length: AX + 1 }, () => new THREE.Vector3());
   const u = { uAx: { value: axPts }, uNow: { value: 0 }, uSpan: { value: span }, uSpread: { value: 1 } };
-  const m = new LineMaterial({ color: 0xffd84a, linewidth: TRAIL_WIDTH, transparent: true, opacity: trailMaterial.opacity, depthWrite: false });
+  const m = new LineMaterial({ color: 0xffd84a, linewidth: TRAIL_WIDTH, transparent: true, opacity: trailMaterial.opacity, depthWrite: true });   // depth: see SATURN_RINGS
   m.uniforms.resolution.value = trailMaterial.resolution;   // the same screen size, kept up to date by resize
   // a point: the Earth's place, then back along the trail by its age, then its offset from the Earth, enlarged and
   // shrunk by its age; a segment not wholly within the spiral's time (from now back to its end) is not drawn
