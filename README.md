@@ -67,7 +67,9 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
 - **The pole view** has three pans.\
   In the leveled pan the rotation axis stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
   the equator (the picture turns by 180 degrees only when the camera clearly passes to the other side: a band of
-  ±10 degrees).\
+  ±10 degrees). On the Earth, closer than 30 Earth radii, the information panel shows the right ascension and
+  declination (J2000) of the view direction instead of its pan and tilt, as a telescope on the Earth gives them: point
+  the view at a star and read its catalogue coordinates.\
   In the rotating pan the picture turns evenly as the camera walks around the body, one turn per lap.\
   In the polar pan the rotation axis swings between the poles: the pole near the camera is at the top while the camera
   goes round it, and the moves are the same at both poles.
