@@ -432,7 +432,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_3.3 (8 Nov 2026)</p>
+  <p>Current version: solar system simulation v_3.3.1 (8 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -3335,9 +3335,12 @@ const SKY_FONT = { star: ['11px system-ui, sans-serif', 'rgba(214, 222, 240, .78
 const SKY_PAD = 4;   // px around the text, for its shadow
 const skyNames = new THREE.Group(); scene.add(skyNames);
 // the sprite of a name; l.w, l.h: the text's box (px, line height 1, as the former labels)
-function skySprite(l) {
+// (user, 2026-11-08: letters missing in some names, e.g. "etelg_use", "Rig l": drawn while the page loads, the browser
+// had not yet all of the font ready, and they were never drawn again; skyText draws a name's text into its canvas,
+// at the start and again when the page has settled, see SKY_REDRAW)
+function skyText(l, cv) {
   const [font, colour, spacing] = SKY_FONT[l.star ? 'star' : 'con'], pr = renderer.getPixelRatio();
-  const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+  const ctx = cv.getContext('2d');
   const setup = () => { ctx.font = font; ctx.letterSpacing = spacing; };
   setup();
   const m = ctx.measureText(l.text), size = parseFloat(font.match(/(\d+)px/)[1]);
@@ -3350,6 +3353,10 @@ function skySprite(l) {
   ctx.fillStyle = '#000'; ctx.shadowColor = '#000'; ctx.shadowOffsetX = far * pr;
   for (const b of [3, 2]) { ctx.shadowBlur = b * pr; ctx.fillText(l.text, SKY_PAD - far, y); }
   ctx.shadowColor = 'transparent'; ctx.fillStyle = colour; ctx.fillText(l.text, SKY_PAD, y);
+}
+function skySprite(l) {
+  const cv = document.createElement('canvas');
+  skyText(l, cv);
   const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter;
   // not transparent (three.js would draw it after the celestial bodies, over them, see the constellation lines), but
   // blended over the sky
@@ -3370,6 +3377,19 @@ const SKY_LABELS = [
   ...Object.keys(STAR_NAMES).map(Number).sort((a, b) => STARS[a][2] - STARS[b][2])
     .map(i => ({ text: STAR_NAMES[i], dir: SKY_DIRS[i], si: i, star: true })),
 ].map(l => { l.s = skySprite(l); return l; });
+// the names drawn again once the page has settled (the fonts complete), 1 and 3 seconds after the start, and their
+// places chosen again (a name's size may have changed with it, see skyLayout)
+const SKY_REDRAW = [1000, 3000];
+function skyRedraw() {
+  for (const l of SKY_LABELS) {
+    const t = l.s.material.map, cv = t.image, w = cv.width, h = cv.height;
+    skyText(l, cv);
+    if (cv.width !== w || cv.height !== h) t.dispose();   // (a new size: the texture made again)
+    t.needsUpdate = true;
+  }
+  skyLayoutH = 0;
+}
+for (const ms of SKY_REDRAW) setTimeout(skyRedraw, ms);
 const SKY_ORDER = [...SKY_LABELS.filter(l => l.star), ...SKY_LABELS.filter(l => !l.star)];
 const vSky = new THREE.Vector3(), SKY_GAP = 3;   // px kept free around a name
 // the places tried for a name: around its star (right, left, the four diagonals, above, below; then a little farther),
