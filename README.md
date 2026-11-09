@@ -29,8 +29,8 @@ What is real in the simulation (as known today):
 
 What is not real (visual aids) is listed in the program, in Help → About: for example the minimum apparent size of
 the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds), the
-background stars, placed at random, and the Moon's trail, drawn as a compressed spiral around the Earth's trail (its
-real path, one loop about 3.6 AU long and only 0.0026 AU wide, would be just a line beside it).
+background stars, placed at random, and the Moon's trail, drawn as a part of a compressed spiral around the Earth's
+trail: an eighth of a loop, from the Moon to the Earth's trail 100 Earth-Moon distances behind it (its real path, one loop about 3.6 AU long and only 0.0026 AU wide, would be just a line beside it).
 
 ## The ideas behind the simulation
 
@@ -150,8 +150,11 @@ an internet connection is needed for the three.js library).
   and the speed of the simulation; the reference axes button (or the "J" key) chooses which axes of the celestial
   body are drawn: both, none, the equatorial ones or the ecliptic ones;
 - the "T" key opens the zoom screen, a telescope that follows the mouse: 4× to 20× ("+" / "-"), with the stars and the
-  celestial bodies magnified (from far away the Sun up to 80% of its height) and, from 7.6×, the Moon's spiral around
-  the Earth's trail;
+  celestial bodies magnified (from far away the Sun up to 80% of its height), the names along the axes and, from 7.6×,
+  the Moon's spiral around the Earth's trail; while it is on, the mouse stays in the picture (Esc frees it), and with
+  Shift held the telescope moves 10 times slower, for fine aiming;
+- Shift + drag turns the view 10 times slower too, to put a star exactly at the center (on the Earth, near it, the
+  information panel then shows its right ascension and declination);
 - Help → Controls lists the keys and the mouse controls of the current camera mode.
 
 ## Requirements
