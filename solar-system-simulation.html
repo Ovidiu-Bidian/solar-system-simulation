@@ -74,6 +74,8 @@
     background: rgba(3, 5, 11, .55); white-space: nowrap; will-change: transform; }
   /* names written in the short body axes, in a gap of the line, turned with it */
   .axl.along { font-size: 12px; padding: 0; background: none; text-shadow: 0 0 3px #000, 0 0 2px #000; transform-origin: 0 0; }
+  /* the celestial body's axis names: measured and placed as page text, drawn on a canvas (see drawAxisNames) */
+  .axl.along.cv { visibility: hidden; will-change: auto; }
 
   /* REQ-02.1: little cross in the middle of the screen, absolute space mode only */
   /* four 8 px segments around a 6 px empty gap in the centre */
@@ -84,6 +86,9 @@
     filter: drop-shadow(0 0 1px rgba(0, 0, 0, .95)); }
   body.absolute #cross { display: block; }
   body.absolute.zoom-on #cross { display: none; }   /* nor over the zoom screen's target (user, 2026-10-30) */
+  /* and while the information panel shows RA / Dec (user, 2026-11-09: where the view direction is) */
+  body.radec #cross { display: block; }
+  body.radec.zoom-on #cross { display: none; }
 
   /* REQ-01.1: arrow at the screen edge pointing to Pluto when no part of it is on screen (also when it is behind the camera) */
   #pointer { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; display: none; will-change: transform; z-index: 5; }
@@ -432,7 +437,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_3.3.1 (8 Nov 2026)</p>
+  <p>Current version: solar system simulation v_3.4 (9 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -469,6 +474,12 @@
       Maps 2020, NASA Goddard Space Flight Center, Scientific Visualization Studio, from the Hipparcos, Tycho and Gaia
       catalogues), in its real place on the sky: brightest towards Sagittarius (the center of the galaxy), with its dark
       dust lanes; it is dimmed, so that the constellations remain easy to read.</li>
+    <li>the right ascension and declination shown near the Earth (in the leveled pan of the pole view): the direction of
+      the view in the J2000 equatorial frame, so the stars show their catalogue coordinates (the shift of a star's
+      direction from a few Earth radii away is far below what any instrument can measure); for the Sun, the Moon and the
+      planets it is their direction as seen from the camera (topocentric), not the geocentric values of the almanacs
+      (from the center of the Earth): for the Moon they differ by up to about 1 degree at the Earth's surface and up to
+      about 30 degrees at 30 Earth radii.</li>
   </ul>
   <h3>What is not real in this simulation:</h3>
   <ul>
@@ -486,8 +497,8 @@
     <li>the dark side of the celestial bodies: lit a little, as the Earth's night side by a full Moon, so that its surface can
       be seen;</li>
     <li>the Moon's trail: its real path is a spiral around the Earth's trail so stretched (one loop about 3.6 AU long and
-      0.0026 AU wide) that it would be only a line beside it; it is drawn as a compressed spiral, 2 Earth-Moon distances per
-      loop, shrinking to the Earth's trail over 10 loops, seen near the Earth and through the zoom screen (its directions
+      0.0026 AU wide) that it would be only a line beside it; it is drawn as an eighth of a loop of a compressed spiral, from the
+      Moon shrinking to the Earth's trail 100 Earth-Moon distances behind it, seen near the Earth and through the zoom screen (its directions
       around the Earth stay real);</li>
     <li>in the Moon locked view the Moon is drawn as large as the Earth, and in the Earth locked view the Earth as small as
       the Moon, so that the Moon's phases and the Moon's face turned to the Earth can be seen (their places, paths, light
@@ -797,7 +808,10 @@ const MOON_MIN_APPARENT_RADIUS = .5 * MIN_APPARENT_RADIUS;                      
 const minApparent = b => b === SUN ? SUN_MIN_APPARENT_RADIUS : b === MOON ? MOON_MIN_APPARENT_RADIUS : MIN_APPARENT_RADIUS;
 const MIN_DOT_PX = 4;                        // dot diameter floor, ~3 fully coloured px (closer than 400 AU; back in the spec, user 2026-10-29) [REQ-02.2]
 const ANGULAR_SPEED = 30 * DEG;              // meridian / parallel moves, per second [REQ-02]
-const MOUSE_SENS = .05 * DEG;                // per pixel of mouse movement [REQ-02] (on request: 0.12 → 0.09 → 0.081 → 0.05)
+const MOUSE_SENS_N = .05 * DEG;              // per pixel of mouse movement [REQ-02] (on request: 0.12 → 0.09 → 0.081 → 0.05)
+// with Shift held 10 times finer (user, 2026-11-09: to put a star exactly at the view direction and read its RA / Dec;
+// one step of 3′ was the reading's whole difference): set at every mouse move (see the mousemove listener)
+let MOUSE_SENS = MOUSE_SENS_N;
 const WHEEL_NOTCH = .3;                      // one wheel notch = 0.3 s of travel at the current speed (not specified)
 // camera at 8R, 60° above the body's ecliptic plane, looking at the centre with pan -135°: x = y = +2.83R, z = +6.93R
 // [REQ-02.2] (user, 2026-10-21; it was 4R on the Sun's side)
@@ -1123,6 +1137,7 @@ function headMouse(mx, my) {
 }
 addEventListener('mousemove', e => {
   if (!dragging) return;
+  MOUSE_SENS = e.shiftKey ? MOUSE_SENS_N / 10 : MOUSE_SENS_N;   // (Shift: fine, 0.005° per pixel)
   if (camCtrl()) { replayMouse(e.movementX, e.movementY); return; }
   if (lpFlipping()) return;   // (the leveled pan turning to its other pole: nothing is controlled)
   if (e.movementX || e.movementY) { forgetMoves(); LP.entering = false; }
@@ -1850,9 +1865,27 @@ const lpHeadNow = () => !LP.cf ? null : LP_ROTATING ? lpLookHead(LP.cf, LP.oa, L
 // the mouse in the rotating pan (as seen on the screen; the image follows it, as mouseTurn): right turns the look to the
 // left, forward (my < 0) down; up / down within ±90° (no picture upside down)
 function lpLook(mx, my) {
-  const H = Math.PI / 2 - 1e-6;
+  // (the leveled pan: up / down until the picture would turn upside down in the level head, see lpGuard; the rotating
+  // pan: within ±90° of the automatic view)
+  const H = LP_ROTATING ? Math.PI / 2 - 1e-6 : Math.PI - 1e-6;
   LP.oa = wrapPi(LP.oa + mx * MOUSE_SENS); LP.ob = clamp(LP.ob + my * MOUSE_SENS, -H, H);
+  lpGuard(LP.cf);
   const [f, u] = lpLookDir(LP.cf, LP.oa, LP.ob); setView(f, u);
+}
+// The leveled pan's limit of the look (user, 2026-11-08: the look stopped 90° from the automatic view, at Dec +51° 52′
+// from the Earth's 10 R, "the tilt guard should stop at decl 90°"): the look is the same as in the other views (the
+// image grabbed, relative to the automatic view), only its up / down limit is the level head's: it goes on until the
+// picture would turn upside down in the head (its up below the equator's plane; straight up / down from the automatic
+// view: at the pole, Dec ±90° on the Earth), not 90° from the automatic view. Kept also when the moves change the
+// automatic view (lpCentred). (A try the same day, the mouse turning the level head's pan and tilt as in the Sun locked
+// view, turned the image at the pole instead of moving it: user, log 2026-11-08-212527; dropped.)
+function lpGuard(F) {
+  if (LP_ROTATING || !F) return;
+  const z = LP.south ? -1 : 1, upZ = b => z * lpLookDir(F, LP.oa, b)[1][2];
+  if (upZ(LP.ob) >= 0) return;
+  let lo = 0, hi = 1;   // (the part of LP.ob kept: at 0 the automatic picture, level)
+  for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (upZ(LP.ob * m) >= 0) lo = m; else hi = m; }
+  LP.ob *= lo;
 }
 function lpCentred(pT, tT, lim) {
   const p = pT !== null ? pT : LP.panA, rT = lpTurnNow();
@@ -1879,7 +1912,9 @@ function lpCentred(pT, tT, lim) {
     LP.cr = wrapPi(LP.cr + clamp(wrapPi(rT - LP.cr), -lim, lim));
     if (Math.abs(wrapPi(rT - LP.cr)) < 1e-9) LP.entering = false;
   } else LP.cr = rT;
-  const F = lpCentredFrame(p, tT, LP.cr), [f, u] = lpLookDir(F, LP.oa, LP.ob);
+  const F = lpCentredFrame(p, tT, LP.cr);
+  if (!LP.entering) lpGuard(F);   // (the moves change the automatic view: the look kept within the limit)
+  const [f, u] = lpLookDir(F, LP.oa, LP.ob);
   setView(f, u);
   LP.cf = F; LP.panA = p; LP.tiltA = tT;
 }
@@ -2877,7 +2912,10 @@ const trails = [trail(null, SUN_R, () => sunBody.scale.x), ...PLANETS.map(pl => 
 // straight line, so the graphics card makes it (user: "send only the Moon's coordinates"): each point, the Moon's offset
 // from the Earth at a moment of a time grid (MOON_MONTH / 180), is computed once and sent with its time; per picture only
 // the Earth's place, the trail's direction, the time, the enlargement and the fade are sent (see moonSpiral.view).
-const SPIRAL_TURNS = 10, SPIRAL_PITCH = 2, SPIRAL_NEAR = 20, SPIRAL_FULL = 10, SPIRAL_ZOOM = 2;
+// (SPIRAL_TURNS: 10 until 2026-11-09; user: "too dense and too far from reality": an eighth of a turn, ending SPIRAL_LENGTH = 100 Earth-Moon distances
+// behind the Moon (a long part of the spiral, closer to reality), so its pitch is SPIRAL_LENGTH / SPIRAL_TURNS = 800
+// Earth-Moon distances per turn; was 10 turns of 2)
+const SPIRAL_TURNS = 1 / 8, SPIRAL_LENGTH = 100, SPIRAL_PITCH = SPIRAL_LENGTH / SPIRAL_TURNS, SPIRAL_NEAR = 20, SPIRAL_FULL = 10, SPIRAL_ZOOM = 2;
 const moonSpiral = (() => {
   const h = MOON_MONTH / 180, span = SPIRAL_TURNS * MOON_MONTH, R = Math.ceil(span / h) + 2, N = R + 1;   // (slot R: from the last grid point to the Moon now)
   const g = new LineSegmentsGeometry(); g.setPositions(new Float32Array(N * 6));
@@ -3310,6 +3348,66 @@ const milkyWay = await (async () => {
 
 // axis-end labels
 const labelsEl = $('labels');
+// The names written along the celestial body's axes (user, 2026-11-08: in Chrome the turned page text was drawn only in
+// part or not at all, the more turned the less, e.g. nothing on the Earth's vertical z axis; Edge drew it): drawn on a
+// canvas over the picture, whole every frame; as page text they are only measured and placed (updateBodyAxis), hidden
+// (.axl.along.cv). Same font, colour and black shadow.
+const axCv = document.createElement('canvas');
+axCv.style.cssText = 'position: absolute; left: 0; top: 0; pointer-events: none;';
+labelsEl.appendChild(axCv);
+const AX_FONT = '600 12px ui-monospace, Menlo, Consolas, monospace';
+// a names canvas cleared, as large as the window (in device pixels), its drawing in CSS pixels
+function axCanvas(cv) {
+  const pr = devicePixelRatio || 1, W = Math.round(innerWidth * pr), H = Math.round(innerHeight * pr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; cv.style.width = innerWidth + 'px'; cv.style.height = innerHeight + 'px'; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, W, H);
+  ctx.setTransform(pr, 0, 0, pr, 0, 0); ctx.font = AX_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  return ctx;
+}
+// one name centred at (x, y), turned by a: the shadow (as the page text's 0 0 3px and 0 0 2px black), then the text
+function axName(ctx, text, color, x, y, a) {
+  const pr = devicePixelRatio || 1;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(a);
+  ctx.fillStyle = '#000'; ctx.shadowColor = '#000';
+  for (const b of [3, 2]) { ctx.shadowBlur = b * pr; ctx.fillText(text, 0, 0); }
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.fillStyle = color; ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+function drawAxisNames() {
+  const ctx = axCanvas(axCv);
+  for (const ax of BODY_AXES) for (const h of [...ax.halves, ...(ax.ext ? ax.ext.halves : []), ...(ax.pre ? ax.pre.halves : [])])
+    if (h.el.style.display !== 'none' && h.mx !== undefined) axName(ctx, h.text, h.color, h.mx, h.my, h.a);
+  if (!scope.on) axCanvas(axCvZ);   // (the zoom screen's names gone with it)
+}
+// The zoom screen's axis names (user, 2026-11-09: "put the axis names in the zoom screen"; the other names over the
+// picture are still not shown there, its bodies are listed in its corner): the gaps and names worked out again for the
+// zoom's camera (updateBodyAxis with its view: the magnified axes, the body's drawn size in it), the line's gaps set for
+// it while it is drawn and then put back for the screen; the names drawn over it on their own canvas (axCvZ, above
+// the zoom screen's body), within its picture.
+const axCvZ = document.createElement('canvas');
+axCvZ.style.cssText = 'position: fixed; left: 0; top: 0; pointer-events: none; z-index: 4;';
+document.body.appendChild(axCvZ);
+function axesZoom(on, c, w, h, full, rpx) {
+  for (const ax of BODY_AXES) {
+    const pos = ax.line.geometry.attributes.position, hs = [...ax.halves, ...(ax.ext ? ax.ext.halves : []), ...(ax.pre ? ax.pre.halves : [])];
+    if (on) {
+      for (const h of hs) h.zshow = false;
+      if (!ax.line.visible) continue;
+      ax.kept = Float32Array.from(pos.array);
+      updateBodyAxis(ax, REF.group.position, REF.group.scale.x, rpx, { cam: c, w, h, full });
+    } else if (ax.kept) { pos.array.set(ax.kept); pos.needsUpdate = true; ax.kept = null; }
+  }
+}
+// the zoom screen's names, (x0, y0) its picture's corner on the screen
+function drawZoomNames(x0, y0, w, h) {
+  const ctx = axCanvas(axCvZ);
+  if (!scope.on) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, w, h); ctx.clip();
+  for (const ax of BODY_AXES) for (const h2 of [...ax.halves, ...(ax.ext ? ax.ext.halves : []), ...(ax.pre ? ax.pre.halves : [])])
+    if (h2.zshow) axName(ctx, h2.text, h2.color, x0 + h2.zx, y0 + h2.zy, h2.za);
+  ctx.restore();
+}
 // where an axis through the Sun leaves the space (the cylinder): along the unit u, at r / sqrt(1 − (u·SUN_DIR)²)
 const axisEnd = (u, sign) => { const c = u[0] * SUN_DIR[0] + u[1] * SUN_DIR[1] + u[2] * SUN_DIR[2], t = sign * SPACE.r / Math.sqrt(1 - c * c); return u.map(v => v * t); };
 const AXIS_LABELS = [
@@ -3562,9 +3660,9 @@ function bodyAxis(parent, dir, len, color, css, names, arrow, ext, pre) {
   }
   const named = (names, len, c = css) => {
     const halves = [1, -1].map((sign, i) => {
-      const el = document.createElement('div'); el.className = 'axl along'; el.textContent = names[i]; el.style.color = c;
+      const el = document.createElement('div'); el.className = 'axl along cv'; el.textContent = names[i]; el.style.color = c;
       labelsEl.appendChild(el); el.style.display = ''; const w = el.offsetWidth; el.style.display = 'none';
-      return { el, sign, w, blank: w / names[i].length, ta: len, tb: len };   // monospace: one character's width
+      return { el, sign, w, blank: w / names[i].length, ta: len, tb: len, text: names[i], color: c };   // monospace: one character's width
     });
     // radius on screen (px) from which both names fit, with room to spare (see updateBodyAxis)
     return { halves, need: Math.max(...halves.map(h => (h.w + 2 * h.blank + 20) / (len - 1))) * 1.2 };
@@ -3596,28 +3694,45 @@ const proj = v => { v.project(camera); if (picMirror) v.y = -v.y; return v; };
 const nA = new THREE.Vector3(), nB = new THREE.Vector3(), nM = new THREE.Vector3(), nC = new THREE.Vector3(), nT = new THREE.Vector3();
 // Point of the axis (between t0 and t1) that is dist px away from the point (mx, my) on the screen, found by halving
 // the interval; perspective makes the screen distance grow unevenly along the axis.
-function gapEnd(ax, sign, t0, t1, dist, mx, my) {
+function gapEnd(ax, sign, t0, t1, dist, mx, my, pj = proj, VW = innerWidth, VH = innerHeight) {
   let lo = t0, hi = t1;
   for (let i = 0; i < 24; i++) {
     const t = (lo + hi) / 2;
-    nT.copy(ax.dir).multiplyScalar(sign * t); ax.line.parent.localToWorld(nT); proj(nT);
-    const d = Math.hypot((nT.x * .5 + .5) * innerWidth - mx, (-nT.y * .5 + .5) * innerHeight - my);
+    nT.copy(ax.dir).multiplyScalar(sign * t); ax.line.parent.localToWorld(nT); pj(nT);
+    const d = Math.hypot((nT.x * .5 + .5) * VW - mx, (-nT.y * .5 + .5) * VH - my);
     if (d < dist) lo = t; else hi = t;
   }
   return (lo + hi) / 2;
 }
 // rpx: the body's radius on screen (px), for the groups of names (see groupNames)
-function updateBodyAxis(ax, centre, radius, rpx) {
+function updateBodyAxis(ax, centre, radius, rpx, V = null) {
+  // V: the zoom screen's view (user, 2026-11-09: the axis names in it too): its camera, size (px) and full height (the
+  // picture's height times the zoom: the scale of a pixel); its names kept apart (h.zshow, h.zx …), the page text untouched
+  const cam = V ? V.cam : camera, VW = V ? V.w : innerWidth, VH = V ? V.h : innerHeight, FH = V ? V.full : innerHeight;
+  const pj = v => { v.project(cam); if (picMirror) v.y = -v.y; return v; };
   const obj = ax.line.parent, pos = ax.line.geometry.attributes.position;
   // the body's outline on screen: centre and radius in px
-  proj(nC.copy(centre));
-  const cx = (nC.x * .5 + .5) * innerWidth, cy = (-nC.y * .5 + .5) * innerHeight;
-  const cr = Math.tan(Math.asin(Math.min(1, radius / camera.position.distanceTo(centre)))) / Math.tan(camera.fov * DEG / 2) * innerHeight / 2;
-  const sx = p => (p.x * .5 + .5) * innerWidth, sy = p => (-p.y * .5 + .5) * innerHeight;
-  const at = (v, t, sign) => { v.copy(ax.dir).multiplyScalar(sign * t); obj.localToWorld(v); return proj(v); };
+  pj(nC.copy(centre));
+  const cx = (nC.x * .5 + .5) * VW, cy = (-nC.y * .5 + .5) * VH;
+  const cr = Math.tan(Math.asin(Math.min(1, radius / cam.position.distanceTo(centre)))) / Math.tan(cam.fov * DEG / 2) * FH / 2;
+  const sx = p => (p.x * .5 + .5) * VW, sy = p => (-p.y * .5 + .5) * VH;
+  const at = (v, t, sign) => { v.copy(ax.dir).multiplyScalar(sign * t); obj.localToWorld(v); return pj(v); };
+  // the part [t0, t1] of the axis inside the view's picture (null: none): sampled, its ends found by halving
+  const inPic = (t, sign) => { at(nT, t, sign); const x = sx(nT), y = sy(nT); return Math.abs(nT.z) < 1 && x >= 0 && x <= VW && y >= 0 && y <= VH; };
+  const visPart = (sign, t0, t1) => {
+    const N = 64; let a = -1, b = -1;
+    for (let k = 0; k <= N; k++) if (inPic(t0 + (t1 - t0) * k / N, sign)) { if (a < 0) a = k; b = k; }
+    if (a < 0) return null;
+    const edge = (tin, tout) => { for (let i = 0; i < 20; i++) { const m = (tin + tout) / 2; if (inPic(m, sign)) tin = m; else tout = m; } return tin; };
+    const ta = a > 0 ? edge(t0 + (t1 - t0) * a / N, t0 + (t1 - t0) * (a - 1) / N) : t0;
+    const tb = b < N ? edge(t0 + (t1 - t0) * b / N, t0 + (t1 - t0) * (b + 1) / N) : t1;
+    return tb > ta ? [ta, tb] : null;
+  };
   // the name of half h on the part of the axis from t0 to t1 (radii): innerOf(free) px of line before its gap, measured
   // on the screen (free: the part's length less the gap); sets the gap (h.ta, h.tb: t1 when the name is not shown)
   const place = (h, t0, t1, innerOf, named) => {
+    // (the zoom screen: only the part of the axis inside its picture, so that the name is placed where it is seen)
+    if (V) { const vt = visPart(h.sign, t0, t1); if (!vt) { h.zshow = false; h.ta = h.tb = t1; h.D = 0; return; } [t0, t1] = vt; }
     at(nA, t0, h.sign); at(nB, t1, h.sign);
     const ex = sx(nA), ey = sy(nA), bx = sx(nB), by = sy(nB), D = Math.hypot(bx - ex, by - ey);
     const gap = h.w + 2 * h.blank, free = D - gap, inner = innerOf(free);
@@ -3627,10 +3742,10 @@ function updateBodyAxis(ax, centre, radius, rpx) {
     let mx, my, ux, uy;
     if (show) {
       // the name's centre: inner + half the gap px from the start of the part on the screen
-      const tc = gapEnd(ax, h.sign, t0, t1, inner + gap / 2, ex, ey);
+      const tc = gapEnd(ax, h.sign, t0, t1, inner + gap / 2, ex, ey, pj, VW, VH);
       nM.copy(ax.dir).multiplyScalar(h.sign * tc); obj.localToWorld(nM);
       show = !behindSphere(nM, centre, radius);
-      proj(nM);
+      pj(nM);
       mx = sx(nM); my = sy(nM); ux = (bx - ex) / D; uy = (by - ey) / D;
       show = show && Math.abs(nM.z) < 1;
     }
@@ -3640,18 +3755,24 @@ function updateBodyAxis(ax, centre, radius, rpx) {
       const k = clamp((cx - mx) * ux + (cy - my) * uy, -gap / 2, gap / 2);
       show = Math.hypot(mx + ux * k - cx, my + uy * k - cy) > cr + 10;
     }
-    h.el.style.display = show ? '' : 'none';
+    if (V) h.zshow = show; else h.el.style.display = show ? '' : 'none';
     if (show) {
-      h.ta = gapEnd(ax, h.sign, t0, t1, inner, ex, ey); h.tb = gapEnd(ax, h.sign, t0, t1, inner + gap, ex, ey);
+      h.ta = gapEnd(ax, h.sign, t0, t1, inner, ex, ey, pj, VW, VH); h.tb = gapEnd(ax, h.sign, t0, t1, inner + gap, ex, ey, pj, VW, VH);
       // never upside down; a vertical axis (the z axis is always vertical on the screen) always reads from bottom to
       // top: its direction is exactly on the limit, and rounding errors while running would flip the name every frame
       let a = Math.atan2(by - ey, bx - ex);
       if (a > Math.PI / 2 - 1e-3) a -= Math.PI; else if (a < -Math.PI / 2 - 1e-3) a += Math.PI;
-      h.el.style.transform = `translate3d(${mx.toFixed(1)}px,${my.toFixed(1)}px,0) rotate(${a.toFixed(4)}rad) translate(-50%,-50%)`;
+      // (a plain 2D move, user 2026-11-08: with translate3d each turned name was a layer of its own, which Chrome sometimes
+      // drew only in part, the text appearing gradually as the camera moved: Pluto's "rotation axis" seen as "n axis")
+      if (V) { h.zx = mx; h.zy = my; h.za = a; }
+      else {
+        h.el.style.transform = `translate(${mx.toFixed(1)}px,${my.toFixed(1)}px) rotate(${a.toFixed(4)}rad) translate(-50%,-50%)`;
+        h.mx = mx; h.my = my; h.a = a;   // (drawn there by drawAxisNames)
+      }
     }
   };
   const pre = ax.pre && ax.pre.on();
-  if (ax.pre && !pre) for (const p of ax.pre.halves) p.el.style.display = 'none';
+  if (ax.pre && !pre) for (const p of ax.pre.halves) { if (V) p.zshow = false; else p.el.style.display = 'none'; }
   ax.halves.forEach((h, j) => {
     // x_ecl on the Earth: 10% of the line after its name and 10% between the two names, "+x-eq" before
     const p = pre && ax.pre.halves[j];
@@ -3662,7 +3783,7 @@ function updateBodyAxis(ax, centre, radius, rpx) {
       place(p, 1, h.ta, f => f - .1 * h.D, rpx >= ax.pre.need);
     } else if (e) {
       // "rotation axis" shown from 20 radii from the centre (user, 2026-11-05; it appeared only very near the body)
-      const near = camera.position.distanceTo(centre) <= ROT_NAME_R * radius;
+      const near = cam.position.distanceTo(centre) <= ROT_NAME_R * radius;
       // z_eq as the Earth's x axis (user, 2026-11-05: "rotation axis" was near the body): "+z-eq" ("−z-eq") with 10%
       // of the line after it, "rotation axis" 10% before it; alone by the rule when "+z-eq" is not shown
       place(e, 1, ax.ext.len, f => f - .1 * (f + e.w + 2 * e.blank), rpx >= ax.ext.need);
@@ -3761,7 +3882,12 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 // the menu (from the Sun outwards, the Moon after the Earth), just below and right of the mouse. A body hidden by another
 // one, or behind the camera, is left out; nothing is shown while dragging or with the mouse on a panel or the menu.
 const HOVER_PX = 6, HOVER_ORDER = [SUN, ...PLANETS.flatMap(b => b === EARTH ? [b, MOON] : [b])], hover = { x: 0, y: 0, on: false };
-addEventListener('pointermove', e => { hover.x = e.clientX; hover.y = e.clientY; hover.on = e.target === canvas; hover.seen = true; });
+addEventListener('pointermove', e => {
+  // (the zoom screen on: the mouse captured, only its moves; the target within the picture, see toggleScope)
+  // (Shift held: the target 10 times slower, for fine aiming, user 2026-11-09; the mouse itself moves as always)
+  if (document.pointerLockElement === canvas) { if (dragging) return; const k = e.shiftKey ? .1 : 1; hover.x = clamp(hover.x + k * e.movementX, 0, innerWidth - 1); hover.y = clamp(hover.y + k * e.movementY, 0, innerHeight - 1); hover.on = true; hover.seen = true; return; }
+  hover.x = e.clientX; hover.y = e.clientY; hover.on = e.target === canvas; hover.seen = true;
+});
 document.addEventListener('pointerleave', () => { hover.on = false; });
 const vHov = new THREE.Vector3();
 // In the zoom screen (Z: its zoom, with its own body sizes) the bodies whose disc there touches the focus frame (user
@@ -3807,7 +3933,7 @@ const fmtAng = a => noNegZero((wrapAngle(a) / DEG).toFixed(1)) + '°';
 // a telescope on the Earth gives them): the direction the camera looks, from the scene into the J2000 ecliptic (scene
 // (x, y, z) = spec (x, z, −y), see skyDir), then into the J2000 equator (turned by the obliquity around x, the vernal
 // equinox, the Earth's +x-eq). Only a direction: the same anywhere, no parallax (shown within RA_DEC_R Earth radii, see
-// updateHudValues). As precise as one mouse pixel turns the view (MOUSE_SENS 0.05° = 3′): RA to 0.1 minute of time
+// updateHudValues). As precise as one mouse pixel turns the view (MOUSE_SENS 0.05° = 3′; with Shift 0.3′): RA to 0.1 minute of time
 // (1.5′), Dec to 1′.
 const RA_DEC_R = 30;
 const raDecDir = new THREE.Vector3();
@@ -3823,11 +3949,11 @@ function raDec() {
 }
 const pad = (s, n) => s.padStart(n);
 const HINTS = {
-  body: [['Drag', 'look around (tilt / pan)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'tilted meridian: tilt it (around its line of nodes, M 0° to 90°, the camera riding on it); pole view: the angle of circle C up / down (−80° to +80°); Sun locked: move on the meridian (forward / backward)'],
+  body: [['Drag', 'look around (mouse forward/backward - tilt / mouse left/right - pan)'], ['Shift+Drag', 'look around 10 times finer (to aim precisely, e.g. at a star)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'tilted meridian: tilt it (around its line of nodes, M 0° to 90°, the camera riding on it); pole view: the angle of circle C up / down (−80° to +80°); Sun locked: move on the meridian (forward / backward)'],
     ['A D ← →', 'move on the parallel (left / right); tilted meridian and pole view: their circle turns around z with the camera'],
-    ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
-  absolute: [['Drag', 'look around (tilt ±90°, pan)'], ['W S ↑ ↓', 'move forward / backward (dolly)'], ['Wheel', 'move forward / backward, parallel to the ecliptic'], ['PgUp PgDn', 'move up / down (crane)'],
-    ['A D ← →', 'move left / right (truck)'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log']],
+    ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off; while on, the mouse is kept in the picture: Esc frees it, the zoom off; Shift: it moves 10 times slower)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log'], ['Esc', 'close the About window / end the intro']],
+  absolute: [['Drag', 'look around (mouse forward/backward - tilt ±90° / mouse left/right - pan)'], ['Shift+Drag', 'look around 10 times finer (to aim precisely)'], ['W S ↑ ↓', 'move forward / backward (dolly)'], ['Wheel', 'move forward / backward, parallel to the ecliptic'], ['PgUp PgDn', 'move up / down (crane)'],
+    ['A D ← →', 'move left / right (truck)'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off; while on, the mouse is kept in the picture: Esc frees it, the zoom off; Shift: it moves 10 times slower)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log'], ['Esc', 'close the About window / end the intro']],
 };
 let hintMode = '';
 // The information panel's values are written HUD_PERIOD apart (user, 2026-11-06, performance_upgrade: 4 times a second;
@@ -3855,6 +3981,7 @@ function updateHud(now) {
     // direction's equatorial coordinates (RA / Dec, J2000) instead of pan / tilt, only shown (see raDec)
     const rd = C.mode === 'body' && REF === EARTH && LEVELED_PAN && !LP_ROTATING && d < RA_DEC_R * R ? raDec() : null;
     setText($('angles-l'), rd ? 'RA / Dec (J2000)' : 'Pan / tilt');
+    document.body.classList.toggle('radec', !!rd);   // (the little cross marks the view direction)
     setText($('angles'), rd || fmtAng(C.pan) + ' / ' + fmtAng(C.tilt) + (Math.abs(wrapPi(C.roll)) > .05 * DEG ? ', turn ' + fmtAng(wrapPi(C.roll)) : ''));
   }
   // the tilted meridian and its M angle (only in the tilted meridian view)
@@ -4308,6 +4435,9 @@ function introPaper() {
 }
 addEventListener('resize', () => { if (introEl.classList.contains('on')) introPaper(); });
 function openIntro() {
+  // (user, 2026-11-09: choosing Intro while it runs rolled it up and started it again: ignored while it is on, also
+  // while it rolls up at its end)
+  if (introEl.classList.contains('on')) return;
   clearTimeout(intro.timer); cancelAnimationFrame(intro.raf); intro.later = null; intro.frozen = 0;
   introEl.classList.remove('closing', 'shown', 'open'); introEl.classList.add('on');
   introLines.textContent = ''; intro.lines = []; intro.page = 0; $('intro-pg').textContent = '';
@@ -5020,9 +5150,18 @@ function toggleScope() {
   if (scope.on && !hover.seen) { hover.x = innerWidth / 2; hover.y = innerHeight / 2; }
   for (const id of ['scope', 'scope-v']) $(id).style.display = scope.on ? 'block' : 'none';
   document.body.classList.toggle('zoom-on', scope.on);   // (no mouse pointer and no centre cross over the target)
-  if (scope.on) { scope.z = 2; showZoom(); }   // (7.6×, near the 8× it started with before) else { const l = $('labels').style; l.maskImage = l.maskSize = l.maskPosition = l.maskRepeat = l.maskComposite = ''; }
-  toast(scope.on ? 'Zoom: ' + fmtZoom(scopeZoom()) + ' (+ / -: zoom, T: off)' : 'Zoom off');
+  // (the zoom off: the labels' mask that kept the names off the zoom screen removed; user 2026-11-09: it was written
+  // inside the comment, so after the zoom screen the names stayed hidden where it had last been)
+  if (scope.on) { scope.z = 2; showZoom(); }   // (7.6×, near the 8× it started with before)
+  else { const l = $('labels').style; l.maskImage = l.maskSize = l.maskPosition = l.maskRepeat = l.maskComposite = ''; }
+  // (user, 2026-11-09: the mouse pointer must not leave the picture while the zoom screen is on) the mouse captured
+  // (Pointer Lock): the system pointer hidden, its moves carry the zoom screen's target (hover), kept within the picture;
+  // Esc frees the mouse and turns the zoom screen off (see pointerlockchange); dragging the picture works as before
+  if (scope.on) { if (canvas.requestPointerLock) { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } }
+  else if (document.pointerLockElement === canvas) document.exitPointerLock();
+  toast(scope.on ? 'Zoom: ' + fmtZoom(scopeZoom()) + ' (+ / -: zoom, T or Esc: off)' : 'Zoom off');
 }
+document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas && scope.on) toggleScope(); });
 function zoomScope(dz) {
   scope.z = clamp(scope.z + dz, 0, scopeZooms().length - 1); showZoom();
   toast('Zoom: ' + fmtZoom(scopeZoom()));
@@ -5049,7 +5188,7 @@ function segInRect(a, b, cx, cy, hw, hh) {
   }
   return true;
 }
-function scopeStars(hw, hh, hx = hover.x, hy = hover.y) {
+function scopeStars(hw, hh, hx = hover.x, hy = hover.y, sw = hw, sh = hh) {   // (sw, sh: the stars' half field)
   const names = [], o = camera.position;
   for (const c of SKY_CONS) {
     const l = skyPx(c.label);
@@ -5064,7 +5203,7 @@ function scopeStars(hw, hh, hx = hover.x, hy = hover.y) {
     proj(vSky.copy(l.dir).multiplyScalar(1e7).add(o));
     if (vSky.z <= -1 || vSky.z >= 1) continue;
     const x = (vSky.x * .5 + .5) * innerWidth, y = (-vSky.y * .5 + .5) * innerHeight;
-    if (Math.abs(x - hx) > hw || Math.abs(y - hy) > hh) continue;
+    if (Math.abs(x - hx) > sw || Math.abs(y - hy) > sh) continue;
     vSky.copy(l.dir).multiplyScalar(1e12).add(o);
     if (BODIES.some(b => b.group.visible && behindSphere(vSky, b.group.position, b.group.scale.x))) continue;
     names.push(l.text);
@@ -5105,7 +5244,7 @@ function renderScope() {
   c.setViewOffset(W * Z, H * Z, x * Z - w / 2, y * Z - h / 2, w, h); c.updateMatrixWorld();
   // (user, 2026-11-06, performance_upgrade: the names in its corner 4 times a second, as the information panel's values)
   const t = performance.now();
-  if (!(t - scope.namesT < HUD_PERIOD)) { scope.namesT = t; scope.names = [...hoverNames(Z, tx, ty), ...scopeStars(w / Z / 2, h / Z / 2, tx, ty)]; }
+  if (!(t - scope.namesT < HUD_PERIOD)) { scope.namesT = t; scope.names = [...hoverNames(Z, tx, ty), ...scopeStars(w / Z / 2, h / Z / 2, tx, ty, SCOPE_AF[0] / Z / 2, SCOPE_AF[1] / Z / 2)]; }   // (the constellations: in the whole zoom screen; the stars: only inside its focus frame, as the bodies; user 2026-11-09: the whole field listed Sigma Octantis with two stars in it)
   // the trails (user, 2026-11-06, performance_upgrade: they were all made again for it, the same camera): only those of
   // the bodies whose start (the gap and the plume, made for the body's size in it) can be in its field are made again;
   // the others are the screen's
@@ -5124,7 +5263,9 @@ function renderScope() {
   // smallest zoom, as the Sun's minimum grows (see SCOPE_SUN_MIN)
   scope.gap = SKY_GUARD * Z / SCOPE_ZOOMS[0];
   sky.userData.trim(pxAngle / Z, 1, starF, scope.gap); skyNames.visible = false;   // (no names in it: listed in its corner)
+  axesZoom(true, c, w, h, H * Z, screenRadius(REF.group.position, REF.group.scale.x) * Z);   // (its axis names' gaps)
   renderer.setRenderTarget(scope.rt); renderer.render(scene, c); renderer.setRenderTarget(null);
+  axesZoom(false);
   trailMaterial.resolution.set(W, H); mw.value = MW_GAIN; sky.userData.trim(pxAngle, 0); skyNames.visible = true;
   stars.material.uniforms.uZoom.value = 1;
   // (the screen's body sizes back, for what is placed after the pictures; the Moon's orbit line not: the next picture
@@ -5138,6 +5279,7 @@ function renderScope() {
   renderer.autoClear = false; renderer.render(scope.scene, scope.oc); renderer.autoClear = true;
   // the camera's body and its marks, and no names over them
   const x0 = cx - w / 2, y0 = cy - h / 2;
+  drawZoomNames(x0, y0, w, h);
   for (const id of ['scope', 'scope-v']) {
     const e = $(id).style;
     e.width = w + 'px'; e.height = h + 'px'; e.transform = `translate(${x0}px, ${y0}px)`;
@@ -5350,6 +5492,7 @@ function frame(now) {
     if (off) { for (const h of [...ax.halves, ...(ax.ext ? ax.ext.halves : []), ...(ax.pre ? ax.pre.halves : [])]) h.el.style.display = 'none'; return; }
     updateBodyAxis(ax, REF.group.position, REF.group.scale.x, rpx);
   });
+  drawAxisNames();
   updateMeridianLine();
 
   updatePointer(f, u);
