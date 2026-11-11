@@ -62,14 +62,16 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   keys for the same jobs in every view (for example W/S tilt the camera's circle and E/C walk on it, in the pole view and
   in the tilted meridian view, and A/D move the camera on its parallel in both); at an M angle of 90 degrees the tilted
   meridian view is the classic view on latitude and longitude, so a separate meridian view is no longer needed; the
-  Sun locked view and absolute space follow them with rules of their own (the Sun locked
-  view keeps the picture always level, north up).
+  Sun, Moon and Earth locked views are the pole view's leveled pan on the body ecliptic, turning with the Sun (the
+  Moon, the Earth): the picture is always level, the body keeps its place on the screen in every movement, and the Sun
+  swings up and down only as much as the orbit is tilted; absolute space follows them with rules of its own.
 - **The pole view** has three pans.\
   In the leveled pan the rotation axis stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
   the equator (the picture turns by 180 degrees only when the camera clearly passes to the other side: a band of
   ±10 degrees). On the Earth, closer than 30 Earth radii, the information panel shows the right ascension and
   declination (J2000) of the view direction instead of its pan and tilt, as a telescope on the Earth gives them: point
-  the view at a star and read its catalogue coordinates.\
+  the view at a star and read its catalogue coordinates. A button next to "RA / Dec" switches to "adj. J2000": the
+  coordinates adjusted to today's date (the precession of the Earth's axis since 2000).\
   In the rotating pan the picture turns evenly as the camera walks around the body, one turn per lap.\
   In the polar pan the rotation axis swings between the poles: the pole near the camera is at the top while the camera
   goes round it, and the moves are the same at both poles.
@@ -154,7 +156,8 @@ an internet connection is needed for the three.js library).
   the Moon's spiral around the Earth's trail; while it is on, the mouse stays in the picture (Esc frees it), and with
   Shift held the telescope moves 10 times slower, for fine aiming;
 - Shift + drag turns the view 10 times slower too, to put a star exactly at the center (on the Earth, near it, the
-  information panel then shows its right ascension and declination);
+  information panel then shows its right ascension and declination; near the celestial poles, at Polaris or Sigma
+  Octantis, only this fine aiming gives a meaningful right ascension);
 - Help → Controls lists the keys and the mouse controls of the current camera mode.
 
 ## Requirements
