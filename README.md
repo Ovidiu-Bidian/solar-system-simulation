@@ -4,7 +4,7 @@
 
 A 3D simulation of the solar system moving through absolute space, in a single HTML file that runs in the browser.
 
-**Live demo:** https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html
+**Live demo:** [https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html](https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html)
 
 ## What it shows
 
@@ -142,7 +142,7 @@ https://github.com/user-attachments/assets/79f34e43-c585-4be8-be82-ed102b1a7f6d
 
 ## How to use it
 
-Open the live demo, or download `solar-system-simulation.html` and open it in a browser (Edge, Chrome or Firefox;
+Open the [live demo](https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html), or download `solar-system-simulation.html` and open it in a browser (Edge, Chrome or Firefox;
 an internet connection is needed for the three.js library).
 
 - the menu (upper left) chooses the reference system: absolute space, or a celestial body that the camera follows;
