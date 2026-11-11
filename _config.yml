@@ -9,5 +9,3 @@ defaults:
         path: /screenshots/social_preview.jpg
         width: 1692
         height: 846
-twitter:
-  card: summary_large_image
