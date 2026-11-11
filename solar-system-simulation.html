@@ -4,6 +4,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Solar system simulation</title>
+<!-- what search engines show under the title, and the card of a shared link (LinkedIn, Facebook, WhatsApp, Reddit, X ...;
+     user, 2026-11-10/11): the picture is the repository's social preview (public repo screenshots/social_preview.jpg) -->
+<meta name="description" content="A 3D simulation of the solar system moving through absolute space: the Sun travels towards Cygnus at 230 km/s and the planets follow it on real spiral paths.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Solar system simulation">
+<meta property="og:title" content="Solar system simulation">
+<meta property="og:description" content="A 3D simulation of the solar system moving through absolute space: the Sun travels towards Cygnus at 230 km/s and the planets follow it on real spiral paths. Real orbits (JPL), the Moon, eclipses, Hipparcos stars and a telescope, in the browser.">
+<link rel="canonical" href="https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html">
+<meta property="og:url" content="https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html">
+<meta property="og:image" content="https://ovidiu-bidian.github.io/solar-system-simulation/screenshots/social_preview.jpg">
+<meta property="og:image:width" content="1692">
+<meta property="og:image:height" content="846">
+<meta property="og:image:alt" content="Solar system simulation: the real paths of the Sun and the planets through absolute space">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Solar system simulation">
+<meta name="twitter:description" content="A 3D simulation of the solar system moving through absolute space: the Sun travels towards Cygnus at 230 km/s and the planets follow it on real spiral paths. Real orbits (JPL), the Moon, eclipses, Hipparcos stars and a telescope, in the browser.">
+<meta name="twitter:image" content="https://ovidiu-bidian.github.io/solar-system-simulation/screenshots/social_preview.jpg">
+<meta name="twitter:image:alt" content="Solar system simulation: the real paths of the Sun and the planets through absolute space">
 <!-- the icon of the browser tab (user, 2026-10-30): the Sun and a planet on a tilted orbit, with their straight trails -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Cdefs%3E%3CradialGradient id=%22s%22 cx=%2240%25%22 cy=%2238%25%22 r=%2265%25%22%3E%3Cstop offset=%220%22 stop-color=%22%23fff6c2%22/%3E%3Cstop offset=%22.45%22 stop-color=%22%23ffd24a%22/%3E%3Cstop offset=%221%22 stop-color=%22%23ff8a1e%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%230b1020%22/%3E%3Cpath d=%22M32 32 L3 61%22 stroke=%22%23ffd24a%22 stroke-width=%223.4%22 stroke-linecap=%22round%22 stroke-opacity=%22.85%22/%3E%3Cpath d=%22M46.6 36 L21 61.6%22 stroke=%22%23ffd24a%22 stroke-width=%222.4%22 stroke-linecap=%22round%22 stroke-opacity=%22.85%22/%3E%3Cg transform=%22rotate%28-22 32 32%29%22%3E%3Cpath d=%22M6 32 A26 10 0 0 1 58 32%22 fill=%22none%22 stroke=%22%237f9ed8%22 stroke-width=%222.6%22/%3E%3C/g%3E%3Ccircle cx=%2232%22 cy=%2232%22 r=%2213%22 fill=%22url%28%23s%29%22/%3E%3Cg transform=%22rotate%28-22 32 32%29%22%3E%3Cpath d=%22M58 32 A26 10 0 0 1 6 32%22 fill=%22none%22 stroke=%22%239fbaf0%22 stroke-width=%222.6%22/%3E%3Ccircle cx=%2244%22 cy=%2241.2%22 r=%225.2%22 fill=%22%234f8cff%22 stroke=%22%230b1020%22 stroke-width=%221.5%22/%3E%3C/g%3E%3C/svg%3E">
 <style>
@@ -116,6 +134,11 @@
   #speed-row #speedval { margin-left: 3px; width: 40px; }   /* (constant: the widest is "3 mo/s") */
   #speed-row #axes { margin-left: auto; width: 64px; font-size: 11px; padding-left: 4px; padding-right: 4px; }   /* (constant width) */
   #speed-row button, #speedval { white-space: nowrap; }
+  /* the RA / Dec row's switch, J2000 / adjusted to today's date (user, 2026-11-11) */
+  #radec-mode { margin-left: 6px; padding: 0 4px; width: 70px; text-align: center; font: 600 10.5px/1.5 inherit; color: var(--text); background: rgba(255, 255, 255, .05);
+    border: 1px solid var(--line); border-radius: 6px; cursor: pointer; vertical-align: 1px; }
+  #radec-mode:hover { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .25); }
+  #radec-mode[hidden] { display: none; }
   /* test aid (user, 2026-10-23): the tilted meridian gauge, a square above the speed buttons (see updateGauge) */
   #gauge { width: 170px; }   /* (the width the speed buttons gave it) */
   #gauge svg { display: block; width: 100%; aspect-ratio: 1; }
@@ -386,7 +409,7 @@
     <span id="abs-l">Speed in space</span><span id="abs" class="abs"></span>
     <span>Camera x, y, z</span><span id="pos-au"></span>
     <span id="pos-km-l"></span><span id="pos-km" class="km"></span>
-    <span id="angles-l">Pan / tilt</span><span id="angles"></span>
+    <span id="angles-l"><span id="angles-t">Pan / tilt</span><button id="radec-mode" type="button" hidden></button></span><span id="angles"></span>
     <span class="cam">Cam speed</span><span id="speed" class="cam"></span>
   </div>
   <div id="hud-more">
@@ -437,7 +460,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_3.4 (9 Nov 2026)</p>
+  <p>Current version: solar system simulation v_3.6 (11 Nov 2026)</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
   <h3>What is real in this simulation:</h3>
@@ -479,7 +502,15 @@
       direction from a few Earth radii away is far below what any instrument can measure); for the Sun, the Moon and the
       planets it is their direction as seen from the camera (topocentric), not the geocentric values of the almanacs
       (from the center of the Earth): for the Moon they differ by up to about 1 degree at the Earth's surface and up to
-      about 30 degrees at 30 Earth radii.</li>
+      about 30 degrees at 30 Earth radii. The button next to "RA / Dec" switches between "J2000" and "adj. J2000": the
+      J2000 coordinates adjusted to today's date (read from the computer's clock; the date is shown in the button's
+      tooltip): the Earth's axis turns slowly (precession, one turn in about 26 000 years),
+      so the coordinates of date differ from the catalogue's J2000 ones (axes of 1 January 2000): in 2026 by about
+      1.3 minutes of right ascension for most stars and up to 8 arc minutes of declination, much more near the poles
+      (Polaris about 35 minutes of right ascension). They are the mean coordinates of date (IAU precession); the small
+      nutation of the axis (up to 17 arc seconds), the aberration of light (up to 20.5 arc seconds) and the stars' own
+      motions, which the almanacs add for the apparent place, are not included: together they can change the last
+      digit of the declination shown.</li>
   </ul>
   <h3>What is not real in this simulation:</h3>
   <ul>
@@ -815,7 +846,9 @@ let MOUSE_SENS = MOUSE_SENS_N;
 const WHEEL_NOTCH = .3;                      // one wheel notch = 0.3 s of travel at the current speed (not specified)
 // camera at 8R, 60° above the body's ecliptic plane, looking at the centre with pan -135°: x = y = +2.83R, z = +6.93R
 // [REQ-02.2] (user, 2026-10-21; it was 4R on the Sun's side)
-const HOME = { pan: -135 * DEG, tilt: -60 * DEG, get r() { return 14 * R; }, lat: 60 * DEG, lon: 45 * DEG };   // (R: the reference body's; user, 2026-11-05: 14 R, so that the longer axes fit; was 10 R, before 8 R)
+// (the Earth locked view on the Moon, user 2026-11-10: 32 500 km, where the Moon is as large as at its minimum in the
+// Moon locked view on the Earth, see LOCK_MIN_KM; 14 R is 24 324 km there)
+const HOME = { pan: -135 * DEG, tilt: -60 * DEG, get r() { return REF === MOON && SUN_LOCK && LOCK === EARTH ? LOCK_MIN_KM.Moon / AU_KM : 14 * R; }, lat: 60 * DEG, lon: 45 * DEG };   // (R: the reference body's; user, 2026-11-05: 14 R, so that the longer axes fit; was 10 R, before 8 R)
 const UPRIGHT_TURN = 1;                      // s, picture turning upright when switching to absolute mode upside down [REQ-02]
 
 const $ = id => document.getElementById(id);
@@ -913,10 +946,11 @@ function travelSpeed(d) {
 function goHome() { bodyFramed(goHome_); }
 function goHome_() {
   C.pan = HOME.pan; C.tilt = HOME.tilt; C.turn = C.roll = 0; C.leveling = false; C.levelSpeed = 0; C.head = null; SL.valid = false;
-  C.r = HOME.r; C.lat = HOME.lat; C.lon = HOME.lon;
+  const sh = slOn() ? slHome() : null;   // (the Sun locked view: its own Home, see slHome)
+  C.r = HOME.r; C.lat = sh ? sh.lat : HOME.lat; C.lon = sh ? sh.lon : HOME.lon;
   C.pos = add(P, sphericalPos(C.r, C.lat, C.lon));
   C.wheel = 0; motion.v = motion.h = motion.r = null;
-  if (LEVELED_PAN && C.mode === 'body') lpHome();   // its own view at Home: the automatic one
+  if (LEVELED_PAN && C.mode === 'body') lpHome(sh);   // its own view at Home: the automatic one (the Sun locked view: with its look)
   if (bodyCentre() && C.mode === 'body') mvHome();
 }
 
@@ -945,8 +979,11 @@ function startHome_() {
 }
 // step 2 from the camera as it is now (looking at the centre)
 function startHomeWay() {
-  const m = C.homing, h = [Math.cos(HOME.pan), Math.sin(HOME.pan), 0], ct = Math.cos(HOME.tilt), st = Math.sin(HOME.tilt);
-  Object.assign(m, { step: 2, t: 0, q0: rel(), q1: sphericalPos(HOME.r, HOME.lat, HOME.lon), pan0: C.pan,
+  const m = C.homing;
+  m.sh = slOn() ? slHome() : null;   // (the Sun locked view: its Home's place, then a step 3 to its look, see slHome)
+  const lon = m.sh ? m.sh.lon : HOME.lon, lat = m.sh ? m.sh.lat : HOME.lat, hp = m.sh ? wrapPi(lon + Math.PI) : HOME.pan, ht = m.sh ? -lat : HOME.tilt;
+  const h = [Math.cos(hp), Math.sin(hp), 0], ct = Math.cos(ht), st = Math.sin(ht);
+  Object.assign(m, { step: 2, t: 0, q0: rel(), q1: sphericalPos(HOME.r, lat, lon), pan0: C.pan,
     o0: frameQuat(viewDir(), picUp()), o1: frameQuat([ct * h[0], ct * h[1], st], [-st * h[0], -st * h[1], ct]) });
 }
 function homeStep(dt) {
@@ -964,8 +1001,18 @@ function homeStep(dt) {
     if (m.t >= 1) startHomeWay();
     return;
   }
+  if (m.step === 3) {   // (the Sun locked view: from the centred view at Home to Home's look, see slHome)
+    m.t = Math.min(1, m.t + dt / CENTER_TIME);
+    const e = new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().slerpQuaternions(m.o0, m.o1, smooth(m.t))).elements;
+    setView([-e[8], -e[9], -e[10]], [e[4], e[5], e[6]]);
+    if (m.t >= 1) { C.homing = null; goHome(); }
+    return;
+  }
   m.t = Math.min(1, m.t + dt / HOME_TIME);
-  if (m.t >= 1) { C.homing = null; goHome(); return; }
+  if (m.t >= 1) {
+    if (m.sh) { C.pos = add(P, m.q1); syncSpherical(); Object.assign(m, { step: 3, t: 0, o0: frameQuat(viewDir(), picUp()), o1: frameQuat(m.sh.f, m.sh.u) }); return; }
+    C.homing = null; goHome(); return;
+  }
   const s = smooth(m.t), r0 = len(m.q0), r1 = len(m.q1), d0 = m.q0.map(x => x / r0), d1 = m.q1.map(x => x / r1);
   let ax = cross(d0, d1);
   const ang = Math.atan2(len(ax), dot(d0, d1));
@@ -1013,17 +1060,16 @@ const VIEWS = [['tilted', 'Tilted meridian'], ['pole', 'Pole view'], ['sun', 'Su
 // the views of body b, in the menu's order
 const viewsFor = b => VIEWS.filter(([k]) => k === 'sun' ? b !== SUN : k === 'other' ? b === EARTH || b === MOON : true)
   .map(([k, name]) => [k, k === 'other' ? (b === EARTH ? MOON : EARTH).name + ' locked' : name]);
-const viewKey = () => TILTED_MERIDIAN ? 'tilted' : LEVELED_PAN ? 'pole' : SUN_LOCK ? (LOCK === SUN ? 'sun' : 'other') : 'tilted';
+const viewKey = () => TILTED_MERIDIAN ? 'tilted' : SUN_LOCK ? (LOCK === SUN ? 'sun' : 'other') : LEVELED_PAN ? 'pole' : 'tilted';
 function selectView(v) {
   if (v === viewKey()) return;
   bodyFramed(() => selectView_(v));
-  // the Sun locked view is on the ecliptic: level to it (selectView_ ran in the body frame, where the picture may already
-  // have been level to the equator)
-  if (SUN_LOCK && C.mode === 'body' && Math.abs(wrapPi(C.roll)) > 1e-9) { C.leveling = true; C.levelSpeed = 0; }
+  // the Sun locked view: level to the ecliptic, measured in its own frame (selectView_ ran in the frame of the view left)
+  if (slOn()) bodyFramed(() => { if (Math.abs(wrapPi(C.roll)) > 1e-9) { C.leveling = true; C.levelSpeed = 0; } });
 }
 function selectView_(v) {
-  TILTED_MERIDIAN = v === 'tilted'; LEVELED_PAN = v === 'pole';
-  SUN_LOCK = v === 'sun' || v === 'other'; LOCK = v === 'other' ? lockOther() : SUN;
+  SUN_LOCK = v === 'sun' || v === 'other'; TILTED_MERIDIAN = v === 'tilted'; LEVELED_PAN = v === 'pole' || SUN_LOCK;   // (the Sun locked view: the leveled pan, see SUN_LOCK)
+  LOCK = v === 'other' ? lockOther() : SUN;
   // the Moon locked and the Earth locked views at 1 day per second (user, 2026-10-29: faster, the Moon goes round too
   // fast to follow)
   if (v === 'other') { simSpeed = SIM_SPEEDS.findIndex(s => s[1] === '1 d/s'); showSpeed(); }
@@ -1031,12 +1077,12 @@ function selectView_(v) {
   if (!bodyCentre()) { if (C.roll) C.leveling = true; else C.head = null; }
   else { C.leveling = false; C.levelSpeed = 0; }   // (the meridian views set their own picture, see MV)
 }
-const moveName = () => TILTED_MERIDIAN ? 'Tilted meridian' : LEVELED_PAN ? 'Pole view' : SUN_LOCK ? lockName() : 'Tilted meridian';
+const moveName = () => TILTED_MERIDIAN ? 'Tilted meridian' : SUN_LOCK ? lockName() : LEVELED_PAN ? 'Pole view' : 'Tilted meridian';
 // what was chosen in the menu (the information panel's first line): "Neptune - pole view", "Earth - Moon locked", "Absolute space"
 const refTitle = () => C.mode === 'body' ? REF.name + ' - ' + (SUN_LOCK ? lockName() : moveName().toLowerCase()) : 'Absolute space';
 // the pole view's pan, leveled / rotating / polar (the button above the gauge, in turn; user 2026-11-06: the polar pan
 // the third): the same circle C, only the picture turns to its new up (see lpView's entering)
-const panName = () => LP_POLAR ? 'Polar pan' : LP_ROTATING ? 'Rotating pan' : 'Leveled pan';
+const panName = () => !lpRot() ? 'Leveled pan' : LP_POLAR ? 'Polar pan' : 'Rotating pan';
 function switchPan() {
   if (!LP_ROTATING) LP_ROTATING = true;
   else if (!LP_POLAR) LP_POLAR = true;
@@ -1142,7 +1188,7 @@ addEventListener('mousemove', e => {
   if (lpFlipping()) return;   // (the leveled pan turning to its other pole: nothing is controlled)
   if (e.movementX || e.movementY) { forgetMoves(); LP.entering = false; }
   // (in body mode on the equator: in the body frame, BODY_EQ; in the Sun locked view: in its own frame)
-  if (SUN_LOCK && C.mode === 'body' && SL.valid && !C.leveling) sunFramed(() => cameraMouse(e)); else bodyFramed(() => cameraMouse(e));
+  bodyFramed(() => cameraMouse(e));   // (the Sun locked view: in its own frame, see bodyFramed)
 });
 function cameraMouse(e) {
   if (C.mode === 'body' && bodyCentre() && MV.valid && MV.cf) { mvLook(e.movementX, e.movementY); return; }
@@ -1164,6 +1210,7 @@ function cameraMouse(e) {
 function lpMouse(mx, my, free) {
   // (both pans: the user's look from the centred view, LP.oa / LP.ob, see lpCentred; the move as seen on the screen,
   // the image grabbed, anywhere)
+  if (slOn()) { slMouse(mx, my); return; }   // (the Sun locked view: the level head, see slMouse)
   if (LP.cf) lpLook(mx, my);
 }
 canvas.addEventListener('wheel', e => {
@@ -1454,83 +1501,202 @@ function mvLook(mx, my) {
 // other node).
 // The turn's speed is held to LP_ANGLE_SPEED too (Q/E slower where it would turn faster); W/S crossing the ecliptic
 // at a point of C away from its nodes (C itself turning through the ecliptic) turns it at once.
-let LEVELED_PAN = false;
-// The Sun locked view (user, 2026-10-28; after the pole view in the W/S move cycle): on the body ecliptic (the ecliptic's
-// frame, not the body's equator: see bodyFramed), the head level (leveled pan). W/S move the camera on the ecliptic
-// meridian through it (W north), A/D on the ecliptic parallel (D towards the screen's right when pressed), at
-// ANGULAR_SPEED, |latitude| at most 80° and at most 90° − d (d: the body's angle from the screen's centre, as in the pole
-// view); the body keeps its place on the screen (lpPlaceAngles). The camera's place and view are kept relative to the
-// Sun: as the body moves along its orbit, the camera and its view turn around the body's ecliptic z axis with the Sun's
-// direction, so the body, the Sun and the day / night border stay where they are on the screen. The mouse only turns the
-// view (level, tilt within ±90°). Entering it, the camera stays where it is (the picture levels first).
-// The head stays level to the ecliptic, as in absolute space (user, 2026-10-29, replacing the exact lock of 2026-10-28):
-// every frame the camera turns with the Sun's direction (seen from the body) only around the ecliptic's z, by the Sun's
-// change of direction sideways; its change of height above the body ecliptic is not followed, it is real (Pluto's orbit
-// is tilted 17°: the Sun goes up and down within ±17°, at most about 0.4° per year), so the Sun slides up / down and the
-// day / night border turns as they really do. The picture turn stays 0. The camera works in its own frame (SL.frame: z
-// the ecliptic's z, x towards the Sun's side), which turns the same way; W/S, A/D, the wheel and the mouse work in it.
-let SUN_LOCK = true;   // (user, 2026-10-28: the program starts in the Sun locked view, REQ-02)
+let LEVELED_PAN = true;   // (the program starts in the Sun locked view, which is the leveled pan: see SUN_LOCK)
+// The Sun locked view (user, 2026-11-11, replacing the views of 2026-10-28 .. 11-10, which kept the body at its place on
+// the screen with their own moves: near the poles the picture turned around it and W/S could get stuck): the pole
+// view's leveled pan as it is (circle C, W/S, E/C, A/D, the wheel, the mouse's look relative to the automatic view and
+// its guard, the 180° turn to south up, the gauge), with only its reference changed: the body ecliptic instead of the
+// equator, the ecliptic's z through the body's centre instead of the rotation axis. It runs in its own frame (SL.frame:
+// z the ecliptic's z, x towards the target's side, in the ecliptic plane; bodyFramed), which turns with the target
+// (slTurn): every picture, before the moves, the camera (its place and view) and the frame turn around the ecliptic's z
+// by the target's change of direction sideways, so circle C and the camera's place on it stay the same in the frame: the
+// automatic pan turns at the target's angular speed around the body and the target keeps its angle sideways. Its
+// height above the body ecliptic is real and is not followed: it swings up and down (Pluto: ±17°, the Moon and the
+// Earth in the Moon / Earth locked views: ±5°). No pan button (only the leveled pan), no RA / Dec; Home: see slHome.
+let SUN_LOCK = true;   // (user, 2026-10-28: the program starts in the Sun locked view, REQ-02; LEVELED_PAN is true too)
 // The locked view's target (user, 2026-10-28): the Sun; on the Earth also the Moon ("Moon locked": the Moon's phases),
 // on the Moon also the Earth ("Earth locked": the Moon always shows the Earth the same face; the Sun's eclipses on the
-// Earth). The same view, with the target's direction instead of the Sun's (see stepSunLock); chosen in the menu after
-// the Sun locked view (see VIEWS). In these two the other body is drawn as large as the reference one (see
-// drawnR); its place and path stay real.
+// Earth). The same view, with the target's direction instead of the Sun's; chosen in the menu after the Sun locked view
+// (see VIEWS). In these two the other body is drawn as large as the reference one (see drawnR); its place and path stay
+// real.
 let LOCK = null;   // (set to SUN with the bodies, see setRef: null here only before they exist)
 const lockName = () => (LOCK && LOCK !== SUN ? LOCK.name : 'Sun') + ' locked';
 const lockOther = () => REF === EARTH ? MOON : REF === MOON ? EARTH : null;   // the second target, if any
-const SL = { valid: false, sun: null, frame: null };
-// the camera (place, view, picture's up) into / back from the frame B (three unit vectors in space)
-function basisSwap(B, into) {
-  const T = into ? v => B.map(a => dot(a, v)) : v => [0, 1, 2].map(k => B[0][k] * v[0] + B[1][k] * v[1] + B[2][k] * v[2]);
-  const f = T(viewDir()), u = T(picUp());
-  C.pos = add(P, T(rel()));
-  setView(f, u);
-  if (Math.abs(C.roll) < 1e-9) C.roll = 0;
-  syncSpherical();
-}
-const sunFramed = fn => { basisSwap(SL.frame, true); try { return fn(); } finally { basisSwap(SL.frame, false); } };
-function stepSunLock(dt, vKey, hKey, w) {
-  if (REF === SUN) return;   // (not on the Sun, see viewsFor and setRef)
-  const sun = unit(sub(LOCK.p, P));   // the target's direction from the body (the Sun: the origin)
+const SL = { valid: false, sun: null, frame: null, w: null, mouse: false, s: 0, iSet: null };   // (sun: the target's direction the frame was last turned to; w, mouse, s: see slView)
+const slOn = () => SUN_LOCK && C.mode === 'body' && REF !== SUN && LOCK;
+// the frame set afresh towards the target (the camera stays where it is)
+function slFrame() {
   if (!SL.valid) {
-    const z = [0, 0, 1], x = unit([sun[0], sun[1], 0]);
+    const sun = unit(sub(LOCK.p, P)), z = [0, 0, 1], x = unit([sun[0], sun[1], 0]);
     SL.frame = [x, cross(z, x), z]; SL.sun = sun; SL.valid = true;
   }
-  // the camera and its frame turn with the Sun's direction around the ecliptic's z only, by the Sun's change of direction
-  // sideways (its change of height is real and stays seen; the head stays level)
-  const turn = (k, ang) => {
-    if (!ang) return;
-    const f = rotate(viewDir(), k, ang), u = rotate(picUp(), k, ang);
-    C.pos = add(P, rotate(rel(), k, ang)); setView(f, u); syncSpherical();
-    SL.frame = SL.frame.map(v => rotate(v, k, ang));
-  };
-  const dLon = wrapPi(Math.atan2(sun[1], sun[0]) - Math.atan2(SL.sun[1], SL.sun[0]));
-  turn([0, 0, 1], dLon);
+  return SL.frame;
+}
+// the camera and the frame turned with the target's direction, around the ecliptic's z only (outside bodyFramed)
+function slTurn() {
+  if (!slOn()) return;
+  if (!SL.valid) { slFrame(); return; }
+  const sun = unit(sub(LOCK.p, P)), k = [0, 0, 1], ang = wrapPi(Math.atan2(sun[1], sun[0]) - Math.atan2(SL.sun[1], SL.sun[0]));
   SL.sun = sun;
-  sunFramed(() => {
-    let q = rel();
-    const r = len(q), lat = Math.asin(clamp(q[2] / r, -1, 1)), lon = Math.atan2(q[1], q[0]), step = ANGULAR_SPEED * dt;
-    const maxLat = Math.min(LP_MAX_I, Math.asin(clamp(w[2], -1, 1)));
-    let nLat = lat, nLon = lon;
-    if (vKey) {
-      nLat = lat + vKey * step;
-      if (Math.abs(nLat) > maxLat) nLat = Math.abs(nLat) > Math.abs(lat) ? (Math.abs(lat) > maxLat ? lat : Math.sign(nLat) * maxLat) : nLat;
+  if (!ang) return;
+  const f = rotate(viewDir(), k, ang), u = rotate(picUp(), k, ang);
+  C.pos = add(P, rotate(rel(), k, ang)); setView(f, u); syncSpherical();
+  SL.frame = SL.frame.map(v => rotate(v, k, ang));
+}
+// The view (user, 2026-11-11, "(b)": the picture always level, as in absolute space; the pole view's look, relative to
+// the automatic view, turned the picture by up to 30-40° with the body far from the screen's centre): a level head that
+// keeps the centre of the body at its place on the screen (SL.w: (right, up, view), set by the mouse, entering, Home).
+// South up (the leveled pan's, below C −10°): the same, the head upside down (in the frame turned 180° around x, slFlip);
+// the 180° turn between them is a turn around the line from the camera to the body (both views put the body at SL.w, so
+// the turn from one to the other is around that line: the body keeps its place), clockwise to south up, at
+// LP_ANGLE_SPEED (SL.s: 0 north up .. 1 south up), the camera waiting. With the body off the screen's centre, a level
+// head can hold it only while the camera is less than about 90° − d from the body ecliptic (d its angle from the
+// centre, sideways): beyond, it goes as near as it can (it comes back as the camera comes back); the moves are slowed
+// where the view would turn faster than LP_ANGLE_SPEED (lpLimit).
+const slFlip = v => [v[0], -v[1], -v[2]];
+// the level head's pan and tilt of the view f with the picture's up u: the pan from cos t·f − sin t·u (for a level head
+// exactly the pan's direction in the plane), not from f alone, whose part in the plane is only rounding when looking
+// straight up / down (the mouse's first move after the keys took the view there turned the picture at once, user
+// 2026-11-11)
+const slAngles = (f, u) => { const t = Math.asin(clamp(f[2], -1, 1)), c = Math.cos(t), n = Math.sin(t); return [Math.atan2(c * f[1] - n * u[1], c * f[0] - n * u[0]), t]; };
+// a level head's view direction and picture's up for pan p, tilt t
+const slAxes = (p, t) => { const h = [Math.cos(p), Math.sin(p), 0], c = Math.cos(t), n = Math.sin(t); return [[c * h[0], c * h[1], n], [-n * h[0], -n * h[1], c]]; };
+// the level head (south: upside down) that puts the body at w, from the camera at q (relative to O): { f, u, pan, tilt }
+function slHeld(q, w, south) {
+  const T = south ? slFlip : v => v, qq = T(q), [p0, t0] = slAngles(T(viewDir()), T(picUp()));
+  const a = lpPlaceAngles(qq, w, t0);
+  if (!a) return null;
+  const pan = a.pan !== null ? a.pan : p0;   // (straight over the pole: the pan kept)
+  const [f, u] = slAxes(pan, a.tilt);
+  return { f: T(f), u: T(u), pan, tilt: a.tilt };
+}
+// the largest C angle (at most LP_MAX_I) for which a level head can hold the body at w wherever the camera is on C: at
+// both heights ±i (C goes above and below the body ecliptic; south up, the frame turned, the same two), the tilt that
+// puts it there within ±90°. Not only 90° − the body's angle sideways from the centre: with the body below the centre
+// and the camera looking up at it (or above, looking down) the view reaches straight up / down sooner. (Bisection;
+// for each w once.)
+let slMaxCache = null;
+function slMaxI(w) {
+  if (slMaxCache && slMaxCache.w === w) return slMaxCache.i;
+  const ok = L => [L, -L].every(l => { const a = lpPlaceAngles(sphericalPos(1, l, 0), w, -l); return a && a.exact; });
+  let lo = 0, hi = LP_MAX_I;
+  if (ok(hi)) lo = hi;
+  else for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (ok(m)) lo = m; else hi = m; }
+  slMaxCache = { w, i: lo };
+  return lo;
+}
+// the view of the Sun locked view after the moves (in its frame, see lpView)
+function slView(dt) {
+  if (C.leveling) { SL.w = null; return; }   // (entering: the picture levels first, around the body: SL.w then)
+  if (!SL.w || SL.mouse) { SL.w = placeNow(); SL.mouse = false; }
+  // C's angle within what holds the body at its place all round C (slMaxI; user, 2026-11-11: "the C angle should be
+  // decreased accordingly by this mouse move"): C is the one set (SL.iSet: by W/S, entering, Home, the start) within
+  // that limit; when the body's place changes (the mouse) C turns around its line of nodes to it at once, the camera
+  // riding on it (as with W/S), the body held at its place by the view below. Back again (user, 2026-11-11, log
+  // 141634_manual_view_change_cam_position: the mouse alone took the camera from 31.6° down to the ecliptic, and the
+  // same mouse moves back did not bring it back): C goes back up to the one set, so the same mouse moves back give the
+  // same picture. Not during the 180° turn.
+  if (SL.iSet === null) SL.iSet = LP.i;
+  const mi = slMaxI(SL.w), want = clamp(SL.iSet, -mi, mi);
+  if (Math.abs(LP.i - want) > 1e-9 && SL.s === (LP.south ? 1 : 0)) {
+    const ni = want, r0 = len(rel());
+    C.pos = add(P, lpDir(ni, LP.node, LP.u).map(x => x * r0)); LP.i = ni; syncSpherical();
+    const south = LP.south ? LP.i < LP_SOUTH_BAND : LP.i < -LP_SOUTH_BAND;   // (as in stepLeveled)
+    if (south !== LP.south) { LP.south = south; LP.flip = south ? -1 : 1; LP.entering = true; }
+  }
+  const q = rel(), b = unit(q.map(x => -x)), tgt = LP.south ? 1 : 0;
+  const n = SL.s < 1 || !tgt ? slHeld(q, SL.w, false) : null, so = SL.s > 0 || tgt ? slHeld(q, SL.w, true) : null;   // (both while turning, either way)
+  let v = SL.s >= 1 ? so : n;
+  if (SL.s !== tgt && n && so) {
+    // the turn around the line to the body, clockwise (seen from the camera: + around b) from north up to south up
+    const pr = x => unit(x.map((c, k) => c - dot(x, b) * b[k])), un = pr(n.u), us = pr(so.u);
+    let al = Math.atan2(dot(cross(un, us), b), dot(un, us));
+    if (al <= 1e-9) al += TAU;
+    const ds = LP_ANGLE_SPEED * dt / al;
+    SL.s = tgt > SL.s ? Math.min(tgt, SL.s + ds) : Math.max(tgt, SL.s - ds);
+    v = SL.s >= 1 ? so : SL.s <= 0 ? n : { f: rotate(n.f, b, al * SL.s), u: rotate(n.u, b, al * SL.s) };
+  } else SL.s = tgt;
+  if (SL.s === tgt) { LP.entering = false; LP.flip = 0; }
+  // never a jump (user, 2026-11-11, log 134740_earth_Sun_locked_tilt_jumps: the camera on the body ecliptic, the view
+  // pushed by the mouse to straight up, the body 90° from it; one more move put it just behind the camera, where the
+  // only level head that puts it at its place looks straight down: the picture went from +89.5° to −89.5°): a view
+  // that holds the body farther than SL_JUMP from the one before is not taken (the moves turn it at most
+  // LP_ANGLE_SPEED); the view stays and the body's place is taken from it, as after the mouse. (Not in the 180° turn.)
+  if (v && SL.s === tgt && Math.acos(clamp(dot(v.f, viewDir()), -1, 1)) > SL_JUMP) { SL.w = placeNow(); return; }
+  if (v) setView(v.f, v.u);
+}
+const SL_JUMP = 10 * DEG;
+// the mouse in the Sun locked view: the level head's pan and tilt (upside down: in the flipped frame), as in absolute
+// space, the tilt within ±90° (the image follows the mouse); the body's place taken from the view
+function slMouse(mx, my) {
+  const T = LP.south ? slFlip : v => v, H = Math.PI / 2 - 1e-6;
+  let [p, t] = mouseTurn(...slAngles(T(viewDir()), T(picUp())), mx, my, false);
+  t = clamp(t, -H, H);
+  const [f1, u1] = slAxes(p, t);
+  setView(T(f1), T(u1)); SL.w = placeNow();
+}
+// Home in the Sun locked view (user, 2026-11-11, from the user's picture of Uranus: "Home position for all bodies like
+// this"; "Sun always visible at Home and all the time when it rotates around the body from Home position, if the user
+// doesn't touch anything"; in the Moon / Earth locked views "the locked body should have all the time the position it
+// has the Sun now in Home position"): the view level, the camera at Home's distance (HOME.r), circle C at 51.3°
+// through it, or less where the body's place on the screen needs it (slMaxI). The camera's place round the body (its
+// height and its longitude from the target's side) and the view's pan and tilt are found for each body (Newton, in
+// the view's frame): the body at Uranus' place on the screen in the picture, the target at its highest (its height
+// swings by the orbit's inclination: Pluto ±17°, the Moon / the Earth in the Moon / Earth locked views ±5.1°) at the
+// Sun's place in the picture, so that it stays on the screen all round the orbit (at its lowest it is lower by twice
+// that). For the Sun on an orbit in the ecliptic this is the picture itself: the camera 29.78° above the body
+// ecliptic, 108.76° round from the Sun's side (clockwise seen from the north), pan 30.50° from the Sun's side, tilt
+// −18.3°; the near Moon / Earth (the camera 4 to 12 times nearer than they are) are seen from the camera in another
+// direction than from the body's centre, so the camera's place differs there. (Tried the same day and replaced: the
+// camera's place found so that the target at its highest was at 20% / 10% of the screen.) Returns, in the frame:
+// { lat, lon, i, w, f, u }.
+const SL_HOME = { lat: 29.78 * DEG, lon: -108.76 * DEG, pan: 30.50 * DEG, tilt: -18.3 * DEG, i: 51.3 * DEG, sunShift: .4, otherShift: .6 };
+function slHome() {
+  const h = LOCK === SUN ? (REF === EARTH || REF === MOON ? 0 : REF.orbit.i * DEG) : MOON_EL.i;
+  const D = len(sub(LOCK.p, P)) / HOME.r;
+  // (the places on the screen as tangents, x right, y up, for the view (pan, tilt) from the camera at (lat, lon))
+  const view = (lat, lon, pan, tilt) => { const q = sphericalPos(1, lat, lon), [f, u] = slAxes(pan, tilt); return { q, f, u, r: cross(f, u) }; };
+  const tanXY = (d, v) => { const z = dot(d, v.f); return [dot(d, v.r) / z, dot(d, v.u) / z]; };
+  // the picture's places: the body's, and the target's (far, at the body ecliptic's height, in its direction: +x)
+  const v0 = view(SL_HOME.lat, SL_HOME.lon, SL_HOME.pan, SL_HOME.tilt), B0 = tanXY(v0.q.map(c => -c), v0), S0 = tanXY([1, 0, 0], v0);
+  // (user, 2026-11-11: the target farther to the right, its centre moved right by a part of the gap between its right
+  // side and the screen's right edge, its drawn apparent radius counted, for the window as it is: in the Moon / Earth
+  // locked views "keep only 40% of" that gap (60% of it moved), in the Sun locked view 40% of it moved)
+  {
+    const ta = Math.tan(camera.fov * DEG / 2) * camera.aspect, dist = len(sub(LOCK.p, P));   // (from the body's centre: near enough)
+    const minA = LOCK === SUN ? SUN_MIN_APPARENT_RADIUS : Math.max(LOCK === MOON ? MOON_MIN_APPARENT_RADIUS : MIN_APPARENT_RADIUS, lockMinAngle(LOCK));
+    const a = Math.max(Math.atan(drawnR(LOCK) / dist), minA), edge = S0[0] + a * (1 + S0[0] * S0[0]);
+    S0[0] += (LOCK === SUN ? SL_HOME.sunShift : SL_HOME.otherShift) * Math.max(0, ta - edge);
+  }
+  const tgt = [Math.cos(h) * D, 0, Math.sin(h) * D];
+  const res = x => {
+    const v = view(...x), b = tanXY(v.q.map(c => -c), v), t = tanXY(unit(sub(tgt, v.q)), v);
+    return [b[0] - B0[0], b[1] - B0[1], t[0] - S0[0], t[1] - S0[1]];
+  };
+  // (a linear system n×n, Gauss with pivoting)
+  const solve = (A, y) => {
+    const n = y.length, M = A.map((row, i) => [...row, y[i]]);
+    for (let c = 0; c < n; c++) {
+      let pr = c;
+      for (let k = c + 1; k < n; k++) if (Math.abs(M[k][c]) > Math.abs(M[pr][c])) pr = k;
+      [M[c], M[pr]] = [M[pr], M[c]];
+      if (Math.abs(M[c][c]) < 1e-14) return null;
+      for (let k = c + 1; k < n; k++) { const m = M[k][c] / M[c][c]; for (let j = c; j <= n; j++) M[k][j] -= m * M[c][j]; }
     }
-    if (hKey) {
-      if (!motion.h || motion.h.key !== hKey) {
-        const t = [-Math.sin(lon), Math.cos(lon), 0], right = cross(viewDir(), picUp());
-        motion.h = { key: hKey, sign: (Math.sign(dot(t, right)) || 1) * hKey };
-      }
-      nLon = lon + motion.h.sign * step;
-    } else motion.h = null;
-    if (nLat !== lat || nLon !== lon) { q = sphericalPos(r, nLat, nLon); C.pos = add(P, q); syncSpherical(); }
-    wheelStep(dt);
-    if (C.leveling) return;   // (entering: the picture still levels; only the turn with the Sun)
-    // the body where it was on the screen, the head level in the frame
-    const a = lpPlaceAngles(rel(), w, C.tilt);
-    if (a) { if (a.pan !== null) C.pan = a.pan; C.tilt = a.tilt; }
-    C.roll = 0;
-  });
+    const z = new Array(n).fill(0);
+    for (let c = n - 1; c >= 0; c--) { let t = M[c][n]; for (let j = c + 1; j < n; j++) t -= M[c][j] * z[j]; z[c] = t / M[c][c]; }
+    return z;
+  };
+  let x = [SL_HOME.lat, SL_HOME.lon, SL_HOME.pan, SL_HOME.tilt];
+  for (let it = 0; it < 40; it++) {   // (Newton, numeric Jacobian)
+    const r0 = res(x), J = [0, 1, 2, 3].map(k => { const z = x.slice(); z[k] += 1e-7; return res(z).map((v, j) => (v - r0[j]) / 1e-7); });
+    const dx = solve([0, 1, 2, 3].map(i => [0, 1, 2, 3].map(k => J[k][i])), r0.map(v => -v));
+    if (!dx) break;
+    x = [clamp(x[0] + dx[0], 0, SL_HOME.i), x[1] + dx[1], x[2] + dx[2], clamp(x[3] + dx[3], -Math.PI / 2 + .01, Math.PI / 2 - .01)];
+    if (Math.hypot(...dx) < 1e-10) break;
+  }
+  const v = view(...x), b = v.q.map(c => -c), w = [dot(b, v.r), dot(b, v.u), dot(b, v.f)];
+  return { lat: x[0], lon: wrapPi(x[1]), i: Math.min(SL_HOME.i, slMaxI(w)), w, f: v.f, u: v.u };
 }
 // The pole view (user, 2026-10-25: one view, LEVELED_PAN, with two pans chosen by the button above the gauge):
 // LP_ROTATING, the rotating pan: the moves and view below, but below the ecliptic the picture turned by the mirrored
@@ -1538,6 +1704,7 @@ function stepSunLock(dt, vKey, hKey, w) {
 // the body fixed in the screen's centre, +z up everywhere (below the ecliptic the camera tilts up to the centre, the
 // south pole seen from below); no mirrored pan (with the head level it cannot keep the body in the centre)
 let LP_ROTATING = false;
+const lpRot = () => LP_ROTATING && !SUN_LOCK;   // (the Sun locked view: only the leveled pan)
 // The leveled pan's south (user, 2026-10-25): below the ecliptic the picture is mirrored top to bottom (the canvas; the
 // labels, the pointer and the mouse follow), so the south looks as the north does: the pole towards the top of the
 // screen, the view turning the same way on the screen when moving round C (looking up instead of down reverses how a
@@ -1631,7 +1798,7 @@ const lpSide = (i, side) => LP_ROT_ONE_A ? 1 : side || (i > 0 ? 1 : i < 0 ? -1 :
 // rotation at the equator, that should not be"): A stays at the same node, so the poles are then at the bottom of the
 // screen and the view goes towards the equatorial band
 let LP_POLAR = false;
-const lpRollU = (u, i, side) => !LP_ROTATING ? 0
+const lpRollU = (u, i, side) => !lpRot() ? 0
   : LP_POLAR ? wrapPi(Math.PI / 2 * (Math.sin(u) - 1) + (lpSide(i, side) < 0 ? Math.PI : 0))
   : wrapPi(u + Math.atan2(Math.cos(i), Math.sin(i) * Math.cos(u)) + (lpSide(i, side) < 0 ? 0 : -Math.PI));
 const lpRoll = (q, i, node) => lpRollU(Math.atan2(dot(q, lpM(i, node)), dot(q, lpN(node))), i);
@@ -1657,7 +1824,10 @@ function bodyBasis(pole) {
   return [X, cross(Z, X), Z];
 }
 let LPB = bodyBasis(REF.pole);   // (the reference body's; see setRef)
-const toLPB = v => LPB.map(a => dot(a, v)), fromLPB = v => [0, 1, 2].map(k => LPB[0][k] * v[0] + LPB[1][k] * v[1] + LPB[2][k] * v[2]);
+// the frame of body mode's steps: the body's (LPB), or in the Sun locked view its own (SL.frame, see slTurn)
+const frameB = () => slOn() ? slFrame() : LPB;
+let swapB = null;   // (the frame the camera was turned into: back from the same one, even if the view changed meanwhile)
+const toLPB = v => (swapB || frameB()).map(a => dot(a, v)), fromLPB = v => { const B = swapB || frameB(); return [0, 1, 2].map(k => B[0][k] * v[0] + B[1][k] * v[1] + B[2][k] * v[2]); };
 // the camera turned into (into = true) or back from the body frame: its place, view and picture's up, and with them the
 // head's frame, the tilted meridian's axis and the axes of the moves going on (outside a body-mode step they are always
 // in space's frame). (The way to Home, C.homing, is kept in the frame it was started in: it starts and runs only within
@@ -1676,16 +1846,16 @@ function lpSwap(into) {
 }
 // fn run with the camera in the body frame (in body mode, see BODY_EQ), else as it is; nested calls run as they are
 function bodyFramed(fn) {
-  if (!BODY_EQ || C.mode !== 'body' || inBodyFrame || SUN_LOCK) return fn();   // (the Sun locked view: the ecliptic)
-  lpSwap(true); inBodyFrame = true;
-  try { return fn(); } finally { inBodyFrame = false; lpSwap(false); }
+  if (!BODY_EQ || C.mode !== 'body' || inBodyFrame) return fn();   // (the Sun locked view: its own frame, see frameB)
+  swapB = frameB(); lpSwap(true); inBodyFrame = true;
+  try { return fn(); } finally { inBodyFrame = false; lpSwap(false); swapB = null; }
 }
 const lpFramed = fn => lpOnAxis() ? bodyFramed(fn) : fn();
-const lpTurnNow = () => LP_ROTATING ? LP.roll : LP.south ? Math.PI : 0;
+const lpTurnNow = () => lpRot() ? LP.roll : LP.south ? Math.PI : 0;
 // the leveled pan's pole at the top taken afresh (entering the view, switching to the leveled pan): south up below the band
 const lpSouthAfresh = () => { LP.south = LP.i < -LP_SOUTH_BAND; LP.flip = 0; };
 // the leveled pan's 180° turn going on: nothing is controlled meanwhile
-const lpFlipping = () => LEVELED_PAN && C.mode === 'body' && !SUN_LOCK && LP.valid && LP.flip !== 0;
+const lpFlipping = () => LEVELED_PAN && C.mode === 'body' && LP.valid && LP.flip !== 0;
 // a place on the screen w (right, up, view) in the head's own frame, for the picture turned by ρ (C.roll): the screen's
 // up is the head's up turned by ρ around the view direction (picUp), so the head's components are w turned back by ρ
 // C set afresh from the camera as it is; the view then turns onto the z axis (lpView)
@@ -1693,13 +1863,23 @@ function lpStart() {
   lpFit(unit(rel()));
   lpSouthAfresh(); LP.roll = lpRoll(unit(rel()), LP.i, LP.node);
   LP.panA = C.pan; LP.tiltA = C.tilt; LP.valid = true; LP.entering = true; LP.cf = null;
+  SL.w = null; SL.s = 0; SL.mouse = false; SL.iSet = null;   // (the Sun locked view: the body's place and C from the view, north up first: see slView)
 }
 // the largest part s (0..1) of a move, the camera then at at(s) (relative to O), for which the automatic pan and tilt
 // turn at most LP_ANGLE_SPEED in this frame; with roll(s) (the automatic picture's turn then, the rotating pan) what is
 // seen (see below). (Until 2026-11-04 the leveled pan's moves also stopped where the body's place on the screen could
 // not be held: the restricted area, removed.)
 function lpLimit(dt, at, roll) {
-  const [p0, t0] = lpAuto(rel()), r0 = roll ? roll(0) : 0, lim = LP_ANGLE_SPEED * dt * (1 + 1e-9);
+  const lim = LP_ANGLE_SPEED * dt * (1 + 1e-9);
+  if (slOn() && SL.w) {   // (the Sun locked view: its level view that holds the body, see slView: its turn and the view's)
+    const fr = q => { const h = slHeld(q, SL.w, LP.south); return h ? [cross(h.f, h.u), h.u, h.f] : null; }, G0 = fr(rel());
+    const okSl = s => { const F = fr(at(s)); return !F || !G0 || Math.max(Math.abs(Math.asin(clamp(dot(F[1], G0[0]), -1, 1))), Math.acos(clamp(dot(F[2], G0[2]), -1, 1))) <= lim; };
+    if (okSl(1)) return 1;
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 20; k++) { const m = (lo + hi) / 2; if (okSl(m)) lo = m; else hi = m; }
+    return lo;
+  }
+  const [p0, t0] = lpAuto(rel()), r0 = roll ? roll(0) : 0;
   const okAuto = s => { const [p, t] = lpAuto(at(s)); return Math.max(p === null || p0 === null ? 0 : Math.abs(wrapPi(p - p0)), Math.abs(t - t0), roll ? Math.abs(wrapPi(roll(s) - r0)) : 0) <= lim; };
   // the rotating pan (user, 2026-11-03, with the even turn): what is seen is limited, not the head's own pan and turn
   // (both race near the poles, where C's heading and the body's own turn change fast, the picture not): the picture's
@@ -1715,15 +1895,17 @@ function lpLimit(dt, at, roll) {
   return lo;
 }
 // Home in the leveled pan: C at 60° with the camera at its highest point, the automatic view
-function lpHome() {
+function lpHome(sh) {
   // (on the rotation axis: called from goHome, already in the body frame, so Home's place is taken there: C at 60° to
-  // the equator, the camera at its highest point)
-  lpFramed(lpHome_);
+  // the equator, the camera at its highest point; the Sun locked view: in its frame, at sh.lon, see slHome)
+  lpFramed(() => lpHome_(sh));
 }
-function lpHome_() {
-  LP.i = HOME.lat; LP.node = wrapPi(HOME.lon - Math.PI / 2); LP.u = Math.PI / 2; LP.roll = 0; LP.south = false; LP.flip = 0;
+function lpHome_(sh) {
+  LP.i = HOME.lat; LP.node = wrapPi((sh ? sh.lon : HOME.lon) - Math.PI / 2); LP.u = Math.PI / 2; LP.roll = 0; LP.south = false; LP.flip = 0;
+  if (sh) { LP.node = sh.lon - Math.PI / 4; lpFit(unit(rel()), sh.i); }   // (the Sun locked view: C through Home's place, see slHome)
   const a = lpAuto(rel());
   LP.panA = C.pan = a[0]; LP.tiltA = C.tilt = a[1]; C.roll = 0; LP.valid = true; LP.entering = false; LP.cf = null;
+  if (sh) { setView(sh.f, sh.u); SL.w = sh.w; SL.s = 0; SL.mouse = false; SL.iSet = null; }   // (the Sun locked view's level view, see slView)
 }
 // C (i, node, u) turned rigidly by a around the axis e through O; of the two ways to write the turned circle ((i, Ω) and
 // (−i, Ω + 180°)) the one with the node nearer to the old one
@@ -1750,7 +1932,11 @@ function stepLeveled(dt, vKey, hKey, cKey) {
   // line of nodes, W raising its angle, S lowering it, at ANGULAR_SPEED; the camera rides on C (the same u). Within ±maxI
   // (LP_MAX_I); from beyond it (entered there) only back towards the range.
   const lam = Math.atan2(qu[1], qu[0]), e = [-Math.sin(lam), Math.cos(lam), 0];
-  const maxI = LP_MAX_I;
+  // (the Sun locked view, user 2026-11-11, log 120001_Earths_swings_in_Sun_locked: C's angle at most what a level head
+  // can hold the body at its place for, see slMaxI: on C the camera is never farther from the body ecliptic than C's
+  // angle, so no move makes the body slide; the mouse stays free, and if it puts the body beyond that, W/S bring C back
+  // (towards 0° always))
+  const maxI = slOn() && SL.w ? slMaxI(SL.w) : LP_MAX_I;
   let di = 0;
   if (vKey) {
     let ni = i + vKey * step;
@@ -1764,7 +1950,7 @@ function stepLeveled(dt, vKey, hKey, cKey) {
   } else motion.h = null;
   // E/C: along C, E (cKey +1) forward (u growing); the leveled pan south up (the picture turned by 180°): the other way,
   // so that on the screen E/C move as at the north pole (user, 2026-11-05, log 2026-11-05-175749)
-  if (cKey) u = wrapPi(u + (!LP_ROTATING && LP.south ? -cKey : cKey) * step);
+  if (cKey) u = wrapPi(u + (!lpRot() && LP.south ? -cKey : cKey) * step);
   // the part s of the move: C's angle (W/S), its node (A/D), the place on it (E/C)
   const n0 = LP.node, u0 = LP.u, dn = wrapPi(node - n0), du = wrapPi(u - u0);
   const move = s => ({ i: i + di * s, node: n0 + dn * s, u: u0 + du * s });
@@ -1783,8 +1969,9 @@ function stepLeveled(dt, vKey, hKey, cKey) {
   if (!insideBox(p)) return;
   const c = move(sl);
   C.pos = p; Object.assign(LP, { i: c.i, node: wrapPi(c.node), u: wrapPi(c.u), roll: rollAt(sl), side: Math.sign(c.i) || side });
-  if (LP_ROTATING && !LP_ROT_ONE_A && LP.side !== side) { LP.roll = lpRollU(LP.u, LP.i); LP.entering = true; }   // C through 0°: A to the other node
-  if (!LP_ROTATING) {   // the leveled pan: C's angle out of the band on the other side, the pole at the top changes
+  if (di) SL.iSet = LP.i;   // (the Sun locked view: the C angle set by W/S, see slView)
+  if (lpRot() && !LP_ROT_ONE_A && LP.side !== side) { LP.roll = lpRollU(LP.u, LP.i); LP.entering = true; }   // C through 0°: A to the other node
+  if (!lpRot()) {   // the leveled pan: C's angle out of the band on the other side, the pole at the top changes
     const south = LP.south ? LP.i < LP_SOUTH_BAND : LP.i < -LP_SOUTH_BAND;
     if (south !== LP.south) { LP.south = south; LP.flip = south ? -1 : 1; LP.entering = true; }
   }
@@ -1855,7 +2042,11 @@ const lpLookHead = (F, a, b) => { const [f, u] = lpLookDir(F, a, b); return head
 // the head's own pan and tilt now (gauge, log), or null: the rotating pan's look (lpLookHead), the leveled pan's
 // automatic + manual angles (the automatic pan is +x: the pan is the manual one; the tilt the final one), not while
 // entering (the picture still turning level: the manual angles are taken after it)
-const lpHeadNow = () => !LP.cf ? null : LP_ROTATING ? lpLookHead(LP.cf, LP.oa, LP.ob) : (() => {
+const lpHeadNow = () => slOn() && LP.valid ? bodyFramed(() => {
+  // (the Sun locked view: its level head, z the ecliptic's (south up: −z), x horizontally towards the body)
+  const Z = [0, 0, LP.south ? -1 : 1], v = rel().map(x => -x), h = [v[0], v[1], 0], X = len(h) > 1e-12 ? unit(h) : [1, 0, 0];
+  return headAngles([X, cross(Z, X), Z], viewDir(), picUp());
+}) : !LP.cf ? null : lpRot() ? lpLookHead(LP.cf, LP.oa, LP.ob) : (() => {
   // the leveled pan: in the level head (z the rotation axis, +x horizontally towards it: the centred view's level part)
   // (south up: the head upside down, z towards the south pole)
   const Z = [0, 0, LP.south ? -1 : 1], v = LP.cf[2], h = [v[0], v[1], 0], X = len(h) > 1e-9 ? unit(h) : LP.cf[1];
@@ -1867,7 +2058,7 @@ const lpHeadNow = () => !LP.cf ? null : LP_ROTATING ? lpLookHead(LP.cf, LP.oa, L
 function lpLook(mx, my) {
   // (the leveled pan: up / down until the picture would turn upside down in the level head, see lpGuard; the rotating
   // pan: within ±90° of the automatic view)
-  const H = LP_ROTATING ? Math.PI / 2 - 1e-6 : Math.PI - 1e-6;
+  const H = lpRot() ? Math.PI / 2 - 1e-6 : Math.PI - 1e-6;
   LP.oa = wrapPi(LP.oa + mx * MOUSE_SENS); LP.ob = clamp(LP.ob + my * MOUSE_SENS, -H, H);
   lpGuard(LP.cf);
   const [f, u] = lpLookDir(LP.cf, LP.oa, LP.ob); setView(f, u);
@@ -1880,7 +2071,7 @@ function lpLook(mx, my) {
 // automatic view (lpCentred). (A try the same day, the mouse turning the level head's pan and tilt as in the Sun locked
 // view, turned the image at the pole instead of moving it: user, log 2026-11-08-212527; dropped.)
 function lpGuard(F) {
-  if (LP_ROTATING || !F) return;
+  if (lpRot() || !F) return;
   const z = LP.south ? -1 : 1, upZ = b => z * lpLookDir(F, LP.oa, b)[1][2];
   if (upZ(LP.ob) >= 0) return;
   let lo = 0, hi = 1;   // (the part of LP.ob kept: at 0 the automatic picture, level)
@@ -2042,12 +2233,6 @@ function updateBody(dt) {
   const vKey = held.has('fwd') !== held.has('back') ? (held.has('fwd') ? 1 : -1) : 0;
   const hKey = held.has('right') !== held.has('left') ? (held.has('right') ? 1 : -1) : 0;
 
-  if (SUN_LOCK) {
-    // (while the picture still levels after entering, it only turns with the Sun: no keys)
-    const w = placeNow();
-    stepSunLock(dt, C.leveling ? 0 : vKey, C.leveling ? 0 : hKey, w);   // (stepSunLock skips the body's place while levelling)
-    return;
-  }
   // the tilted meridian view (its own moves and view, see MV), with the keys of the pole view: E/C walking on the circle,
   // W/S tilting it (the meridian view, which walked with W/S on the real meridian, removed 2026-11-07: it was this view
   // at M = 90°)
@@ -2058,7 +2243,7 @@ function updateBody(dt) {
     lpFramed(() => {
       // the body's place on the screen before this frame's moves (with the mouse's last turn); the rotating pan: none,
       // its view is the centred one moved by the mouse's offset (see lpCentred)
-      stepLeveled(dt, vKey, hKey, cKey); wheelStep(dt); lpView(dt);
+      stepLeveled(dt, vKey, hKey, cKey); wheelStep(dt); if (slOn()) slView(dt); else lpView(dt);
     });
     return;
   }
@@ -2848,17 +3033,23 @@ function plume() {
 // the plume of a trail, the line it replaces and where the rest of the line starts (tr.gap, scene units from the body's
 // centre); flow: real seconds passed
 function updatePlume(tr, cam, flow) {
-  const pl = tr.plume, R0 = tr.r * U;
+  // (R0: the body's radius as drawn, user 2026-11-10, "the plumes / trails should look the same way in any view": the
+  // plume was made for the real radius, so in the Moon's Earth locked view the Earth, drawn at least as large as seen
+  // from 75 000 km, had its plume from 2 real radii, inside its drawn disc; drawn smaller than real (the Earth as small
+  // as the Moon) it would have started farther. Normally the radius as drawn is the real one wherever there is a plume:
+  // larger only farther than about 340 radii, where there is none)
+  const pl = tr.plume, R0 = tr.drawn();
   if (timeDir < 0) { pl.m.visible = tr.near.l.visible = false; tr.gap = TRAIL_GAP * tr.drawn(); return; }   // (no trails backward)
-  placed(tr, nowPt(tr.posAt, trailT), tC);   // the body's centre (as drawn)
+  const at = (t, q) => tr.at ? tr.at(trailT - t, q) : placed(tr, nowPt(tr.posAt, t), q);   // (the Moon's: its spiral, see moonTrail)
+  at(trailT, tC);   // the body's centre (as drawn)
   const dist = Math.hypot(cam.x - tC.x, cam.y - tC.y, cam.z - tC.z) / R0;
   const k = clamp((PLUME_NEAR - dist) / (PLUME_NEAR - PLUME_FULL), 0, 1), blend = k * k * (3 - 2 * k);
   pl.m.visible = tr.near.l.visible = blend > 0;
   tr.gap = blend > 0 ? R0 * (TRAIL_GAP + PLUME_LEN) : TRAIL_GAP * tr.drawn();
   if (!pl.m.visible) return;
   // the trail leaves the body along a straight line: towards where a point it left a moment ago is now
-  const t1 = trailT - tr.r / TRAIL_SPEED;
-  placed(tr, nowPt(tr.posAt, t1), tA);
+  const t1 = trailT - (tr.step || tr.r / TRAIL_SPEED);
+  at(t1, tA);
   let d = [tA.x - tC.x, tA.y - tC.y, tA.z - tC.z];
   d = d.map(x => x / len(d));
   let e1 = cross(d, Math.abs(d[1]) < .9 ? [0, 1, 0] : [1, 0, 0]);
@@ -2927,7 +3118,10 @@ const moonSpiral = (() => {
   // length, relative to the camera: user 2026-11-06, the spiral's end must be on the Earth's trail; a straight axis left
   // it open beside the trail in the zoom screen, where the spiral is long enough for the trail to bend)
   const AX = 64, axPts = Array.from({ length: AX + 1 }, () => new THREE.Vector3());
-  const u = { uAx: { value: axPts }, uNow: { value: 0 }, uSpan: { value: span }, uSpread: { value: 1 } };
+  // (uMoon, uGap: the Moon's centre as drawn, relative to the camera, and where the spiral starts from it: user
+  // 2026-11-10, as the other trails, TRAIL_GAP radii from the centre, or after the plume, see moonTrail)
+  const u = { uAx: { value: axPts }, uNow: { value: 0 }, uSpan: { value: span }, uSpread: { value: 1 },
+    uMoon: { value: new THREE.Vector3() }, uGap: { value: 0 } };
   const m = new LineMaterial({ color: 0xffd84a, linewidth: TRAIL_WIDTH, transparent: true, opacity: trailMaterial.opacity, depthWrite: true });   // depth: see SATURN_RINGS
   m.uniforms.resolution.value = trailMaterial.resolution;   // the same screen size, kept up to date by resize
   // a point: the Earth's place, then back along the trail by its age, then its offset from the Earth, enlarged and
@@ -2935,15 +3129,23 @@ const moonSpiral = (() => {
   m.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, u);
     sh.vertexShader = sh.vertexShader.replace('void main() {', `attribute float instanceTStart, instanceTEnd;
-      uniform vec3 uAx[${AX + 1}]; uniform float uNow, uSpan, uSpread;
+      uniform vec3 uAx[${AX + 1}], uMoon; uniform float uNow, uSpan, uSpread, uGap;
       vec3 spiralAt(vec3 off, float t) {
         float a = uNow - t, s = clamp(a / uSpan, 0., 1.) * ${AX}.; int i = int(min(floor(s), ${AX - 1}.));
         return mix(uAx[i], uAx[i + 1], s - float(i)) + off * (uSpread * max(0., 1. - a / uSpan));
       }
+      // a segment's newer end E inside the gap (the sphere of radius uGap around the Moon): cut where the segment, coming
+      // from its older end S, enters it
+      vec3 spiralCut(vec3 S, vec3 E) {
+        vec3 f = S - uMoon, e = E - S;
+        float g2 = uGap * uGap, ff = dot(f, f), ee = dot(e, e), fe = dot(f, e);
+        if (dot(E - uMoon, E - uMoon) >= g2 || ff <= g2 || ee <= 0.) return E;
+        return S + e * ((-fe - sqrt(max(fe * fe - ee * (ff - g2), 0.))) / ee);
+      }
       void main() {`)
       .replace('vec4 start = modelViewMatrix * vec4( instanceStart, 1.0 );', 'vec4 start = modelViewMatrix * vec4( spiralAt( instanceStart, instanceTStart ), 1.0 );')
-      .replace('vec4 end = modelViewMatrix * vec4( instanceEnd, 1.0 );', 'vec4 end = modelViewMatrix * vec4( spiralAt( instanceEnd, instanceTEnd ), 1.0 );')
-      .replace('gl_Position = clip;', 'gl_Position = clip; if ( instanceTEnd > uNow + 1e-7 || uNow - instanceTStart > uSpan ) gl_Position = vec4( 2., 2., 0., 1. );');
+      .replace('vec4 end = modelViewMatrix * vec4( instanceEnd, 1.0 );', 'vec4 end = modelViewMatrix * vec4( spiralCut( spiralAt( instanceStart, instanceTStart ), spiralAt( instanceEnd, instanceTEnd ) ), 1.0 );')
+      .replace('gl_Position = clip;', 'gl_Position = clip; if ( instanceTEnd > uNow + 1e-7 || uNow - instanceTStart > uSpan || length( spiralAt( instanceStart, instanceTStart ) - uMoon ) < uGap ) gl_Position = vec4( 2., 2., 0., 1. );');
   };
   const l = new LineSegments2(g, m); l.frustumCulled = false; l.visible = false; scene.add(l);
   let tBase = null;
@@ -2981,18 +3183,38 @@ const moonSpiral = (() => {
     // a is at the trail's point made a·k ago (the trail runs away from the Earth at v); the turns' length enlarged as
     // their width (user, 2026-11-06: in the zoom screen from far away the spiral was a yellow disc by the Earth, 50 times
     // wider than long)
-    const o = EARTH.orbit, v = len(add(TRAIL_DIR.map(x => x * TRAIL_SPEED), orbitVel(EARTH).map(x => -x)));
-    const k = SPIRAL_PITCH * MOON_A_AU / MOON_MONTH * spread / v;
-    axPts.forEach((q, j) => {
-      const a = j / AX * span * k, e = orbitAt(o, o.M - TAU * a / o.period), d = TRAIL_SPEED * a;
-      q.copy(T(e[0] + TRAIL_DIR[0] * d, e[1] + TRAIL_DIR[1] * d, e[2] + TRAIL_DIR[2] * d)).sub(camera.position);
-    });
+    const v = len(add(TRAIL_DIR.map(x => x * TRAIL_SPEED), orbitVel(EARTH).map(x => -x)));
+    cur.k = SPIRAL_PITCH * MOON_A_AU / MOON_MONTH * spread / v; cur.spread = spread;
+    axPts.forEach((q, j) => axisAt(j / AX * span, q).sub(camera.position));
     u.uNow.value = trailT - tBase; u.uSpread.value = spread;
   }
+  // the spiral's axis (the Earth's trail as drawn) at the age a of a spiral's point, scene units, into q
+  const cur = { k: 1, spread: 1 };
+  function axisAt(a, q) {
+    const o = EARTH.orbit, b = a * cur.k, e = orbitAt(o, o.M - TAU * b / o.period), d = TRAIL_SPEED * b;
+    return q.copy(T(e[0] + TRAIL_DIR[0] * d, e[1] + TRAIL_DIR[1] * d, e[2] + TRAIL_DIR[2] * d));
+  }
+  // the spiral's point of age a (years) as drawn in the last view, scene units, into q (see moonTrail)
+  const vAt = new THREE.Vector3();
+  function at(a, q) {
+    axisAt(a, vAt);
+    const r = moonRelT(trailT - a), f = cur.spread * Math.max(0, 1 - a / span), w = T(...r);
+    q.x = vAt.x + w.x * f; q.y = vAt.y + w.y * f; q.z = vAt.z + w.z * f;
+    return q;
+  }
+  // where the spiral starts: gap (scene units) from the Moon's centre as drawn (from the plume's update, see moonTrail)
+  function cut(gap) { u.uMoon.value.set(MOON.group.position.x, MOON.group.position.y, MOON.group.position.z).sub(camera.position); u.uGap.value = gap; }
   // the fade at the camera's distance from the Earth (Earth-Moon distances) seen at zoom Z
   const fadeAt = (Z, zoomed) => zoomed ? 1 : clamp((SPIRAL_NEAR - len(sub(C.pos, EARTH.p)) / MOON_A_AU / Z) / (SPIRAL_NEAR - SPIRAL_FULL), 0, 1);
-  return { update, view, fadeAt };
+  return { update, view, fadeAt, at, cut, span };
 })();
+// The Moon's gap and plume (user, 2026-11-10: "the trail of the Moon is not one radius from surface and it has no plume,
+// like the other bodies"): as the other trails' (updatePlume), along the spiral where it leaves the Moon (there it is
+// straight: an eighth of a turn over 100 Earth-Moon distances, the plume about 0.4 of one); at: a point of the spiral by
+// its age, step: the age of the point that gives its direction (see updatePlume); the spiral starts tr.gap from the Moon
+const moonTrail = { r: MOON.r, drawn: () => MOON.group.scale.x, at: moonSpiral.at, step: moonSpiral.span * 1e-4,
+  plume: plume(), near: nearLine(), gap: 0 };
+function updateMoonTrail(flow) { updatePlume(moonTrail, camera.position, flow); moonSpiral.cut(moonTrail.gap); }
 const MOON_STEP = MOON_MONTH / 180;   // years: the Moon's trail at 2° of its orbit where its loops can be seen
 // a trail segment is split while it is longer than TRAIL_SPLIT times its distance from the camera (about 3 degrees seen
 // from the camera), at most TRAIL_SPLIT_DEPTH times (Pluto: 1.38 years / 2^16, about 11 minutes)
@@ -3639,7 +3861,7 @@ function updateMeridianLine() {
     bodyFramed(() => { lastMeridianAxis = (motion.v && motion.v.axis) || (lastMove.v && lastMove.v.axis) || tiltedAxis(); });
 }
 // the reference's vertical: in body mode on the equator (BODY_EQ) the rotation axis, else the z axis
-const refZ = () => BODY_EQ && C.mode === 'body' ? LPB[2] : [0, 0, 1];
+const refZ = () => BODY_EQ && C.mode === 'body' ? frameB()[2] : [0, 0, 1];
 // The line is drawn as 4 pieces (centre → gap → end, on both sides); the gaps are moved every frame to fit the names.
 // arrow: an arrowhead at the + end (user, 2026-10-28, the x, y, z axes: like Word's arrow type "Arrow", size 3, narrow
 // and long): a slim cone in the axis's color, its tip at the end of the axis, pointing outwards in space, 0.175 R long
@@ -3937,10 +4159,32 @@ const fmtAng = a => noNegZero((wrapAngle(a) / DEG).toFixed(1)) + '°';
 // (1.5′), Dec to 1′.
 const RA_DEC_R = 30;
 const raDecDir = new THREE.Vector3();
+// RA / Dec adjusted to today's date (user, 2026-11-09/11: "adjusted J2000 coordinates based on the current date read from
+// the OS"): the J2000 direction turned by the precession of the Earth's axis from J2000.0 to now (the computer's
+// clock), IAU 1976 (Lieske 1977) angles zeta, z, theta (well under 1" for centuries): the mean equator and equinox of
+// the date. Nutation (at most 17"), aberration (at most 20.5") and the stars' own motions are not included (the
+// "apparent" place of the almanacs): below the row's 1' of Dec, they can change its last digit. Only shown: the
+// simulation's sky and the Earth's axis stay in J2000.
+let RADEC_DATE = false;   // the row's switch: false J2000, true adjusted to today's date
+const radecDate = () => new Date();
+const radecDateText = d => d.getDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()] + ' ' + d.getFullYear();
+// [x, y, z] in the J2000 equator turned to the mean equator of the date d (Julian centuries from J2000.0)
+function precess(v, d) {
+  const T = (d.getTime() / 86400000 + 2440587.5 - 2451545) / 36525, as = Math.PI / 180 / 3600;
+  const ze = (2306.2181 * T + .30188 * T * T + .017998 * T ** 3) * as, z = (2306.2181 * T + 1.09468 * T * T + .018203 * T ** 3) * as;
+  const th = (2004.3109 * T - .42665 * T * T - .041833 * T ** 3) * as;
+  const a0 = Math.atan2(v[1], v[0]), d0 = Math.asin(clamp(v[2] / Math.hypot(...v), -1, 1));
+  const A = Math.cos(d0) * Math.sin(a0 + ze), B = Math.cos(th) * Math.cos(d0) * Math.cos(a0 + ze) - Math.sin(th) * Math.sin(d0);
+  const Cc = Math.sin(th) * Math.cos(d0) * Math.cos(a0 + ze) + Math.cos(th) * Math.sin(d0);
+  const a = Math.atan2(A, B) + z, dd = Math.asin(clamp(Cc, -1, 1));
+  return [Math.cos(dd) * Math.cos(a), Math.cos(dd) * Math.sin(a), Math.sin(dd)];
+}
 function raDec() {
   camera.getWorldDirection(raDecDir);
-  const x = raDecDir.x, y = -raDecDir.z, z = raDecDir.y, c = Math.cos(OBLIQ), s = Math.sin(OBLIQ);
-  const ye = y * c - z * s, ze = y * s + z * c, n = Math.hypot(x, ye, ze);
+  const x0 = raDecDir.x, y = -raDecDir.z, z = raDecDir.y, c = Math.cos(OBLIQ), s = Math.sin(OBLIQ);
+  let [x, ye, ze] = [x0, y * c - z * s, y * s + z * c];
+  if (RADEC_DATE) [x, ye, ze] = precess([x, ye, ze], radecDate());
+  const n = Math.hypot(x, ye, ze);
   let ra = Math.round(((Math.atan2(ye, x) / DEG / 15 + 24) % 24) * 600) / 10;   // minutes of time, to 0.1
   if (ra >= 1440) ra -= 1440;
   const dec = Math.round(Math.asin(clamp(ze / n, -1, 1)) / DEG * 60), ad = Math.abs(dec);   // arcminutes
@@ -3949,9 +4193,9 @@ function raDec() {
 }
 const pad = (s, n) => s.padStart(n);
 const HINTS = {
-  body: [['Drag', 'look around (mouse forward/backward - tilt / mouse left/right - pan)'], ['Shift+Drag', 'look around 10 times finer (to aim precisely, e.g. at a star)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'tilted meridian: tilt it (around its line of nodes, M 0° to 90°, the camera riding on it); pole view: the angle of circle C up / down (−80° to +80°); Sun locked: move on the meridian (forward / backward)'],
-    ['A D ← →', 'move on the parallel (left / right); tilted meridian and pole view: their circle turns around z with the camera'],
-    ['E C', 'tilted meridian: forward / backward on it; pole view: forward / backward on circle C'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off; while on, the mouse is kept in the picture: Esc frees it, the zoom off; Shift: it moves 10 times slower)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log'], ['Esc', 'close the About window / end the intro']],
+  body: [['Drag', 'look around (mouse forward/backward - tilt / mouse left/right - pan)'], ['Shift+Drag', 'look around 10 times finer (to aim precisely, e.g. at a star)'], ['Wheel', 'closer / farther (min 2·R)'], ['W S ↑ ↓', 'tilted meridian: tilt it (around its line of nodes, M 0° to 90°, the camera riding on it); pole view: the angle of circle C up / down (−80° to +80°); Sun locked: the same, to the body ecliptic (at most what keeps the body fixed on the screen all round C)'],
+    ['A D ← →', 'move on the parallel (left / right); tilted meridian, pole view and Sun locked: their circle turns around z with the camera'],
+    ['E C', 'tilted meridian: forward / backward on it; pole view and Sun locked: forward / backward on circle C'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off; while on, the mouse is kept in the picture: Esc frees it, the zoom off; Shift: it moves 10 times slower)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log'], ['Esc', 'close the About window / end the intro']],
   absolute: [['Drag', 'look around (mouse forward/backward - tilt ±90° / mouse left/right - pan)'], ['Shift+Drag', 'look around 10 times finer (to aim precisely)'], ['W S ↑ ↓', 'move forward / backward (dolly)'], ['Wheel', 'move forward / backward, parallel to the ecliptic'], ['PgUp PgDn', 'move up / down (crane)'],
     ['A D ← →', 'move left / right (truck)'], ['Home', 'home view'], ['T', 'zoom screen: the area under the mouse 4\u00d7 to 20\u00d7 larger (on / off; while on, the mouse is kept in the picture: Esc frees it, the zoom off; Shift: it moves 10 times slower)'], ['+ -', 'zoom screen: zoom in / out'], ['H', 'markings: orbits, grid, axis names, cylinder (show / hide)'], ['J', 'reference axes: both / none / equatorial / ecliptic (as the button in the information panel)'], ['R', 'run / stop the simulation'], ['Shift+R', 'record the camera / stop and save (test aid)'], ['N', 'note in the camera log'], ['Esc', 'close the About window / end the intro']],
 };
@@ -3979,8 +4223,13 @@ function updateHud(now) {
     setText($('pos-km'), near ? q.map(v => fmtKm(v * AU_KM)).join(' ') + ' km' : '');
     // (user, 2026-11-08) on the Earth, in the pole view's leveled pan, within RA_DEC_R radii of its centre: the view
     // direction's equatorial coordinates (RA / Dec, J2000) instead of pan / tilt, only shown (see raDec)
-    const rd = C.mode === 'body' && REF === EARTH && LEVELED_PAN && !LP_ROTATING && d < RA_DEC_R * R ? raDec() : null;
-    setText($('angles-l'), rd ? 'RA / Dec (J2000)' : 'Pan / tilt');
+    const rd = C.mode === 'body' && REF === EARTH && LEVELED_PAN && !SUN_LOCK && !lpRot() && d < RA_DEC_R * R ? raDec() : null;
+    setText($('angles-t'), rd ? 'RA / Dec' : 'Pan / tilt');
+    const rb = $('radec-mode');
+    if (rb.hidden !== !rd) rb.hidden = !rd;
+    // ("adj. J2000": J2000 adjusted to today, user 2026-11-11; the date in the button's tooltip and in About: "adj. 11 Nov
+    // 2026" widened the label column and cut the values off)
+    if (rd) { setText(rb, RADEC_DATE ? 'adj. J2000' : 'J2000'); rb.title = RADEC_TIP(radecDateText(radecDate())); }
     document.body.classList.toggle('radec', !!rd);   // (the little cross marks the view direction)
     setText($('angles'), rd || fmtAng(C.pan) + ' / ' + fmtAng(C.tilt) + (Math.abs(wrapPi(C.roll)) > .05 * DEG ? ', turn ' + fmtAng(wrapPi(C.roll)) : ''));
   }
@@ -4041,7 +4290,7 @@ function updateGauge(show, lp) {
   const g = $('gauge');
   if (g.hidden !== !(show || lp)) g.hidden = !(show || lp);
   if (!lp && (!show || !lastMeridianAxis)) return;
-  if ($('g-pan-mode').hidden !== !lp) $('g-pan-mode').hidden = !lp;   // the pole view's pan button
+  if ($('g-pan-mode').hidden !== !(lp && !SUN_LOCK)) $('g-pan-mode').hidden = !(lp && !SUN_LOCK);   // the pole view's pan button (not in the Sun locked view)
   const a = lp ? LP.i : Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ())))), f = viewDir(), u = picUp();
   // the tilt axis (the screen's left-right edge) at its angle to the reference plane: the body ecliptic, or in the pole
   // view on the rotation axis the equator (user, 2026-10-27; see LP_ROT_AXIS)
@@ -4627,6 +4876,9 @@ async function loadLog() {
   $('log-file').click();
 }
 $('g-pan-mode').addEventListener('click', e => { e.currentTarget.blur(); switchPan(); });
+// the RA / Dec row's switch (user, 2026-11-11): J2000 (the catalogue) / adjusted to today's date (see precess)
+const RADEC_TIP = d => 'J2000: the catalogue coordinates (the Earth\'s axes of 1 Jan 2000). adj.: adjusted to today, ' + d + ' (the precession of the Earth\'s axis since 2000, from the computer\'s date). Click: switch';
+$('radec-mode').addEventListener('click', e => { e.currentTarget.blur(); RADEC_DATE = !RADEC_DATE; hudT = -Infinity; });
 $('menu-load-log').addEventListener('click', e => { closeMenu(); e.currentTarget.blur(); loadLog(); });
 $('log-file').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if (f) startReplay(await f.text(), f.name); });
 // spec vector → scene vector (as T(), without the AU scale)
@@ -5253,6 +5505,7 @@ function renderScope() {
     if (scopeNear(c, b, w, h)) { updatePlume(tr, camera.position, 0); updateTrail(tr, camera.position); }
   }
   moonSpiral.view(moonSpread, moonSpiral.fadeAt(Z, scope.z >= SPIRAL_ZOOM));   // (the Moon's trail: enlarged as the Moon's disc)
+  updateMoonTrail(0);   // (its gap and plume for the Moon's size in it)
   trailMaterial.resolution.set(w, h);   // (the lines' width in its pixels)
   const mw = milkyWay.material.uniforms.uGain; mw.value = MW_GAIN * MW_SCOPE;
   // the stars' sizes (see STAR_SCOPE): the Moon's minimum radius in its pixels (half the planets', see SCOPE_MIN)
@@ -5296,9 +5549,9 @@ let last = performance.now(), refInflated = false, inflatedBody = null;
 // the Earth) and the Earth locked view (on the Moon: the Earth as small as the Moon), user 2026-10-28
 const drawnR = b => C.mode === 'body' && SUN_LOCK && LOCK !== SUN && b === LOCK ? REF.r : b.r;
 // the minimum apparent radius in the same two views (user, 2026-10-29): the Earth never smaller than seen from 60 000 km
-// (≈ 6.1°), the Moon than seen from 26 000 km (≈ 3.8°; was 18 000, then 20 000 km), so that the phases can still be seen with the
+// (≈ 6.1°), the Moon than seen from 32 500 km (≈ 3.1°; was 18 000, then 20 000, then 26 000 km; user 2026-11-10: 80% of the radius), so that the phases can still be seen with the
 // camera far away; 0: the usual one
-const LOCK_MIN_KM = { Earth: 60000, Moon: 26000 };
+const LOCK_MIN_KM = { Earth: 60000, Moon: 32500 };
 // (the Earth in the Earth locked view, user 2026-10-29: 20% smaller, as seen from 75 000 km, ≈ 4.9°)
 const lockMinAngle = b => C.mode === 'body' && SUN_LOCK && LOCK !== SUN && LOCK_MIN_KM[b.name]
   ? Math.atan(b.km / (LOCK === EARTH && b === EARTH ? 75000 : LOCK_MIN_KM[b.name])) : 0;
@@ -5381,7 +5634,8 @@ function frame(now) {
   const pushed = keepOutside(C.pos, cam0, prev);
   if (pushed.some((x, i) => x !== C.pos[i])) { C.pos = pushed; if (C.mode === 'body') syncSpherical(); }
 
-  // (body mode in the body frame, see BODY_EQ)
+  // (body mode in the body frame, see BODY_EQ; the Sun locked view: its frame turned with the target first, see slTurn)
+  slTurn();
   bodyFramed(() => {
     if (C.homing) homeStep(dt);
     else if (C.mode === 'body') updateBody(dt);
@@ -5390,7 +5644,7 @@ function frame(now) {
     // (the locked views, user 2026-10-29: the levelling on entering is done in the view's own frame, which turns with the
     // target; done against the ecliptic, it never ended while the target's height changed fast, Earth locked at 3 mo/s,
     // and the keys waited for it)
-    if (C.leveling || leanSpeed) { if (SUN_LOCK && C.mode === 'body' && SL.valid) sunFramed(() => levelStep(dt)); else levelStep(dt); }
+    if (C.leveling || leanSpeed) levelStep(dt);
   });
   if (C.mode === 'body' && !C.homing) {
     // the moves around Pluto keep 2 radii from Pluto; the other bodies are checked here, before the picture is drawn
@@ -5403,7 +5657,7 @@ function frame(now) {
 
   // camera: screen top/bottom edges stay parallel to the ecliptic [REQ-02]; only right after switching to absolute mode
   // upside down the picture turns around the view direction from upside down to upright (smooth start and stop)
-  const mir = LP_MIRROR && C.mode === 'body' && LEVELED_PAN && !LP_ROTATING && rel()[2] < 0;
+  const mir = LP_MIRROR && C.mode === 'body' && LEVELED_PAN && !lpRot() && rel()[2] < 0;
   if (mir !== picMirror) {
     // the mouse's part of the tilt turns over with the picture, so the body stays where it is on the screen (else it
     // jumped by twice that part, user's log 2026-10-25-221017)
@@ -5447,6 +5701,7 @@ function frame(now) {
   for (const ol of orbitLines) { ol.l.visible = !farAway && guides; if (ol.l.visible) updateOrbitLine(ol, C.pos); }
   for (const tr of trails) { updatePlume(tr, camera.position, running && timeDir > 0 ? dt : 0); updateTrail(tr, camera.position); }
   moonSpiral.update(); moonSpiral.view(1, moonSpiral.fadeAt(1, false));   // (the Moon's trail, see moonSpiral)
+  updateMoonTrail(running && timeDir > 0 ? dt : 0);   // (its gap and plume, see moonTrail)
   // the reference body, when shown larger than real (far away): fully lit and drawn over the axis lines (setInflated)
   // (not in the Moon / Earth locked views: there the reference body keeps its light and shadow, for its phases)
   const inflated = !lockMinAngle(REF) && REF.group.scale.x > R * U * (1 + 1e-9);
@@ -5521,7 +5776,7 @@ function setRef(b) {
   pointerEl.querySelector('path').setAttribute('fill', css);
   forgetMoves(); resetMeridian(); motion.v = motion.h = motion.r = null; C.wheel = 0;
   LP.valid = false; MV.valid = false; SL.valid = false; C.head = null;
-  if (SUN_LOCK && b === SUN) { SUN_LOCK = false; TILTED_MERIDIAN = true; C.leveling = false; C.levelSpeed = 0; }   // (M 90°: merAxis null)
+  if (SUN_LOCK && b === SUN) { SUN_LOCK = LEVELED_PAN = false; TILTED_MERIDIAN = true; C.leveling = false; C.levelSpeed = 0; }   // (M 90°: merAxis null)
   if (LOCK !== SUN && LOCK !== lockOther()) LOCK = SUN;   // (Moon locked only on the Earth, Earth locked only on the Moon)
   syncSpherical();
 }
@@ -5553,52 +5808,27 @@ function chooseRef(b, v) {
   if (other) startHome();
   toast(refTitle());
 }
-// The starting view (user, 2026-10-28; new picture 2026-10-31): Pluto in the Sun locked view, as the user saw it then: the
-// camera at (−22.01, 31.35, 3.01) AU, (7 832, 9 597, 7 265) km from Pluto's centre, pan −87.0°, tilt −22.1°, turn 0. What
-// counts is the picture: Pluto and the Sun keep their places on the screen then, with the head level to the ecliptic
-// (user, 2026-10-29: as in absolute space, turn 0). The Sun's place and its real height now (then 16.7° below the body
-// ecliptic, at the start 0.5° below) give the tilt and the pan; Pluto's place then gives the camera's place around Pluto,
-// at the same distance. The angle between Pluto and the Sun seen from the camera stays, so does the lit part of Pluto.
-const START = { cam: [-22.01, 31.35, 3.01], km: [7832, 9597, 7265], pan: -87.0, tilt: -22.1, turn: 0 };
-// the tilt (head level, view towards pan) at which the Sun's places on the screen over one orbit of the reference body
-// (the camera turning with the Sun sideways only, as in stepSunLock) are centred: the highest as far above the middle
-// as the lowest below it
-function sunCentredTilt(pan, s1) {
-  const o = REF.orbit, lon0 = Math.atan2(s1[1], s1[0]), dirs = [];
-  for (let i = 0; i < 360; i++) {
-    const p = orbitAt(o, o.M + i / 360 * TAU), l = len(p), s = p.map(v => -v / l), a = lon0 - Math.atan2(s[1], s[0]);
-    dirs.push([s[0] * Math.cos(a) - s[1] * Math.sin(a), s[0] * Math.sin(a) + s[1] * Math.cos(a), s[2]]);
-  }
-  const ys = t => dirs.map(s => {   // the Sun's screen heights (tangent of its angle above the middle)
-    const ct = Math.cos(t), st = Math.sin(t), f = [ct * Math.cos(pan), ct * Math.sin(pan), st];
-    const u = [-st * Math.cos(pan), -st * Math.sin(pan), ct];
-    return dot(s, u) / dot(s, f);
-  });
-  let lo = -Math.PI / 3, hi = Math.PI / 3;
-  for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2, y = ys(m); if (Math.max(...y) + Math.min(...y) > 0) lo = m; else hi = m; }
-  return (lo + hi) / 2;
-}
+// The starting view (user, 2026-11-11, in the new Sun locked view; before: 2026-10-28, 2026-10-31): Pluto in the Sun locked
+// view, as the user saw it then: the camera at (−5.73, −29.77, 4.84) AU, (−14 659, −5 353, 5 763) km from Pluto's centre
+// (16 636 km, 14 R), pan 47.0°, tilt −3.6°, circle C at 58.9°. Kept relative to the Sun's direction (the view's frame,
+// see slTurn): the camera's place round Pluto, the view and circle C turned around the ecliptic's z by the change of
+// the Sun's direction sideways from then to the start, so Pluto has its place on the screen and the Sun its angle
+// sideways; the Sun's height is the one at the start (it swings, see SUN_LOCK). The head level, no picture turn.
+const START = { cam: [-5.73, -29.77, 4.84], km: [-14659, -5353, 5763], pan: 47.0, tilt: -3.6, C: 58.9 };
 function startView() {
-  const axes = (pan, tilt, turn) => { const h = [Math.cos(pan), Math.sin(pan), 0], ct = Math.cos(tilt), st = Math.sin(tilt);
-    const f = [ct * h[0], ct * h[1], st], u = rotate([-st * h[0], -st * h[1], ct], f, turn); return [cross(f, u), u, f]; };
-  const onScreen = (v, e) => e.map(a => dot(v, a)), inSpace = (w, e) => [0, 1, 2].map(i => w[0] * e[0][i] + w[1] * e[1][i] + w[2] * e[2][i]);
-  const q0 = START.km.map(x => x / AU_KM), s1 = unit(P.map(v => -v)), e0 = axes(START.pan * DEG, START.tilt * DEG, START.turn * DEG);
-  const ws = onScreen(unit(sub(q0, START.cam)), e0), wp = onScreen(unit(q0.map(x => -x)), e0);   // the Sun's and Pluto's places then
-  // the tilt: the Sun's place at its height now, ws[1]·cos(tilt) + ws[2]·sin(tilt) = s1z (the solution nearest the old tilt)
-  const A = Math.hypot(ws[1], ws[2]), phi = Math.atan2(ws[2], ws[1]), c = Math.acos(Math.max(-1, Math.min(1, s1[2] / A)));
-  const tilt = [phi + c, phi - c].map(wrapPi).filter(t => Math.abs(t) <= Math.PI / 2)
-    .reduce((m, t) => Math.abs(t - START.tilt * DEG) < Math.abs(m - START.tilt * DEG) ? t : m, Infinity);
-  const v0 = inSpace(ws, axes(0, tilt, 0)), pan = wrapPi(Math.atan2(s1[1], s1[0]) - Math.atan2(v0[1], v0[0]));
-  // the Sun all the way round Pluto's orbit on the screen (user, 2026-10-31): the head does not follow the Sun's height
-  // (see stepSunLock), which goes from -17° to +17°; from the picture's tilt the Sun left the top of the screen for half
-  // of the orbit. So the tilt is the one that centres the Sun's highest and lowest places on the screen (its direction
-  // sideways stays); Pluto keeps its place on the screen (the camera's place around Pluto follows from it)
-  const tilt2 = sunCentredTilt(pan, s1);
-  const dist = Math.hypot(...q0), d = inSpace(wp, axes(pan, tilt2, 0));   // from the camera to Pluto
-  C.pos = P.map((v, i) => v - dist * d[i]); C.pan = pan; C.tilt = tilt2; C.roll = C.turn = 0;
+  const q0 = START.km.map(x => x / AU_KM), s0 = unit(sub(q0, START.cam)), s1 = unit(P.map(v => -v)), k = [0, 0, 1];
+  const a = wrapPi(Math.atan2(s1[1], s1[0]) - Math.atan2(s0[1], s0[0]));   // the Sun's turn sideways, then -> now
+  C.pos = add(P, rotate(q0, k, a)); C.pan = wrapPi(START.pan * DEG + a); C.tilt = START.tilt * DEG; C.roll = C.turn = 0;
   syncSpherical();
-  const z = [0, 0, 1], x = unit([s1[0], s1[1], 0]);
-  SL.frame = [x, cross(z, x), z]; SL.sun = s1; SL.valid = true;
+  const x = unit([s1[0], s1[1], 0]);
+  SL.frame = [x, cross(k, x), k]; SL.sun = s1; SL.valid = true;
+  // circle C through the camera at START.C (of its two nodes, the one with the camera on C's rising half)
+  bodyFramed(() => {
+    const q = unit(rel());
+    LP.node = Math.atan2(q[1], q[0]) - Math.PI / 4; lpFit(q, START.C * DEG);
+    Object.assign(LP, { valid: true, entering: false, south: false, flip: 0, roll: 0, cf: null, panA: C.pan, tiltA: C.tilt });
+    SL.w = placeNow(); SL.s = 0; SL.mouse = false; SL.iSet = null;
+  });
 }
 LOCK = SUN;
 setRef(REF);
