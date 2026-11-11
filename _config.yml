@@ -1,2 +1,13 @@
 webmaster_verifications:
   google: 2d3wnPOURb6ZKRxJgWLzFywl5lfuqdu2oGPDI48hsoQ
+# the preview card of the site's root page (the README) for shared links: the picture with the trails
+defaults:
+  - scope:
+      path: ""
+    values:
+      image:
+        path: /screenshots/social_preview.jpg
+        width: 1692
+        height: 846
+twitter:
+  card: summary_large_image
