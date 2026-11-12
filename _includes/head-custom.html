@@ -1,0 +1,23 @@
+<!-- start custom head snippets -->
+<!-- GitHub Pages only: the README's videos are bare addresses (github.com shows them as players by itself);
+     here each paragraph holding only such an address becomes a video player -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var re = /^https:\/\/github\.com\/user-attachments\/assets\/[0-9a-f-]+$/;
+  document.querySelectorAll('p').forEach(function (p) {
+    var url = p.textContent.trim();
+    if (!re.test(url) || p.children.length > 1) return;
+    var v = document.createElement('video');
+    v.src = url;
+    v.controls = true;
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'metadata';
+    v.style.width = '100%';
+    v.style.maxHeight = '640px';
+    v.style.background = '#000';
+    p.replaceWith(v);
+  });
+});
+</script>
+<!-- end custom head snippets -->
