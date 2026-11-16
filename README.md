@@ -2,7 +2,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23988621.svg)](https://doi.org/10.5281/zenodo.23988621)
 
-A 3D simulation of the solar system moving through absolute space, in a single HTML file that runs in the browser.
+A 3D simulation of the solar system moving through absolute space, in a web page that runs in the browser, with its folder `data` (no installation, no server; it works offline).
 
 **Live demo:** [https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html](https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html)
 
@@ -142,13 +142,15 @@ https://github.com/user-attachments/assets/79f34e43-c585-4be8-be82-ed102b1a7f6d
 
 ## How to use it
 
-Open the [live demo](https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html), or download `solar-system-simulation.html` and open it in a browser (Edge, Chrome or Firefox;
-an internet connection is needed for the three.js library).
+Open the [live demo](https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html) (Edge, Chrome or Firefox),
+or download the whole simulation (on GitHub: Code -> Download ZIP, or the zip of a release), unpack it, and open
+`solar-system-simulation.html` from the unpacked folder (Edge or Chrome). The page needs its folder `data` next to it
+(the textures and three.js); without it, the start screen says so.
 
 - the menu (upper left) chooses the reference system: absolute space, or a celestial body that the camera follows;
   each celestial body has several views (tilted meridian, pole view, Sun locked; on the Earth also Moon
   locked, on the Moon Earth locked);
-- the information panel (upper right) shows the data of the celestial body; "Run/Stop" and "-" / "+" set the motion
+- the information panel (upper right) shows the data of the celestial body; "Start/Stop" and "-" / "+" set the motion
   and the speed of the simulation; the reference axes button (or the "J" key) chooses which axes of the celestial
   body are drawn: both, none, the equatorial ones or the ecliptic ones;
 - the "T" key opens the zoom screen, a telescope that follows the mouse: 4× to 20× ("+" / "-"), with the stars and the
@@ -182,7 +184,7 @@ Ovidiu Bidian: the requirements, the review of every version and the tests are h
 
 ## Credits
 
-- [three.js](https://threejs.org/) (MIT license), loaded from a CDN
+- [three.js](https://threejs.org/) (MIT license): 0.187.0, shipped in `data/three` (newer versions can be tried from About)
 - Surface maps of Mercury, Venus, the Earth, the Moon, Mars, Jupiter, Saturn and its rings, Uranus and Neptune:
   [Solar System Scope](https://www.solarsystemscope.com/textures/), CC BY 4.0
 - Map of Pluto: NASA / JHUAPL / SwRI (New Horizons, PIA11707), public domain
