@@ -216,6 +216,15 @@
   #toast { position: fixed; left: 50%; top: 18px; transform: translate(-50%, -6px); padding: 8px 14px; border-radius: 999px; opacity: 0;
     pointer-events: none; transition: opacity .3s, transform .3s; }
   #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  /* the solar eclipse view's two lines (Ovi, 2026-11-18, REQ-03.2.45): in the upper middle, near the top (17 px; was 58), the first blinking while the
+     eclipse is coming (0.5 s on, 0.5 s off) */
+  #eclipse-msg { position: fixed; left: 50%; top: 17px; transform: translateX(-50%); padding: 8px 16px; border-radius: 12px;
+    text-align: center; pointer-events: none; display: none; z-index: 30; }
+  #eclipse-msg.on { display: block; }
+  #ecl-l1 { font-size: 16px; font-weight: 600; color: #ffd27a; }
+  #ecl-l1.blink { animation: eclBlink 1s step-end infinite; }
+  #ecl-l2 { font-size: 12.5px; color: var(--dim); margin-top: 3px; }
+  @keyframes eclBlink { 50% { opacity: 0; } }
   /* the three.js note (R4): a new three.js (stays until the user chooses), a fallback, a missing local copy */
   #three-note { position: fixed; left: 50%; top: 56px; transform: translateX(-50%); max-width: min(720px, 92vw); padding: 8px 10px 8px 14px;
     border-radius: 10px; font-size: 13px; line-height: 1.45; display: flex; gap: 10px; align-items: center; z-index: 30; }
@@ -259,7 +268,7 @@
      It appears rolled up (.shown: 2 s), then unrolls horizontally from the middle outwards between its two wooden rolls
      (.open: 3 s); at its end it rolls back (3 s) and then disappears (2 s) (Ovi, 2026-11-02) */
   #intro { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(860px, calc(100% - 32px));   /* (its middle in the screen's middle, Ovi 2026-10-31) */
-    z-index: 40; display: none; opacity: 0; transition: opacity 2s linear; }
+    z-index: 40; display: none; opacity: 0; transition: opacity 1s linear; }   /* (INTRO_FADE) */
   #intro.on { display: block; }
   #intro.shown { opacity: 1; }
   #intro.closing { pointer-events: none; }
@@ -267,7 +276,7 @@
      canvas behind the text (introPaper); its ends go under the two paper rolls */
   #intro .paper { position: relative; margin: 0 23px; padding: 22px 28px 14px; color: #3b240f;   /* (the text 10 px from the rolls, Ovi 2026-11-02) */
     font: 15.5px/1.2 "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
-    clip-path: inset(-2px calc(50% - 23px) -2px calc(50% - 23px)); transition: clip-path 3s ease-in-out; }
+    clip-path: inset(-2px calc(50% - 23px) -2px calc(50% - 23px)); transition: clip-path 2s ease-in-out; }   /* (INTRO_ROLL) */
   #intro.open .paper { clip-path: inset(-2px 0 -2px 0); }   /* (its seen ends always at the middle of the rolls, so that
      the paper is seen between them and behind them, also when rolled up: Ovi, 2026-11-02) */
   #intro .paper canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
@@ -286,7 +295,7 @@
   /* the two rolls: the paper rolled on a wooden rod, with turned wooden handles above and below (a wide disc, a ring, the
      knob); while the scroll appears they move from the middle to its ends */
   #intro .roll { position: absolute; top: -56px; bottom: -56px; width: 46px; display: flex; flex-direction: column;
-    align-items: center; transition: left 3s ease-in-out, right 3s ease-in-out; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5));
+    align-items: center; transition: left 2s ease-in-out, right 2s ease-in-out; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .5));
     z-index: 1; }   /* (over the paper: the paper comes out from behind the rolls, Ovi 2026-10-31) */
   #intro .roll svg { flex: none; display: block; }
   #intro .roll svg.bot { transform: scaleY(-1); }
@@ -296,7 +305,7 @@
   #intro.open .roll.l { left: 0; } #intro.open .roll.r { right: 0; }
   #intro .ctl { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; }
   /* the text and the buttons are not seen between the rolls while it is rolled up; kept while it rolls back */
-  #intro .lines, #intro .ctl { visibility: hidden; transition: visibility 0s 3s; }
+  #intro .lines, #intro .ctl { visibility: hidden; transition: visibility 0s 2s; }
   #intro.open .lines, #intro.open .ctl { visibility: visible; transition-delay: 0s; }
   #intro .ctl .pg { flex: 1; color: rgba(74, 46, 20, .7); }
   #intro .ctl .sk { flex: 1; display: flex; justify-content: flex-end; }
@@ -477,7 +486,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_4.0 (16 Nov 2026)</p>
+  <p>Current version: solar system simulation v_4.1 (18 Nov 2026)</p>
   <p id="about-three">three.js: -</p>
   <p>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
@@ -552,6 +561,9 @@
       also from far away;</li>
     <li>the brightness of the Moon in a total eclipse: shown as the eye sees it, adapted to the dark (in reality it is some
       10 000 times fainter than the full Moon);</li>
+    <li>the black umbra of a total eclipse of the Sun on the Earth: drawn at least 20% of the radius of the whole dark spot
+      (the penumbra), so that it can be seen; in reality it is only about 1 - 2% of it (some 100 - 270 km wide); only when
+      the real umbra reaches the Earth;</li>
     <li>the dark side of the celestial bodies: lit a little, as the Earth's night side by a full Moon, so that its surface can
       be seen;</li>
     <li>the Moon's trail: its real path is a spiral around the Earth's trail so stretched (one loop about 3.6 AU long and
@@ -575,6 +587,7 @@
 </section>
 
 <div id="toast" class="panel" role="status"></div>
+<div id="eclipse-msg" class="panel" role="status"><div id="ecl-l1"></div><div id="ecl-l2"></div></div>
 <div id="three-note" class="panel" role="status" hidden><span id="three-note-t"></span><span id="three-note-b"></span><button id="three-note-x" type="button" hidden>×</button></div>
 <div id="hover-names" class="panel" aria-hidden="true"></div>
 <div id="scope" aria-hidden="true"></div><div id="scope-v" aria-hidden="true"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i><i class="af"></i><b>8&times;</b><div class="wt">W<span><em></em></span>T</div></div>
@@ -1025,7 +1038,8 @@ const smooth = t => t * t * (3 - 2 * t);
 function startHome() { bodyFramed(startHome_); }
 function startHome_() {
   motion.v = motion.h = motion.r = null; C.wheel = 0; C.leveling = false; C.levelSpeed = 0; LP.valid = false; MV.valid = false; SL.valid = false;
-  const level = !C.roll && !C.turn && !upsideDown(), f = viewDir(), u = picUp(), b = unit(rel().map(x => -x));
+  const level = Math.abs(wrapPi(C.roll)) < 1e-9 && !C.turn && !upsideDown(),   // (a roll below 1e-9: leveled, Ovi 2026-11-17, TST-REG-03: setView gives a rounding value, not 0)
+    f = viewDir(), u = picUp(), b = unit(rel().map(x => -x));
   const off = Math.atan2(len(cross(f, b)), dot(f, b));   // the view's angle from Pluto's centre
   C.homing = { step: 1, t: 0, level, f0: f, u0: u, b, off, time: CENTER_TIME * Math.max(.3, Math.sqrt(Math.min(1, off / (Math.PI / 2)))),
     pan0: C.pan, tilt0: C.tilt, panB: Math.hypot(b[0], b[1]) > 1e-9 ? Math.atan2(b[1], b[0]) : C.pan, tiltB: Math.asin(clamp(b[2], -1, 1)) };
@@ -1057,15 +1071,19 @@ function homeStep(dt) {
     return;
   }
   if (m.step === 3) {   // (the Sun locked view: from the centred view at Home to Home's look, see slHome)
+    // (Ovi, 2026-11-17, found by TST-REG-03: the picture leveled all the way, as the view is always leveled (REQ-03.2.31):
+    // the pan the short way and the tilt evenly, as in step 1; it was a turn between the two views' frames (slerp), which
+    // leaves the level picture in between, up to about 1 degree)
     m.t = Math.min(1, m.t + dt / CENTER_TIME);
-    const e = new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().slerpQuaternions(m.o0, m.o1, smooth(m.t))).elements;
-    setView([-e[8], -e[9], -e[10]], [e[4], e[5], e[6]]);
+    const s = smooth(m.t), pt = f => [Math.atan2(f[1], f[0]), Math.asin(clamp(f[2], -1, 1))], [p0, t0] = pt(m.f0), [p1, t1] = pt(m.sh.f);
+    const p = p0 + wrapPi(p1 - p0) * s, t = t0 + (t1 - t0) * s, ct = Math.cos(t), st = Math.sin(t);
+    setView([ct * Math.cos(p), ct * Math.sin(p), st], [-st * Math.cos(p), -st * Math.sin(p), ct]);
     if (m.t >= 1) { C.homing = null; goHome(); }
     return;
   }
   m.t = Math.min(1, m.t + dt / HOME_TIME);
   if (m.t >= 1) {
-    if (m.sh) { C.pos = add(P, m.q1); syncSpherical(); Object.assign(m, { step: 3, t: 0, o0: frameQuat(viewDir(), picUp()), o1: frameQuat(m.sh.f, m.sh.u) }); return; }
+    if (m.sh) { C.pos = add(P, m.q1); syncSpherical(); Object.assign(m, { step: 3, t: 0, f0: viewDir() }); return; }
     C.homing = null; goHome(); return;
   }
   const s = smooth(m.t), r0 = len(m.q0), r1 = len(m.q1), d0 = m.q0.map(x => x / r0), d1 = m.q1.map(x => x / r1);
@@ -1909,7 +1927,11 @@ const lpTurnNow = () => lpRot() ? LP.roll : LP.south ? Math.PI : 0;
 // the leveled pan's pole at the top taken afresh (entering the view, switching to the leveled pan): south up below the band
 const lpSouthAfresh = () => { LP.south = LP.i < -LP_SOUTH_BAND; LP.flip = 0; };
 // the leveled pan's 180° turn going on: nothing is controlled meanwhile
-const lpFlipping = () => LEVELED_PAN && C.mode === 'body' && LP.valid && LP.flip !== 0;
+// (Ovi, 2026-11-16 / 17, TST-L1-01: also the Sun locked view's leveling when entering it and its turn to south up when
+// entered below C −10°, which did not set LP.flip: the mouse during them took the level head from the turned picture
+// and the body jumped (a 38 px move put it 1 450 px away); the same rule for every turn of the picture: nothing is
+// controlled; the leveling itself keeps the body at its place, it turns around the line to it)
+const lpFlipping = () => (LEVELED_PAN && C.mode === 'body' && LP.valid && LP.flip !== 0) || (slOn() && (C.leveling || SL.s !== (LP.south ? 1 : 0)));
 // a place on the screen w (right, up, view) in the head's own frame, for the picture turned by ρ (C.roll): the screen's
 // up is the head's up turned by ρ around the view direction (picUp), so the head's components are w turned back by ρ
 // C set afresh from the camera as it is; the view then turns onto the z axis (lpView)
@@ -2794,14 +2816,31 @@ for (const pl of [...PLANETS, MOON]) {
 // bends into the shadow, mostly red (the sunsets and sunrises all around the Earth): the covered part of the Sun's light
 // comes back in this copper colour. Its strength is as the eye sees it (adapted to the dark), not the real one (some
 // 10 000 times fainter than the full Moon).
-function eclipse(recv, occ, red = [0, 0, 0]) {
+// black (Ovi, 2026-11-18; the Earth): in the umbra, where the Sun is wholly covered, the Earth is black: the faint light
+// of its dark side (and the self-light of a body drawn larger) goes too, in the penumbra with the Sun's light, so that the
+// penumbra goes from the lit surface to black at the umbra's edge; only on the side facing the Sun (the night side keeps
+// its faint light: the covered share is computed without the receiver itself, so behind it a "shadow" would be found too)
+// UMBRA_MIN (Ovi, 2026-11-18): as the bodies' minimum apparent radius, the black umbra is drawn at least this share of
+// the radius of the whole dark spot (the penumbra; really it is about 1 - 2% of it, some 100 - 270 km wide, too small to
+// be seen), but only while the real umbra reaches the receiver (uTotal); the penumbra keeps its real outer edge and goes
+// from there to the black disc. Declared in the About window as not real.
+const UMBRA_MIN = .2;
+function eclipse(recv, occ, red = [0, 0, 0], black = false) {
   const u = { uRecv: { value: new THREE.Vector3() }, uRecvR: { value: 0 }, uOcc: { value: new THREE.Vector3() }, uOccR: { value: 0 },
-    uSun: { value: new THREE.Vector3() }, uSunR: { value: SUN_R * U }, uRed: { value: new THREE.Vector3(...red) } };
+    uSun: { value: new THREE.Vector3() }, uSunR: { value: SUN_R * U }, uRed: { value: new THREE.Vector3(...red) },
+    uTotal: { value: 0 }, uUmbraMin: { value: black ? UMBRA_MIN : 0 } };
   recv.eclipse = { u, update: () => {
     const c = T(...recv.p);
     u.uRecv.value.copy(recv.group.position); u.uRecvR.value = recv.r * U;
     u.uOcc.value.copy(T(...occ.p)).sub(c); u.uOccR.value = occ.r * U;   // (relative to the receiver's centre)
     u.uSun.value.copy(c).negate();
+    // does the real umbra reach the receiver? the shadow's axis (from the Sun through the occulter) passes within the
+    // receiver's radius, and the umbra's cone still has a width where it meets the surface
+    if (black) {
+      const m = len(occ.p), ax = occ.p.map(x => x / m), sR = dot(recv.p, ax), perp = len(sub(recv.p, ax.map(x => x * sR)));
+      const xs = sR - m - Math.sqrt(Math.max(0, recv.r * recv.r - perp * perp)), ru = occ.r - xs * (SUN_R - occ.r) / m;
+      u.uTotal.value = sR > m && perp < recv.r && ru > 0 ? 1 : 0;
+    }
   } };
   const m = recv.mesh.material;
   m.onBeforeCompile = sh => {
@@ -2809,7 +2848,7 @@ function eclipse(recv, occ, red = [0, 0, 0]) {
     sh.vertexShader = 'varying vec3 vEclW;\n' + sh.vertexShader.replace('#include <project_vertex>',
       '#include <project_vertex>\n  vEclW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = `varying vec3 vEclW;
-      uniform vec3 uRecv, uOcc, uSun, uRed; uniform float uRecvR, uOccR, uSunR;
+      uniform vec3 uRecv, uOcc, uSun, uRed; uniform float uRecvR, uOccR, uSunR, uTotal, uUmbraMin;
       // the part of the Sun's disk not covered by the other body, seen from the real surface point under this fragment
       float eclVis() {
         vec3 p = normalize(vEclW - uRecv) * uRecvR, s = uSun - p, o = uOcc - p;
@@ -2817,19 +2856,29 @@ function eclipse(recv, occ, red = [0, 0, 0]) {
         if (dot(s, o) <= 0. || dO >= ds) return 1.;
         float a = asin(min(1., uSunR / ds)), b = asin(min(1., uOccR / dO));
         float d = atan(length(cross(s / ds, o / dO)), dot(s / ds, o / dO));
+        // (the umbra's minimum size, UMBRA_MIN: black out to that share of the penumbra's radius, the penumbra squeezed
+        // between it and its real outer edge)
+        if (uTotal > .5 && b >= a) {
+          float dB = uUmbraMin * (a + b), d0 = b - a;
+          if (d <= dB) return 0.;
+          if (dB > d0) d = d0 + (d - dB) * ((a + b) - d0) / ((a + b) - dB);
+        }
         if (d >= a + b) return 1.;
         if (d <= abs(a - b)) return b >= a ? 0. : 1. - b * b / (a * a);
         float A = a * a * acos(clamp((d * d + a * a - b * b) / (2. * d * a), -1., 1.)) + b * b * acos(clamp((d * d + b * b - a * a) / (2. * d * b), -1., 1.))
           - .5 * sqrt(max(0., (-d + a + b) * (d + a - b) * (d - a + b) * (d + a + b)));
         return 1. - A / (3.14159265 * a * a);
       }
+      // the cosine of the Sun's height seen from the real surface point (> 0: the side facing the Sun)
+      float eclSunCos() { vec3 n = normalize(vEclW - uRecv); return dot(n, normalize(uSun - n * uRecvR)); }
       ` + sh.fragmentShader.replace('#include <lights_fragment_end>',
-      '#include <lights_fragment_end>\n  { float ev = eclVis(); reflectedLight.directDiffuse *= ev + (1. - ev) * uRed; reflectedLight.directSpecular *= ev; }');
+      '#include <lights_fragment_end>\n  { float ev = eclVis(); reflectedLight.directDiffuse *= ev + (1. - ev) * uRed; reflectedLight.directSpecular *= ev;' +
+      (black ? ' float kA = mix(1., ev, smoothstep(-.02, .02, eclSunCos())); reflectedLight.indirectDiffuse *= kA; reflectedLight.indirectSpecular *= kA; totalEmissiveRadiance *= kA;' : '') + ' }');
   };
-  m.customProgramCacheKey = () => 'eclipse-' + recv.name;
+  m.customProgramCacheKey = () => 'eclipse-' + recv.name + (black ? '-black' : '');
   m.needsUpdate = true;
 }
-eclipse(EARTH, MOON); eclipse(MOON, EARTH, [.32, .11, .035]);
+eclipse(EARTH, MOON, [0, 0, 0], true); eclipse(MOON, EARTH, [.32, .11, .035]);
 
 // Saturn's rings (Ovi, 2026-10-28): the main rings (C, B, A: 74 658 to 136 775 km from its centre) in its equator's
 // plane, from the Solar System Scope ring map (its colour and transparency from the inner edge to the outer one; the map
@@ -4449,7 +4498,7 @@ function updateHudValues(p, d) {
   setText($('abs-l'), abs ? 'Cam speed' : 'Speed in space');
   setText($('orb-v-l'), b === SUN ? 'Speed around the galaxy' : b === MOON ? 'Speed around the Earth' : 'Speed on its orbit');
   setText($('orb-v'), (b === SUN ? SUN_SPEED_KMS : len(orbitVel(b)) * KMS).toFixed(2) + ' km/s');
-  setText($('orb-i'), b === SUN ? '-' : (b === MOON ? MOON_EL.i / DEG : o.i).toFixed(2) + '°');
+  setText($('orb-i'), b === SUN ? '-' : noNegZero((b === MOON ? MOON_EL.i / DEG : o.i).toFixed(2)) + '°');   // (the Earth: -0.00001531°, not "-0.00°", Ovi 2026-11-17, TST-SMK-06)
   setText($('orb-p'), b === SUN ? '-' : b === MOON ? (MOON_MONTH * 365.25).toFixed(2) + ' d' : o.period.toFixed(2) + ' yr');
   setText($('rot-p'), (inf.rotD || b.rotH / 24).toFixed(2) + ' d' + (inf.rotNote || ''));
   setText($('b-r'), fmtKm(b.km) + ' km');
@@ -4739,7 +4788,7 @@ addEventListener('keydown', e => { if (e.key === 'Escape' && aboutEl.classList.c
 // Each line first shows random letters and digits, changing fast; after INTRO_SCRAMBLE s the first two lines settle to
 // their text in INTRO_SETTLE s (the characters in a random order), then the next lines, INTRO_STEP s one after the
 // other. INTRO_READ s after the last line has settled the next page comes ("Stop" holds the page, "Run" goes on).
-// INTRO_READ s after the last page has settled the scroll closes by itself, but never while stopped: "Run" goes on from
+// INTRO_READ_LAST s after the last page has settled the scroll closes by itself, but never while stopped: "Run" goes on from
 // the page shown to the end and then closes it (Ovi, 2026-11-02). "Skip intro" and Esc close it at any time (no
 // "Close" button: Ovi, 2026-10-31). Opening: it appears rolled up (INTRO_FADE s), then unrolls (INTRO_ROLL s), then the
 // first page; closing: it rolls back (INTRO_ROLL s), then disappears (INTRO_FADE s) (the durations also in the CSS).
@@ -4780,7 +4829,7 @@ function introWrap(page, width, indent) {
   });
   return out;
 }
-const INTRO_SCRAMBLE = 2, INTRO_SETTLE = 1, INTRO_STEP = .5, INTRO_READ = 10, INTRO_FADE = 2, INTRO_ROLL = 3;   // s (reading: Ovi, 2026-11-02: 10 s)
+const INTRO_SCRAMBLE = 1, INTRO_SETTLE = 1, INTRO_STEP = .5, INTRO_READ = 10, INTRO_READ_LAST = 4, INTRO_FADE = 1, INTRO_ROLL = 2;   // s (the fade and the roll: Ovi, 2026-11-18, 1 s and 2 s, were 2 s and 3 s; reading: Ovi, 2026-11-02: 10 s; the random characters: Ovi, 2026-11-18: 1 s, was 2 s; the last page: Ovi, 2026-11-18: 4 s, was 10 s)
 const INTRO_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', INTRO_FLICKER = 60;   // ms
 const introEl = $('intro'), introLines = $('intro-lines');
 const intro = { page: 0, t0: 0, lines: [], paused: false, next: 0, raf: 0, timer: 0, lastFlick: 0, frozen: 0, later: null };
@@ -4807,6 +4856,8 @@ function introFreeze(on) {
   if (intro.later) introLater(intro.later.fn, intro.later.left);
   if (intro.lines.length) { cancelAnimationFrame(intro.raf); intro.raf = requestAnimationFrame(introStep); }
 }
+// the reading time of page i (s): the last page shorter, it only closes the intro (Ovi, 2026-11-18)
+const introRead = i => i === INTRO_PAGES.length - 1 ? INTRO_READ_LAST : INTRO_READ;
 const introLineStart = k => k < 2 ? INTRO_SCRAMBLE : INTRO_SCRAMBLE + INTRO_SETTLE + (k - 2) * INTRO_STEP;
 function introShow(i) {
   intro.page = i; intro.t0 = performance.now(); intro.lastFlick = 0;
@@ -4823,7 +4874,7 @@ function introShow(i) {
     return { el, text, rank, start: introLineStart(k) };
   });
   const last = intro.lines.length - 1, end = intro.lines[last].start + INTRO_SETTLE;
-  intro.next = intro.t0 + (end + INTRO_READ) * 1000;
+  intro.next = intro.t0 + (end + introRead(i)) * 1000;
   $('intro-pg').textContent = `${i + 1} / ${INTRO_PAGES.length}`;
   $('intro-prev').disabled = i === 0;
   $('intro-next').disabled = i === INTRO_PAGES.length - 1;
@@ -4847,7 +4898,7 @@ function introStep(now) {
 }
 function introPause(on) {
   intro.paused = on; $('intro-run').textContent = on ? '▶ Run' : '❚❚ Stop';
-  if (!on && intro.lines.length && !intro.frozen) { intro.next = Math.max(intro.next, performance.now() + INTRO_READ * 1000); cancelAnimationFrame(intro.raf); intro.raf = requestAnimationFrame(introStep); }
+  if (!on && intro.lines.length && !intro.frozen) { intro.next = Math.max(intro.next, performance.now() + introRead(intro.page) * 1000); cancelAnimationFrame(intro.raf); intro.raf = requestAnimationFrame(introStep); }
 }
 // the parchment (Ovi's example picture): drawn once for the scroll's size, with a fixed random sequence so that it is
 // always the same: a tan ground, light and dark blotches, a fine grain, faint creases, darker along the torn top and
@@ -5452,7 +5503,9 @@ function buildMarks() {
     m.style.left = (clamp((nt.t - t0) / span, 0, 1) * 100).toFixed(3) + '%'; m.title = `${nt.t.toFixed(2)} s: ${nt.text}`;
     m.addEventListener('click', () => {
       setPlay(false);
-      let i = 0; while (i + 1 < ss.length && ss[i + 1].t <= nt.t + 1e-6) i++;
+      // (the first sample at or after the note's time, where the note is shown: while recording the clock stops for the
+      // note, so that sample is its moment; Ovi, 2026-11-18: the sample before it showed the description)
+      let i = 0; while (i + 1 < ss.length && ss[i].t < nt.t - 1e-6) i++;
       seekReplay(i);
     });
     box.appendChild(m);
@@ -5813,6 +5866,109 @@ function bodyScales(k, pxAngle, farAway, spreadMax = 1) {
   }
 }
 let timeTarget = null;   // the bodies' clock to go to in the next frame (Earth years), or null (see frame)
+// The eclipse views (Ovi, 2026-11-18): not in the menu, they start and end by themselves. The solar eclipse view
+// (REQ-03.2.42 - REQ-03.2.46): in the Sun locked view of the Earth, the camera within 50 000 km of it (was 30 000), on
+// from 1 hour (of the simulation's time: 2 s at 30 min/s) before the Moon's penumbra first touches the Earth until 1 hour
+// after it last leaves it, when at the eclipse's greatest moment at least 40% of the penumbra's area on the Earth is on
+// the side the camera sees. The lunar eclipse view (REQ-03.2.47 - REQ-03.2.48): the same in the Sun locked view of the
+// Moon, the camera within 32 000 km of it, the Earth's shadow on the Moon, only the eclipses whose umbra (the red spot)
+// reaches the Moon, at least 40% of the Moon's area in the umbra seen. Checked every picture (a view ends at once when a
+// condition fails). While on: 30 min/s (the speed buttons work, the speed chosen waits), the Earth turning at its real
+// speed adjusted to it, two lines of text. A step never passes the moment a view starts. The eclipses are found in the
+// simulation's own time (its dates are not real ones): the new (full) Moon near a time, then the moment the receiver's
+// center is nearest the shadow's axis (the greatest moment) and the first and last contacts of the penumbra (each
+// eclipse found once, kept).
+const ECL_SPEED = DAY / 48, ECL_MARGIN = DAY / 24, ECL_SHARE = .4, ECL_SIDEREAL = 23.9345 / 24;
+const SYNODIC = 29.530589 * DAY, ECL_N = 1500;   // (the synodic month, years; the points on the receiver for the 40%)
+// the two kinds: the receiver of the shadow and the body casting it, the Moon's elongation at the eclipse (0: new
+// Moon, pi: full Moon), the camera's distance, the points counted for the 40% (the penumbra or the umbra), the texts
+const ECL_KINDS = {
+  sun: { recv: () => EARTH, occ: () => MOON, elong: 0, dist: 50000 / AU_KM, umbra: false,
+    text: ['A solar eclipse is coming. Get ready!', 'Solar eclipse in progress. Enjoy!', 'The solar eclipse is over. See you next time!'],
+    line2: 'Simulation speed: 30 min/s, real adj. Earth rotation speed.' },
+  moon: { recv: () => MOON, occ: () => EARTH, elong: Math.PI, dist: 32000 / AU_KM, umbra: true,
+    text: ['A lunar eclipse is coming. Get ready!', 'Lunar eclipse in progress. Enjoy!', 'The lunar eclipse is over. See you next time!'],
+    line2: 'Simulation speed: 30 min/s.' },
+};
+const ECL = { on: false, e: null, kind: null, phase: '', cache: new Map() };
+const earthAtT = t => orbitAt(EARTH.orbit, EARTH.orbit.M - TAU * (trailT - t) / EARTH.orbit.period);
+// the shadow at time t of kind k: its axis (from the Sun through the body casting it), the receiver's center off it
+// (perp, AU), the penumbra's and the umbra's radius there (rp, ru); Q, O: the receiver's and the caster's places
+function eclShadow(k, t) {
+  const E = earthAtT(t), M = moonAt(t), K = ECL_KINDS[k], Q = k === 'sun' ? E : M, O = k === 'sun' ? M : E, ro = K.occ().r;
+  const m = len(O), u = O.map(x => x / m), s = dot(Q, u), x = s - m;
+  return { Q, O, u, s, m, perp: len(sub(Q, u.map(v => v * s))), rp: ro + x * (SUN_R + ro) / m, ru: ro - x * (SUN_R - ro) / m };
+}
+// the Moon's elongation from the Sun seen from the Earth (ecliptic longitudes) less a (-pi .. pi)
+const eclElong = (t, a) => { const E = earthAtT(t), r = sub(moonAt(t), E); return wrapPi(Math.atan2(r[1], r[0]) - Math.atan2(-E[1], -E[0]) - a); };
+// the new (a = 0) or full (a = pi) Moon next after t (dir 1) or last before it (dir -1)
+function eclConj(t, dir, a = 0) {
+  const D = ((eclElong(t, a) % TAU) + TAU) % TAU;
+  let tc = t + (dir > 0 ? (TAU - D) % TAU : -D) / TAU * SYNODIC;
+  for (let k = 0; k < 4; k++) tc -= eclElong(tc, a) / TAU * SYNODIC;
+  return tc;
+}
+// the eclipse of kind k at the new / full Moon tc, or null: tm (the greatest moment), p1 / p4 (the first and last
+// contacts of the penumbra), pts (the directions from the receiver's center of its points in the penumbra, or the
+// umbra, at tm, on its side facing the Sun)
+function eclAt(k, tc) {
+  const key = k + Math.round(tc / SYNODIC);
+  if (ECL.cache.has(key)) return ECL.cache.get(key);
+  const K = ECL_KINDS[k], rq = K.recv().r, ro = K.occ().r;
+  let a = tc - DAY / 2, b = tc + DAY / 2;
+  for (let n = 0; n < 40; n++) { const c1 = a + (b - a) / 3, c2 = b - (b - a) / 3; if (eclShadow(k, c1).perp < eclShadow(k, c2).perp) b = c2; else a = c1; }
+  const tm = (a + b) / 2, g = eclShadow(k, tm), gap = t => { const h = eclShadow(k, t); return h.s > h.m ? h.perp - (rq + h.rp) : 1; };
+  let e = null;
+  if (g.s > g.m && gap(tm) < 0 && (!K.umbra || g.perp < rq + g.ru)) {
+    const edge = (lo, hi) => { const out = gap(lo) < 0; for (let n = 0; n < 40; n++) { const mid = (lo + hi) / 2; if ((gap(mid) < 0) === out) lo = mid; else hi = mid; } return (lo + hi) / 2; };
+    const pts = [], sunDir = g.Q.map(v => -v / len(g.Q));
+    for (let i = 0; i < ECL_N; i++) {
+      const z = 1 - 2 * (i + .5) / ECL_N, r = Math.sqrt(1 - z * z), f = i * 2.399963, n = [r * Math.cos(f), r * Math.sin(f), z];
+      if (dot(n, sunDir) <= 0) continue;
+      const P = add(g.Q, n.map(v => v * rq)), sv = P.map(v => -v), o = sub(g.O, P), ds = len(sv), dO = len(o);
+      const d = Math.acos(clamp(dot(sv, o) / ds / dO, -1, 1)), aS = Math.asin(SUN_R / ds), bO = Math.asin(Math.min(1, ro / dO));
+      if (K.umbra ? bO >= aS && d <= bO - aS : d < aS + bO) pts.push(n);
+    }
+    e = { k, tc, tm, p1: edge(tm - DAY / 2, tm), p4: edge(tm + DAY / 2, tm), pts };
+  }
+  ECL.cache.set(key, e); if (ECL.cache.size > 64) ECL.cache.delete(ECL.cache.keys().next().value);
+  return e;
+}
+// the share of those points (at the greatest moment) on the side of the receiver that the camera sees from where it is
+const eclShare = e => { if (!e || !e.pts.length) return 0; const q = ECL_KINDS[e.k].recv(), cr = sub(C.pos, q.p); let v = 0; for (const n of e.pts) if (dot(n, cr) > q.r) v++; return v / e.pts.length; };
+// the kind of view the camera's place allows now (the receiver as the reference body, in its Sun locked view, near it), or null
+const eclKind = () => { if (replay.on || C.mode !== 'body' || !slOn() || LOCK !== SUN) return null;
+  for (const k in ECL_KINDS) { const K = ECL_KINDS[k]; if (REF === K.recv() && len(sub(C.pos, REF.p)) < K.dist) return k; } return null; };
+const eclIn = (e, t) => e && t >= e.p1 - ECL_MARGIN && t <= e.p4 + ECL_MARGIN && eclShare(e) >= ECL_SHARE;
+// the view at time t: the eclipse whose time it is, or null
+function eclNow(t) {
+  const k = eclKind(); if (!k) return null;
+  for (const dir of [-1, 1]) { const e = eclAt(k, eclConj(t, dir, ECL_KINDS[k].elong)); if (eclIn(e, t)) return e; }
+  return null;
+}
+// the step st of this picture (years), shortened where it would pass the moment a view starts (forward: its start;
+// backward: its end); at most 3 new (full) Moons looked at (a slow picture at 1 yr/s)
+function eclStep(st) {
+  const k = st && eclKind(); if (!k) return st;
+  const dir = Math.sign(st), end = trailT + st, A = ECL_KINDS[k].elong;
+  let tq = trailT;
+  for (let n = 0; n < 3; n++) {
+    const tc = eclConj(tq, dir, A); if (dir * (tc - end) > SYNODIC / 2) break;
+    const e = eclAt(k, tc), w = e && (dir > 0 ? e.p1 - ECL_MARGIN : e.p4 + ECL_MARGIN);
+    if (e && dir * (w - trailT) > 0 && dir * (w - end) <= 0 && eclShare(e) >= ECL_SHARE) return w - trailT + dir * 1e-9;
+    tq = tc + dir * DAY;
+  }
+  return st;
+}
+function eclShow(e) {
+  const n = !e ? -1 : trailT < e.p1 ? 0 : trailT <= e.p4 ? 1 : 2, ph = e ? e.k + n : '';
+  if (ph === ECL.phase) return;
+  ECL.phase = ph; $('eclipse-msg').classList.toggle('on', n >= 0);
+  if (n < 0) return;
+  const K = ECL_KINDS[e.k];
+  setText($('ecl-l1'), K.text[n]); $('ecl-l1').classList.toggle('blink', n === 0);
+  setText($('ecl-l2'), K.line2);
+}
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = clamp((now - last) / 1000, 0, .1); last = now;
@@ -5823,7 +5979,9 @@ function frame(now) {
   // (the replay, Ovi 2026-11-06: the bodies where they were at the sample shown, logs with the bodies' clock (yr); a log
   // recorded while running was seen with the Sun elsewhere; closing it, back to the time before it: timeTarget)
   const ry = replay.on ? replay.samples[replay.i] && replay.samples[replay.i].yr : timeTarget;
-  const st = typeof ry === 'number' ? ry - trailT : running ? timeDir * dt * SIM_SPEEDS[simSpeed][0] : 0;   // Earth years (negative: time backward)
+  // (the solar eclipse view: on at this time? its speed, and no step passing its start; REQ-03.2.42 - REQ-03.2.46)
+  ECL.e = typeof ry === 'number' ? null : eclNow(trailT); ECL.on = !!ECL.e; ECL.kind = ECL.e && ECL.e.k; eclShow(ECL.e);
+  const st = typeof ry === 'number' ? ry - trailT : !running ? 0 : ECL.on ? timeDir * dt * ECL_SPEED : eclStep(timeDir * dt * SIM_SPEEDS[simSpeed][0]);   // Earth years (negative: time backward)
   const follow = typeof ry === 'number' && C.mode !== 'body';   // (then the observer moves with the reference body)
   timeTarget = null;
   const prev = BODIES.map(b => b.p), cam0 = C.pos, P0 = P;   // for the swept check of keepOutside
@@ -5895,6 +6053,9 @@ function frame(now) {
   // every body spins once every 10 s, at every simulation speed: only a sign that it turns around its axis (Ovi, 2026-10-20);
   // no body's apparent radius drops below the minimum [REQ-01, REQ-02.2]
   const spin = running ? timeDir * TAU * dt / ROT_PERIOD : 0;
+  // (in the eclipse views the Earth turns at its real speed adjusted to the simulation's: once per sidereal day of
+  // its time, REQ-03.2.44, REQ-03.2.48)
+  const eclSpin = TAU * st / (ECL_SIDEREAL * DAY);
   // the Sun's surface (see sunSpots)
   if (running) sunClock += timeDir * dt;
   sunU.uT.value = sunClock % 1e4; sunU.uRot.value = sunRate(0) * sunClock % TAU;
@@ -5905,7 +6066,7 @@ function frame(now) {
   sunSpots();   // (after the Sun's drawn size: the eruptions need the camera in its frame)
   for (const pl of PLANETS) {
     pl.group.position.copy(T(...pl.p));
-    pl.mesh.rotation.y = (pl.mesh.rotation.y + spin) % TAU;
+    pl.mesh.rotation.y = (pl.mesh.rotation.y + (ECL.on && pl === EARTH ? eclSpin : spin)) % TAU;
   }
   // the Moon: its axis turns with its node; its map's longitude 0 always towards the Earth
   MOON.group.position.copy(T(...MOON.p));
