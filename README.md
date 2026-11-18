@@ -28,7 +28,9 @@ What is real in the simulation (as known today):
   the center of the galaxy, with its dark dust lanes).
 
 What is not real (visual aids) is listed in the program, in Help → About: for example the minimum apparent size of
-the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds), the
+the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds; in the eclipse views the Earth turns at its real speed, adjusted
+to the simulation's), the black umbra of a total eclipse of the Sun, drawn at least 20% of the whole dark spot (in
+reality about 1 - 2%), the
 background stars, placed at random, and the Moon's trail, drawn as a part of a compressed spiral around the Earth's
 trail: an eighth of a loop, from the Moon to the Earth's trail 100 Earth-Moon distances behind it (its real path, one loop about 3.6 AU long and only 0.0026 AU wide, would be just a line beside it).
 
@@ -140,6 +142,16 @@ https://github.com/user-attachments/assets/a889ed82-bb39-40ba-ba99-891f224d293e
 
 https://github.com/user-attachments/assets/79f34e43-c585-4be8-be82-ed102b1a7f6d
 
+**The eclipse views** (v_4.1). In the Sun locked view of the Earth, with the camera within 50 000 km of it, an
+eclipse of the Sun is shown by itself when it comes: from 1 hour (of the simulation's time) before the Moon's
+penumbra touches the Earth, the simulation slows to 30 min/s, the Earth turns at its real speed adjusted to it, and
+a text at the top announces the eclipse; at any speed the simulation never steps over it, and afterwards the speed
+chosen comes back. The lunar eclipse view does the same in the Sun locked view of the Moon (within 32 000 km), for
+the eclipses whose red umbra reaches the Moon. A view starts only when at least 40% of the shadow will be on the
+side the camera sees: walk the camera towards the Sun's side with E or C. In a total eclipse of the Sun the umbra on
+the Earth is black; so that it can be seen, it is drawn at least 20% of the whole dark spot (in reality it is only
+about 100 - 270 km wide).
+
 ## How to use it
 
 Open the [live demo](https://ovidiu-bidian.github.io/solar-system-simulation/solar-system-simulation.html) (Edge, Chrome or Firefox),
@@ -160,6 +172,8 @@ or download the whole simulation (on GitHub: Code -> Download ZIP, or the zip of
 - Shift + drag turns the view 10 times slower too, to put a star exactly at the center (on the Earth, near it, the
   information panel then shows its right ascension and declination; near the celestial poles, at Polaris or Sigma
   Octantis, only this fine aiming gives a meaningful right ascension);
+- in the Sun locked view of the Earth or of the Moon, near it, the eclipses come by themselves (see "Eclipses of the
+  Sun and of the Moon");
 - Help → Controls lists the keys and the mouse controls of the current camera mode.
 
 ## Requirements
