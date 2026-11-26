@@ -63,8 +63,12 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   through every movement.\
   The final view is the automatic view plus the manual look: you can look at the sky while
   the camera walks around the body, and the sky then turns on the screen as the automatic view turns. The moves never
-  turn what is seen faster than 30 degrees per second; the turns of the picture to a new view (north up / south up,
-  switching the pan, entering a view) are made at 90 degrees per second, always one way.
+  turn what is seen faster than 30 degrees per second; the turns of the picture (north up / south up, switching the
+  pan) are made at 90 degrees per second, always one way.
+- **One camera move** for Home and for every change of view or of celestial body: the path is worked out first, then
+  the speeds. The camera leaves a body slowly, crosses the distance in between fast and comes to the new body slowly;
+  the move starts from rest, is fastest in the middle and ends at rest, in 2 to 4 seconds by its length, the view
+  turning to the new one all along the way, so the bodies drift on the screen at both ends.
 - **All the views** are built on these principles: the pole view first, then the tilted meridian view, with the same
   keys for the same jobs in every view (for example W/S tilt the camera's circle and E/C walk on it, in the pole view and
   in the tilted meridian view, and A/D move the camera on its parallel in both); at an M angle of 90 degrees the tilted
@@ -79,7 +83,9 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   ±10 degrees). On the Earth, closer than 30 Earth radii, the information panel shows the right ascension and
   declination (J2000) of the view direction instead of its pan and tilt, as a telescope on the Earth gives them: point
   the view at a star and read its catalogue coordinates. A button next to "RA / Dec" switches to "adj. J2000": the
-  coordinates adjusted to today's date (the precession of the Earth's axis since 2000).\
+  coordinates adjusted to today's date (the precession of the Earth's axis since 2000). With the body put far from the
+  center, the circle's angle follows the look (as far as the picture can stay upright), so the body keeps its place
+  near a pole too.\
   In the polar pan the rotation axis swings between the poles: the pole near the camera is at the top while the camera
   goes round it, and the moves are the same at both poles.
 
@@ -190,8 +196,8 @@ or download the whole simulation (on GitHub: Code -> Download ZIP, or the zip of
   Octantis, only this fine aiming gives a meaningful right ascension);
 - in the Sun locked view of the Earth or of the Moon, near it, the eclipses come by themselves (see "Eclipses of the
   Sun and of the Moon");
-- the Home key brings the camera to the view's Home position in one smooth move of 3 seconds, the view turning to
-  Home's along the way;
+- the Home key, and every choice of a celestial body or a view in the menu, bring the camera to the view's Home
+  position in one smooth move of 2 to 4 seconds (see "One camera move" above);
 - Help → Controls lists the keys and the mouse controls of the current camera mode.
 
 ## Requirements
