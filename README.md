@@ -25,13 +25,17 @@ What is real in the simulation (as known today):
   the constellations from which the motion of the Sun was determined (Hercules, Lyra, Columba, Cygnus, Sagittarius,
   Vela and those of Herschel's seven stars of 1783).
 - the Milky Way: NASA's map of the glow of our galaxy, in its real place on the sky (brightest towards Sagittarius,
-  the center of the galaxy, with its dark dust lanes).
+  the center of the galaxy, with its dark dust lanes);
+- the stars' own small movements seen from the Earth: the stellar aberration (Bradley, 1728: every star shifted
+  towards the direction of the Earth's motion on its orbit) and, for 16 near stars, their parallax (a yearly ellipse)
+  and their proper motion (Hipparcos, new reduction, van Leeuwen 2007).
 
 What is not real (visual aids) is listed in the program, in Help → About: for example the minimum apparent size of
 the celestial bodies, so that they can be seen from far away, the spin of the bodies (one turn every 10 seconds; in the eclipse views the Earth turns at its real speed, adjusted
 to the simulation's), the black umbra of a total eclipse of the Sun, drawn at least 20% of the whole dark spot (in
 reality about 1 - 2%), the
-background stars, placed at random, and the Moon's trail, drawn as a part of a compressed spiral around the Earth's
+background stars, placed at random, the stellar aberration and the parallax shown magnified (with their buttons), the
+Copernican theory supporters' parallax (shown only for comparison), and the Moon's trail, drawn as a part of a compressed spiral around the Earth's
 trail: an eighth of a loop, from the Moon to the Earth's trail 100 Earth-Moon distances behind it (its real path, one loop about 3.6 AU long and only 0.0026 AU wide, would be just a line beside it).
 
 ## The ideas behind the simulation
@@ -58,25 +62,37 @@ The simulation is built on a few principles, defined by Ovidiu Bidian in 2026 an
   The mouse is the manual control: it always grabs the image, as on a touch screen, and adds a look relative to the automatic view, kept
   through every movement.\
   The final view is the automatic view plus the manual look: you can look at the sky while
-  the camera walks around the body, and the sky then turns on the screen as the automatic view turns. What is seen
-  never turns faster than 30 degrees per second.
+  the camera walks around the body, and the sky then turns on the screen as the automatic view turns. The moves never
+  turn what is seen faster than 30 degrees per second; the turns of the picture to a new view (north up / south up,
+  switching the pan, entering a view) are made at 90 degrees per second, always one way.
 - **All the views** are built on these principles: the pole view first, then the tilted meridian view, with the same
   keys for the same jobs in every view (for example W/S tilt the camera's circle and E/C walk on it, in the pole view and
   in the tilted meridian view, and A/D move the camera on its parallel in both); at an M angle of 90 degrees the tilted
   meridian view is the classic view on latitude and longitude, so a separate meridian view is no longer needed; the
-  Sun, Moon and Earth locked views are the pole view's leveled pan on the body ecliptic, turning with the Sun (the
-  Moon, the Earth): the picture is always level, the body keeps its place on the screen in every movement, and the Sun
-  swings up and down only as much as the orbit is tilted; absolute space follows them with rules of its own.
-- **The pole view** has three pans.\
+  Sun, Moon and Earth locked views are built on the pole view's leveled pan on the body ecliptic, with circle C fixed
+  at 38 degrees, turning with the Sun (the Moon, the Earth): the picture is always level and never upside down, the
+  body keeps its place on the screen in every movement while it is in view, and the Sun swings up and down only as
+  much as the orbit is tilted; absolute space follows them with rules of its own.
+- **The pole view** has two pans, both the same at both poles.\
   In the leveled pan the rotation axis stays vertical on the screen, with the north pole at the top, or the south pole at the top when the camera is below
   the equator (the picture turns by 180 degrees only when the camera clearly passes to the other side: a band of
   ±10 degrees). On the Earth, closer than 30 Earth radii, the information panel shows the right ascension and
   declination (J2000) of the view direction instead of its pan and tilt, as a telescope on the Earth gives them: point
   the view at a star and read its catalogue coordinates. A button next to "RA / Dec" switches to "adj. J2000": the
   coordinates adjusted to today's date (the precession of the Earth's axis since 2000).\
-  In the rotating pan the picture turns evenly as the camera walks around the body, one turn per lap.\
   In the polar pan the rotation axis swings between the poles: the pole near the camera is at the top while the camera
   goes round it, and the moves are the same at both poles.
+
+## The stars' own motion
+
+On the Earth, in the pole view's leveled pan, closer than 30 Earth radii, the information panel has four more rows.
+"Stellar ab." shows the stellar aberration: every star is seen shifted towards the direction in which the Earth moves
+on its orbit (at most 20.5"); its button magnifies it (x62.5 to x250), and in a year each star draws a short line near
+the ecliptic, an ellipse between, a circle at the ecliptic poles. "Parallax" shows, for 16 near stars, their yearly
+ellipse around their place (magnified x4000 to x20000), and "Proper m. / yr" their own motion across the sky, seen in
+their yellow trails; the other stars stay at their places, the reference against which the near ones move. A last row
+gives, for the star nearest the cross, its catalogue parallax and the parallax the supporters of the Copernican theory
+would measure (the Sun and the stars fixed): it is not real, only a comparison, as explained in Help → About.
 
 ## Walk in the sky
 
@@ -174,6 +190,8 @@ or download the whole simulation (on GitHub: Code -> Download ZIP, or the zip of
   Octantis, only this fine aiming gives a meaningful right ascension);
 - in the Sun locked view of the Earth or of the Moon, near it, the eclipses come by themselves (see "Eclipses of the
   Sun and of the Moon");
+- the Home key brings the camera to the view's Home position in one smooth move of 3 seconds, the view turning to
+  Home's along the way;
 - Help → Controls lists the keys and the mouse controls of the current camera mode.
 
 ## Requirements
