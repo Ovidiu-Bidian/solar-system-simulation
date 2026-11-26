@@ -509,7 +509,7 @@
 <section id="about" class="panel" role="dialog" aria-modal="true" aria-labelledby="about-title">
   <div class="t"><span id="about-title">About</span><button id="about-close" type="button" aria-label="Close">&times;</button></div>
   <div id="about-body">
-  <p>Current version: solar system simulation v_4.8 (26 Nov 2026)</p>
+  <p>Current version: solar system simulation v_4.8.4 (26 Nov 2026)</p>
   <p id="about-three">three.js: -</p>
   <p><span class="ind"></span>This simulation is for scientific and educational purposes. It is also a support software for the book
     "Marea greșeală a „marelui” Einstein" by Ovidiu Bidian (Artpress, ISBN 978-973-108-587-6).</p>
@@ -727,6 +727,7 @@
   <div id="rp-cam" class="panel">
     <button id="rp-path" type="button" title="The camera's path and view: from the log, or turned / moved by you"></button>
     <button id="rp-ctrl" type="button" title="What the keys and the mouse move: the main view (appl) or the logged camera (cam)"></button>
+    <button id="rp-lock" type="button" title="Cam locked: the main view follows the logged camera: it in the middle, seen from the side (from behind, 30 degrees above its head plane, 30 degrees aside of its pan vector), 10 of its lengths away"></button>
   </div>
   <div id="rp-buttons" class="panel">
     <div class="row">
@@ -1167,20 +1168,25 @@ function goHome_() {
   if (bodyCentre() && C.mode === 'body') mvHome();
 }
 
-// The way to Home (Ovi, 2026-11-22, views_fix v_3.29; from 2026-10-23 it was two steps, a turn until the camera looked at
-// the body's centre, then the flight looking at it: too sudden): one move of HOME_TIME, in the frame it is started in.
+// The way to Home (Ovi, 2026-11-26, views_fix v_3.32: one rule for every camera move, Home and every choice of a body or a
+// view in the menu, from the camera's place and view at the start to Home's): the path worked out first, then the pace.
 // At its start Home is worked out at once (goHome on the camera, then the camera put back: nothing is seen): its place
-// and its view, in the new reference system. Then the camera flies there (its direction from the body's centre on the
-// great circle around it, so it never goes through it) while its view turns smoothly from the one it had to Home's (a
-// level picture stays level: the pan the short way and the tilt evenly; else the shortest turn between the two frames).
-// Its pace (Ovi, 2026-11-22: the body left vanished at once, the way to the new one was right): the same at both ends,
-// on the scale of each: it leaves the body it starts at slowly, its distance from it growing gradually (on the scale of
-// that distance), then faster and faster, and comes to the new one the same way reversed, on the scale of Home's distance
-// (homePace: a logistic curve in the log of the distances; the far ways are covered in HOME_TIME as the near ones). Its
-// start (the place and the view it had) is kept with the body it leaves and in space's axes, its end (Home) with the
-// new one and in the frame the move runs in (Ovi, 2026-11-22: kept in that frame, which in the Sun locked view turns
-// with its target, the start swung around the new body, tens of AU at Pluto, and the body left vanished at once). Any camera control stops it where it is; at the end it is exactly goHome.
-const HOME_TIME = 3;   // (s; Ovi, 2026-11-22: 3, was 2)
+// and its view, in the new reference system. The path: a straight segment from the camera's place to Home's, its start
+// kept with the body left (in space's axes), its end with the new one (in the frame the move runs in); the camera on it
+// at homePace(s): near each end on the scale of its distance from that body (it leaves and comes slowly, the middle very
+// fast). The view: from the start's to Home's along the same share s: a level picture stays level (the pan the short
+// way, chosen at the start and kept, and the tilt evenly); else the view direction on the shortest arc and the picture's
+// spin around it apart, evenly (Ovi, 2026-11-26: one rotation of the whole frame swung the view in a big loop when the
+// picture had also to spin about 180 degrees, Venus's north being the ecliptic's south). The pace: s from the time share
+// x = t / T on -20x^7 + 70x^6 - 84x^5 + 35x^4 (from 0, fastest in the middle, 2.19 times the mean, back to 0; Ovi: slow
+// near the bodies, fast in the travel); T from the segment's length: HOME_LINE_MIN + (HOME_LINE_MAX - HOME_LINE_MIN) x
+// length / HOME_LINE_D, at most HOME_LINE_MAX (2 s near a body, about 4 s from Pluto to the Sun). Nothing stops it; the
+// guard keeps it 2 radii from every body (keepOutside, see step); at the end it is exactly goHome. (Tried the same day
+// and replaced: a pace picture by picture from limits near the bodies (30 / 90 deg/s, x2 a second in size), and three
+// phases, departure, flight, arrival, between two bodies; before, from 2026-11-22, one move of 3 s on a great circle
+// around the new body; from 2026-10-23 two steps, a turn to the body's centre, then the flight looking at it.)
+const HOME_TIME = 3;   // (s: the sizes of a view left going over to the new one's without a way to Home, see viewBlend)
+const HOME_LINE_MIN = 2, HOME_LINE_MAX = 4, HOME_LINE_D = 40;   // (s, s, AU; HOME_LINE_MIN: Ovi 2026-11-26, 2 s, was 1)
 // the share of the way at the time share w (smooth): x / (D − x) grows evenly on a log scale from a / D (a: the
 // distance to the body left) to D / b (b: Home's distance to the new one's centre), set to 0 at the start, 1 at the end
 function homePace(w, a, b, D) {
@@ -1189,6 +1195,7 @@ function homePace(w, a, b, D) {
   return (L(y0 + (y1 - y0) * w) - L(y0)) / (L(y1) - L(y0));
 }
 let homeFrom = null;   // (the reference body left, see chooseRef)
+let homeSpeedNext = null;   // (the new body's own speed, set at the end of the way to it, see chooseRef, homeStep)
 // The sizes of a view left (Ovi, 2026-11-22: the Moon / Earth locked views draw the Earth and the Moon larger or
 // smaller; switching views they changed at once): they go over to the new view's on a log scale (see bodyScales), along
 // the way to Home when there is one (its share of the way), else in HOME_TIME (smoothly). viewBlend: { view (the one
@@ -1222,46 +1229,56 @@ function startHome_() {
   const s0 = sub(bk(q0), sub(from.p, REF.p));   // (the start: from the body left, in space's axes)
   homeFrom = null;
   if (viewBlend) Object.assign(viewBlend, { home: true, w: 0 });
-  C.homing = { t: 0, level, q1, from, fr, s0, f0: bk(f0), u0: bk(u0), a: Math.max(len(s0), 1e-12), b: Math.max(len(q1), 1e-12), D: Math.max(len(sub(q0, q1)), 1e-12),
+  C.homing = { t: 0, s: 0, level, q1, from, fr, s0, f0: bk(f0), u0: bk(u0), a: Math.max(len(s0), 1e-12), b: Math.max(len(q1), 1e-12), D: Math.max(len(sub(q0, q1)), 1e-12),
     pan1: Math.atan2(f1[1], f1[0]), tilt1: Math.asin(clamp(f1[2], -1, 1)), o1: frameQuat(f1, u1) };
 }
-function homeStep(dt) {
-  const m = C.homing;
-  m.t = Math.min(1, m.t + dt / HOME_TIME);
-  if (m.t >= 1) { C.homing = null; goHome(); return; }
-  // the way (homePace) and the view: both from a smooth time share
-  const s = smooth(m.t), g = homePace(s, m.a, m.b, m.D);
-  if (viewBlend && viewBlend.home) viewBlend.w = g;   // (the sizes of the view left going over to the new one's)
+// the camera's place and view on the way to Home at its share s (in the move's frame); upd: this picture's (keeps the
+// ways chosen at the start, m.dp / m.psi)
+function homePose(m, s, upd) {
   // the start now: with the body left, in the move's frame now
-  const q0 = m.fr(add(sub(m.from.p, REF.p), m.s0)), f0 = m.fr(m.f0), u0 = m.fr(m.u0);
-  const r0 = len(q0), r1 = len(m.q1), d0 = q0.map(x => x / r0), d1 = m.q1.map(x => x / r1);
-  let ax = cross(d0, d1);
-  const ang = Math.atan2(len(ax), dot(d0, d1));
-  ax = len(ax) > 1e-9 ? unit(ax) : unit(cross(d0, Math.abs(d0[2]) < .9 ? [0, 0, 1] : [1, 0, 0]));
-  C.pos = add(P, rotate(d0, ax, ang * g).map(x => x * (r0 + (r1 - r0) * g)));
-  syncSpherical();
+  const q0 = add(m.fr(sub(m.from.p, REF.p)), m.fr(m.s0)), f0 = m.fr(m.f0), u0 = m.fr(m.u0);
+  const g = homePace(s, m.a, m.b, m.D), pos = add(P, add(q0, sub(m.q1, q0).map(x => x * g)));
   if (m.level) {
     const pan0 = Math.atan2(f0[1], f0[0]), tilt0 = Math.asin(clamp(f0[2], -1, 1));
     // (the pan's way chosen at the start, the shorter one, and followed on continuously (Ovi's log 2026-11-25
     // 204349_Moon_earth_locked_weird: the start view, carried in the move's frame, turns with the target while the time
     // runs; when the difference crossed 180 degrees the shorter way, taken afresh in every picture, changed side: the
     // pan jumped 40 degrees in one picture and went back the other way)
-    m.dp = m.dp === undefined ? wrapPi(m.pan1 - pan0) : m.dp + wrapPi(m.pan1 - pan0 - m.dp);
-    C.pan = wrapPi(pan0 + m.dp * s); C.tilt = tilt0 + (m.tilt1 - tilt0) * s; return;
+    const dp = m.dp === undefined ? wrapPi(m.pan1 - pan0) : m.dp + wrapPi(m.pan1 - pan0 - m.dp);
+    if (upd) m.dp = dp;
+    return { g, pos, pan: wrapPi(pan0 + dp * s), tilt: tilt0 + (m.tilt1 - tilt0) * s };
   }
-  // (a turned picture: the turn's way chosen at the start, the shorter one, and kept (Ovi, 2026-11-25, as the pan's
-  // above): the start, carried with the move's frame, kept on the same side of the quaternions from picture to picture
-  // (m.qa), the end on the side that made the shorter way at the start (m.qb), and a slerp that does not change side)
-  const qa = frameQuat(f0, u0); let A = [qa.x, qa.y, qa.z, qa.w];
-  const d4 = (x, y) => x[0] * y[0] + x[1] * y[1] + x[2] * y[2] + x[3] * y[3];
-  if (m.qa && d4(A, m.qa) < 0) A = A.map(x => -x);
-  m.qa = A;
-  if (!m.qb) { const B = [m.o1.x, m.o1.y, m.o1.z, m.o1.w]; m.qb = d4(A, B) < 0 ? B.map(x => -x) : B; }
-  const th = Math.acos(clamp(d4(A, m.qb), -1, 1)), sn = Math.sin(th);
-  const ka = sn > 1e-9 ? Math.sin((1 - s) * th) / sn : 1 - s, kb = sn > 1e-9 ? Math.sin(s * th) / sn : s;
-  const Q = new THREE.Quaternion(ka * A[0] + kb * m.qb[0], ka * A[1] + kb * m.qb[1], ka * A[2] + kb * m.qb[2], ka * A[3] + kb * m.qb[3]).normalize();
-  const e = new THREE.Matrix4().makeRotationFromQuaternion(Q).elements;
-  setView([-e[8], -e[9], -e[10]], [e[4], e[5], e[6]]);
+  // (a turned picture: the view direction on the shortest arc from the start's to Home's, and the picture's spin around
+  // it apart, evenly; the spin's way chosen at the start and kept (m.psi, as the pan's above))
+  const e1 = new THREE.Matrix4().makeRotationFromQuaternion(m.o1).elements, f1 = [-e1[8], -e1[9], -e1[10]], u1 = [e1[4], e1[5], e1[6]];
+  let ax = cross(f0, f1);
+  const th = Math.atan2(len(ax), dot(f0, f1));
+  if (len(ax) > 1e-9) ax = unit(ax);
+  else { const w = sub(u0, f0.map(x => x * dot(u0, f0))); ax = len(w) > 1e-9 ? unit(w) : unit(cross(f0, Math.abs(f0[2]) < .9 ? [0, 0, 1] : [1, 0, 0])); }
+  const uT = rotate(u0, ax, th), raw = Math.atan2(dot(cross(uT, u1), f1), dot(uT, u1));   // (the spin left at the end)
+  const psi = m.psi === undefined ? raw : m.psi + wrapPi(raw - m.psi);
+  if (upd) m.psi = psi;
+  const f = rotate(f0, ax, th * s), u = rotate(rotate(u0, ax, th * s), f, psi * s);
+  return { g, pos, f, u };
+}
+function homeStep(dt) {
+  const m = C.homing;
+  m.t += dt;
+  if (m.T === undefined) m.T = HOME_LINE_MIN + (HOME_LINE_MAX - HOME_LINE_MIN) * Math.min(1, m.D / HOME_LINE_D);
+  const x = Math.min(1, m.t / m.T);
+  m.s = x >= 1 ? 1 : x * x * x * x * (35 + x * (-84 + x * (70 - 20 * x)));
+  // (the new body's own speed at the end of the way (during it the slower of the two, see chooseRef; Ovi, 2026-11-26:
+  // the body left or the new one spun fast at the other's speed, Mercury at Pluto's 1 yr/s; the new body's orbit dragged
+  // the way's end))
+  if (m.s >= 1) {
+    if (homeSpeedNext) { simSpeed = SIM_SPEEDS.findIndex(x => x[1] === homeSpeedNext); showSpeed(); homeSpeedNext = null; }
+    C.homing = null; goHome(); return;
+  }
+  const X = homePose(m, m.s, true);
+  if (viewBlend && viewBlend.home) viewBlend.w = X.g;   // (the sizes of the view left going over to the new one's)
+  C.pos = X.pos; syncSpherical();
+  if (m.level) { C.pan = X.pan; C.tilt = X.tilt; return; }
+  setView(X.f, X.u);
 }
 
 function setMode(mode) {
@@ -1988,6 +2005,7 @@ const lpPolar = () => LP_POLAR && !SUN_LOCK;   // (the Sun locked view: only the
 // towards the z axis all the time, no mirror, +z up on both sides of the ecliptic.
 const LP_MIRROR = false;
 let picMirror = false;
+const LP_AUTO_V = 10 * DEG, LP_AUTO_A = 20 * DEG;   // (the leveled pan's C angle going by itself to the one that applies: at most 10°/s, ±20°/s², Ovi 2026-11-26)
 const LP_MAX_I = 80 * DEG, LP_ANGLE_SPEED = 30 * DEG;   // (Ovi, 2026-11-03: 30°/s; 2026-10-25: 40°/s, was 30°/s)
 // the 180° turns of the picture to south up and back, in every view that has them (the pole view, LP.flip; the Sun locked
 // view, SL.s) and the pole view's turn to a new pan's picture (a switch of the pans, entering the view): only they (Ovi,
@@ -2004,7 +2022,7 @@ const LP_SOUTH_BAND = 10 * DEG;
 // centre, the mouse stopped there: removed 2026-11-04, the manual look is a sum of angles, anywhere; see lpView.)
 // valid: C set for the camera as it is (else set afresh from it); panA / tiltA: the automatic pan / tilt last given to
 // the camera; entering: the view turning onto the z axis after entering the view (see lpView)
-const LP = { edir: 0, homed: false, valid: false, i: 0, node: 0, u: 0, panA: 0, tiltA: 0, entering: false, roll: 0, cf: null, cr: 0, oa: 0, ob: 0, south: false, flip: 0 };   // roll: the polar pan's turn (lpTurnNow); cf, cr: its centred frame and that frame's turn, oa, ob: the user's look from it (lpCentred)
+const LP = { want: null, cap: null, iVel: 0, edir: 0, homed: false, valid: false, i: 0, node: 0, u: 0, panA: 0, tiltA: 0, entering: false, roll: 0, cf: null, cr: 0, oa: 0, ob: 0, south: false, flip: 0 };   // roll: the polar pan's turn (lpTurnNow); cf, cr: its centred frame and that frame's turn, oa, ob: the user's look from it (lpCentred)
 const lpN = node => [Math.cos(node), Math.sin(node), 0];
 const lpM = (i, node) => [-Math.sin(node) * Math.cos(i), Math.cos(node) * Math.cos(i), Math.sin(i)];
 function lpDir(i, node, u) {
@@ -2115,7 +2133,7 @@ const lpFlipping = () => (LEVELED_PAN && C.mode === 'body' && LP.valid && LP.fli
 function lpStart() {
   if (slOn()) slFitC(unit(rel())); else lpFit(unit(rel()));   // (the Sun locked view: C at SL_C)
   lpSouthAfresh(); LP.roll = lpRoll(unit(rel()), LP.i, LP.node);
-  LP.panA = C.pan; LP.tiltA = C.tilt; LP.valid = true; LP.entering = true; LP.cf = null; LP.homed = false;
+  LP.panA = C.pan; LP.tiltA = C.tilt; LP.valid = true; LP.entering = true; LP.cf = null; LP.homed = false; LP.want = null; LP.cap = null;
   SL.w = null; SL.s = 0; SL.mouse = false; SL.iSet = null; SL.enter = slOn(); SL.tgt = null;   // (the Sun locked view: the body's place from the view, C to SL_C: see slView, slEnter)
 }
 // the largest part s (0..1) of a move, the camera then at at(s) (relative to O), for which the automatic pan and tilt
@@ -2160,7 +2178,7 @@ function lpHome_(sh) {
   LP.i = HOME.lat; LP.node = wrapPi((sh ? sh.lon : HOME.lon) - Math.PI / 2); LP.u = Math.PI / 2; LP.roll = 0; LP.south = false; LP.flip = 0;
   if (sh) { LP.node = sh.lon - Math.PI / 4; lpFit(unit(rel()), sh.i); }   // (the Sun locked view: C through Home's place, see slHome)
   const a = lpAuto(rel());
-  LP.panA = C.pan = a[0]; LP.tiltA = C.tilt = a[1]; C.roll = 0; LP.valid = true; LP.entering = false; LP.cf = null; LP.homed = !sh;   // (the Sun locked view's Home has its own look, see slHome)
+  LP.panA = C.pan = a[0]; LP.tiltA = C.tilt = a[1]; C.roll = 0; LP.valid = true; LP.entering = false; LP.cf = null; LP.homed = !sh; LP.want = null; LP.cap = null;   // (the Sun locked view's Home has its own look, see slHome)
   if (sh) { setView(sh.f, sh.u); SL.enter = false; SL.w = sh.w; SL.s = 0; SL.mouse = false; SL.iSet = null; }   // (the Sun locked view's level view, see slView)
 }
 // C (i, node, u) turned rigidly by a around the axis e through O; of the two ways to write the turned circle ((i, Ω) and
@@ -2202,6 +2220,28 @@ function stepLeveled(dt, vKey, hKey, cKey) {
     }
     di = ni - i;
   }
+  // The leveled pan's C angle and the look (Ovi, 2026-11-26): the angle used is the one wanted (LP.want: set only by
+  // W/S, to the angle they reach) capped at the largest one for which the look stays within its limit all round C
+  // (lpMaxI), so that E/C never stop: W goes at most up to it; with E/C or A/D held (not W/S) the angle goes at
+  // ANGULAR_SPEED towards min(wanted, cap): down when the look (the body far from the centre) needs it, back up to
+  // the wanted one when the body is nearer the centre again. The mouse never moves the camera (REQ-00.0.23).
+  const lev = !lpPolar() && !slOn() && LP.cf && !LP.entering;
+  if (LP.want === null) LP.want = i;
+  const M = lev ? lpMaxI() : LP_MAX_I;
+  LP.cap = lev ? M : null;   // (for the gauge: the C angle that applies, see updateGauge)
+  if (lev && di && Math.abs(i + di) > Math.abs(i) && Math.abs(i + di) > M) di = Math.sign(i + di) * Math.max(M, Math.abs(i)) - i;
+  // (smooth, Ovi 2026-11-26: at ANGULAR_SPEED at once the change was seen as a sudden move: it speeds up and slows
+  // down at LP_AUTO_A, at most LP_AUTO_V, stopping exactly at the target; LP.iVel its speed, 0 when no key moves it)
+  let auto = false, iT = i;
+  if (lev && !vKey && (hKey || cKey)) {
+    iT = Math.sign(LP.want) * Math.min(Math.abs(LP.want), M);
+    const d = iT - i;
+    if (Math.abs(d) > 1e-12) {
+      const vS = Math.sign(d) * Math.min(LP_AUTO_V, Math.sqrt(2 * LP_AUTO_A * Math.abs(d)));   // (the speed that can still stop at the target)
+      const v = LP.iVel + clamp(vS - LP.iVel, -LP_AUTO_A * dt, LP_AUTO_A * dt);
+      di = Math.sign(d) * v * dt >= Math.abs(d) ? d : v * dt; LP.iVel = di === d ? 0 : v; auto = true;
+    } else LP.iVel = 0;
+  } else LP.iVel = 0;
   if (hKey) {
     // A/D: C around z, D (hKey +1) towards the screen's right
     if (!motion.h || motion.h.key !== hKey) motion.h = { key: hKey, sign: (Math.sign(dot(e, right)) || 1) * hKey };
@@ -2211,7 +2251,7 @@ function stepLeveled(dt, vKey, hKey, cKey) {
   // so that on the screen E/C move as at the north pole (Ovi, 2026-11-05, log 2026-11-05-175749)
   if (cKey) u = wrapPi(u + (!lpPolar() && LP.south ? -cKey : cKey) * step);
   // the part s of the move: C's angle (W/S), its node (A/D), the place on it (E/C)
-  const n0 = LP.node, u0 = LP.u, dn = wrapPi(node - n0), du = wrapPi(u - u0);
+  const n0 = LP.node, u0 = LP.u; let dn = wrapPi(node - n0), du = wrapPi(u - u0);
   const move = s => ({ i: i + di * s, node: n0 + dn * s, u: u0 + du * s });
   if (!di && !dn && !du) return;
   // the polar pan's picture still turning to its rule (entering, a switch, C through 0°): the camera waits for it
@@ -2223,12 +2263,17 @@ function stepLeveled(dt, vKey, hKey, cKey) {
   // the picture's turn at s (the polar pan; see lpRollU): by the place on C alone
   const rollAt = s => lpRollU(u0 + du * s);
   const roll = rollAt;
-  const sl = lpLimit(dt, at, roll);
+  let sl = lpGuardLimit(at, lpLimit(dt, at, roll));
+  // (the angle going down for the look and the walk held by the limit meanwhile: this picture the angle alone)
+  // (the walk held by the look's limit while the angle must still go down: this picture the angle alone, at
+  // ANGULAR_SPEED, so that the walk goes on soon)
+  if (auto && sl < 1 - 1e-9 && Math.abs(iT) < Math.abs(i)) { dn = du = 0; di = clamp(iT - i, -step, step); LP.iVel = di / Math.max(dt, 1e-6); sl = lpGuardLimit(at, lpLimit(dt, at, roll)); }
   const p = add(P, at(sl));
   if (!insideBox(p)) return;
   const c = move(sl);
   C.pos = p; Object.assign(LP, { i: c.i, node: wrapPi(c.node), u: wrapPi(c.u), roll: rollAt(sl) });
   if (di) SL.iSet = LP.i;   // (the Sun locked view: the C angle set by W/S, see slView)
+  if (vKey && di) LP.want = LP.i;   // (the angle wanted: set by W/S only)
   if (!lpPolar()) {   // the leveled pan: C's angle out of the band on the other side, the pole at the top changes
     const south = LP.south ? LP.i < LP_SOUTH_BAND : LP.i < -LP_SOUTH_BAND;
     if (south !== LP.south) { LP.south = south; LP.flip = south ? -1 : 1; LP.entering = true; }
@@ -2353,6 +2398,38 @@ function lpLook(mx, my) {
 // above it). Elsewhere the limit is unchanged; along one up / down move the allowed part stays one piece (it goes on past
 // the lowest point only while the view is within LP_POLE_SLACK of the pole).
 const LP_POLE_SLACK = 2 * DEG;
+// the largest C angle (its size) for which the look (LP.oa, LP.ob) stays within the leveled pan's limit (lpGuard) all
+// round C: the level head's centred view depends only on the camera's latitude, which on C goes from −i to +i, so both
+// ends are checked (in the body frame, as stepLeveled; at most LP_MAX_I)
+function lpMaxI() {
+  const z = LP.south ? -1 : 1, cs = Math.cos(LP_POLE_SLACK), rT = lpTurnNow(), q = unit(rel()), az = Math.atan2(q[1], q[0]) + Math.PI;
+  const ok = lat => { const [f, u] = lpLookDir(lpCentredFrame(az, -lat, rT), LP.oa, LP.ob); return z * u[2] >= 0 || Math.abs(f[2]) > cs; };
+  const okI = m => ok(m) && ok(-m);
+  if (okI(LP_MAX_I)) return LP_MAX_I;
+  if (!okI(0)) return 0;
+  let lo = 0, hi = LP_MAX_I;
+  for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (okI(m)) lo = m; else hi = m; }
+  return lo;
+}
+// The leveled pan's look limit and the moves (Ovi, 2026-11-26, TST-L1-03's Saturn finding, option 1): a move (W/S,
+// A/D, E/C) goes only as far as the look stays within the limit (lpGuard) from the camera's new place: the body keeps
+// its place on the screen (REQ-00.0.24) and the camera stops there as at a wall; moved back by the mouse, the look lets
+// the keys go on (with E/C or A/D held the C angle goes down first, see stepLeveled's LP.want and
+// lpMaxI: only W/S can meet this limit, or a move right after the mouse). (Until then lpCentred cut the look as the camera moved: W held near a pole with a look down, from
+// C 76° the picture's up on the equator's plane, the body slid about 7 px a picture.) s1: the part allowed so far
+// (lpLimit); a look already beyond the limit at the start (only after something else moved the camera) stops nothing.
+function lpGuardLimit(at, s1) {
+  if (lpPolar() || slOn() || !LP.cf || LP.entering || !s1) return s1;
+  const z = LP.south ? -1 : 1, cs = Math.cos(LP_POLE_SLACK), rT = lpTurnNow();
+  const ok = s => {
+    const [p, t] = lpAuto(at(s)), F = lpCentredFrame(p !== null ? p : LP.panA, t, rT), [f, u] = lpLookDir(F, LP.oa, LP.ob);
+    return z * u[2] >= 0 || Math.abs(f[2]) > cs;
+  };
+  if (ok(s1) || !ok(0)) return s1;
+  let lo = 0, hi = s1;
+  for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (ok(m)) lo = m; else hi = m; }
+  return lo;
+}
 function lpGuard(F) {
   if (lpPolar() || !F) return;
   const z = LP.south ? -1 : 1, cs = Math.cos(LP_POLE_SLACK);
@@ -5141,7 +5218,9 @@ function updateGauge(show, lp) {
   if (g.hidden !== !(show || lp)) g.hidden = !(show || lp);
   if (!lp && (!show || !lastMeridianAxis)) return;
   if ($('g-pan-mode').hidden !== !(lp && !SUN_LOCK)) $('g-pan-mode').hidden = !(lp && !SUN_LOCK);   // the pole view's pan button (not in the Sun locked view)
-  const a = lp ? LP.i : Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ()))));
+  // (the leveled pan, Ovi 2026-11-26: the C angle that applies, the wanted one (W/S) capped for the look now (stepLeveled,
+  // lpMaxI), shown at once as the mouse moves the body; the camera goes to it with E/C or A/D, the mouse never moves it)
+  const a = lp ? (LP.cap !== null && LP.want !== null && !lpPolar() && !SUN_LOCK ? Math.sign(LP.want) * Math.min(Math.abs(LP.want), LP.cap) : LP.i) : Math.acos(Math.min(1, Math.abs(dot(lastMeridianAxis, refZ()))));
   // the camera's latitude to the reference plane: the body ecliptic (the Sun / Moon / Earth locked views), or the equator
   // (the pole view and the tilted meridian, on the rotation axis; see frameB)
   const zRef = refZ(), q = rel(), ql = len(q);
@@ -5285,14 +5364,16 @@ function slidePanel(wrap, btn, line, box, icons, pinned, fullHeight) {
   sp.show = () => {
     const open = sp.pinned || sp.temp;
     wrap.classList.toggle('open', open); wrap.classList.toggle('pinned', sp.pinned);
-    // the icon shows what is seen (Ovi, 2026-10-28: also when the mouse shows it)
-    btn.textContent = open ? icons[1] : icons[0]; btn.setAttribute('aria-expanded', open);
+    // the icon shows what the button will do (Ovi, 2026-11-26; from 2026-10-28 it showed what is seen): "to close" only
+    // when pinned open by the button; shown by the mouse it stays "to open", and pressing it keeps the box open
+    btn.textContent = sp.pinned ? icons[1] : icons[0]; btn.setAttribute('aria-expanded', sp.pinned);
     sp.fit();
     if (sp.after) sp.after();
   };
   sp.setTemp = on => { sp.temp = on; sp.show(); };
-  // the button acts on what is seen: shown (also by the mouse) → restrained for good, restrained → expanded for good
-  btn.addEventListener('click', () => { sp.pinned = !(sp.pinned || sp.temp); sp.temp = false; clearTimeout(sp.leave); sp.leave = null; sp.show(); btn.blur(); });
+  // the button: pinned open → restrained (Ovi, 2026-11-26; also when the mouse showed it, it restrained it), else →
+  // expanded for good (also when the mouse shows it: it stays after the mouse leaves)
+  btn.addEventListener('click', () => { sp.pinned = !sp.pinned; sp.temp = false; clearTimeout(sp.leave); sp.leave = null; sp.show(); btn.blur(); });
   line.addEventListener('pointerenter', () => sp.setTemp(true));
   line.addEventListener('pointerdown', () => sp.setTemp(true));   // (touch)
   wrap.addEventListener('pointerleave', () => { if (sp.temp) sp.leave = setTimeout(() => { sp.leave = null; sp.setTemp(false); }, 250); });
@@ -5641,7 +5722,7 @@ function recordSample(now) {
     // the camera's latitude / longitude on the reference body (Ovi, 2026-11-13: as in the gauge; body mode only)
     ...(C.mode === 'body' ? (([la, lo]) => ({ lat: +(la / DEG).toFixed(3), lon: +((lo / DEG + 360) % 360).toFixed(3) }))(camLatLon()) : {}),
     yr: +trailT.toFixed(9),   // the bodies' clock (Earth years, see trailT): the replay puts the bodies there (Ovi, 2026-11-06)
-    keys: [...held].join(' '), mode: C.mode, view: moveName(),
+    keys: [...held].join(' '), mode: C.mode, view: moveName(), ref: REF.name,   // (ref: the reference body of this sample, Ovi 2026-11-26)
     // what the user has selected, as seen (Ovi, 2026-11-05): the information panel's title, the reference axes button
     title: refTitle(), axes: AXES_TEXT[axesShown][0],
     lp: LEVELED_PAN && LP.valid ? { i: +(LP.i / DEG).toFixed(3), node: +(LP.node / DEG).toFixed(3), u: +(LP.u / DEG).toFixed(3), panA: +(LP.panA / DEG).toFixed(3), tiltA: +(LP.tiltA / DEG).toFixed(3), pan: panName(), mirror: picMirror, phi: +(-LP.roll / DEG || 0).toFixed(3), south: LP.south, cr: +(LP.cr / DEG).toFixed(3), ...(lpHeadNow() ? (([hp, ht]) => ({ la: +(LP.oa / DEG).toFixed(3), lb: +(LP.ob / DEG).toFixed(3), hp: +(hp / DEG).toFixed(3), ht: +(ht / DEG).toFixed(3) }))(lpHeadNow()) : {}) } : null,
@@ -5762,31 +5843,13 @@ $('menu-load-log').addEventListener('click', e => { closeMenu(); e.currentTarget
 $('log-file').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if (f) startReplay(await f.text(), f.name); });
 // spec vector → scene vector (as T(), without the AU scale)
 const toScene = v => new THREE.Vector3(v[0], v[2], -v[1]);
-function startReplay(text, name) {
-  C.homing = null;
-  let data;
-  try { data = JSON.parse(text); } catch (_) { data = null; }
-  const ss = data && data.samples;
-  if (!ss || !ss.length) { toast('This is not a camera log'); return; }
-  if (camLog.on) toggleRecord();
-  const wasRunning = replay.on ? replay.wasRunning : running;   // (another log loaded in the replay: the state before the first)
-  const yr0 = replay.on ? replay.yr0 : trailT;   // (the same: the time before the first)
-  closeReplay();
-  replay.wasRunning = wasRunning; replay.yr0 = yr0;
-  replay.on = true; replay.samples = ss; replay.i = 0; replay.t = ss[0].t; replay.dir = 0; replay.way = 1; replay.playing = false;
-  if (!Array.isArray(data.notes)) data.notes = [];
-  if (typeof data.description !== 'string') data.description = '';
-  replay.data = data; replay.name = name || logName(); replay.dirty = false;
-  replay.path = 0; replay.ctrl = 'appl'; replay.offPan = replay.offTilt = 0; replay.free = null;
-  running = false; showRun();   // the bodies hold still
-  setMode('absolute');
-  // the log's reference body (logs without one were made around Pluto)
-  const lb = BODIES.find(b => b.name === (data.body || 'Pluto'));
+// the replay's objects (the path, the camera, its segments and axes) around the body lb, the path of the samples pts
+function replayBuild(pts, lb) {
   if (lb && lb !== REF) setRef(lb);
+  if (replay.objs) { for (const a of replay.objs.axNames) a.el.remove(); replay.objs.g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); scene.remove(replay.objs.g); replay.objs = null; }
   // the path (relative to the reference body, in scene units = 1000 km) and the camera
   const g = new THREE.Group(); g.position.copy(T(...P)); scene.add(g);
-  const path = new THREE.BufferGeometry().setFromPoints(ss.map(q => toScene([q.x / 1000, q.y / 1000, q.z / 1000])));
-  g.add(new THREE.Line(path, new THREE.LineBasicMaterial({ color: 0xff8a5c, transparent: true, opacity: .8 })));
+  // (the path: all of it, every body's part, see replayPaths)
   const s = REF.km / 1000, cam = new THREE.Group(); g.add(cam);
   const box = new THREE.BoxGeometry(.5 * s, .35 * s, .9 * s);
   cam.add(new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: 0xd8dde8, transparent: true, opacity: .55, depthWrite: false })));
@@ -5850,8 +5913,57 @@ function startReplay(text, name) {
   const axLines = new THREE.LineSegments(axGeo, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: .9 }));
   axLines.frustumCulled = false; axLines.renderOrder = 20; axes.add(axLines); g.add(axes);
   replay.objs = { g, cam, segs, vecs, heads, s, axes, axNames, axGeo, axLen };
+}
+// the whole path (Ovi, 2026-11-26: only the shown body's part was drawn): one line for each run of samples, relative to
+// its body and kept with it (placed at the body every picture, see step), so the ways between the bodies are seen too
+function replayPaths() {
+  replayPathsClear();
+  replay.paths = replay.runs.map(r => {
+    const g = new THREE.Group(), pts = replay.samples.slice(r.a, r.b + 1);
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(q => toScene([q.x / 1000, q.y / 1000, q.z / 1000]))),
+      new THREE.LineBasicMaterial({ color: 0xff8a5c, transparent: true, opacity: .8 })));
+    scene.add(g);
+    return { g, body: BODIES.find(b => b.name === r.name) || REF };
+  });
+}
+function replayPathsClear() {
+  for (const pth of replay.paths || []) { pth.g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); scene.remove(pth.g); }
+  replay.paths = [];
+}
+// the objects for the run of sample i (its reference body), built again when the run changes
+function replayRun(i) {
+  const r = replay.runs && replay.runs.find(x => i >= x.a && i <= x.b);
+  if (!r || r === replay.run) return;
+  replay.run = r; replayBuild(replay.samples.slice(r.a, r.b + 1), BODIES.find(b => b.name === r.name));
+}
+function startReplay(text, name) {
+  C.homing = null;
+  let data;
+  try { data = JSON.parse(text); } catch (_) { data = null; }
+  const ss = data && data.samples;
+  if (!ss || !ss.length) { toast('This is not a camera log'); return; }
+  if (camLog.on) toggleRecord();
+  const wasRunning = replay.on ? replay.wasRunning : running;   // (another log loaded in the replay: the state before the first)
+  const yr0 = replay.on ? replay.yr0 : trailT;   // (the same: the time before the first)
+  closeReplay();
+  replay.wasRunning = wasRunning; replay.yr0 = yr0;
+  replay.on = true; replay.samples = ss; replay.i = 0; replay.t = ss[0].t; replay.dir = 0; replay.way = 1; replay.playing = false;
+  if (!Array.isArray(data.notes)) data.notes = [];
+  if (typeof data.description !== 'string') data.description = '';
+  replay.data = data; replay.name = name || logName(); replay.dirty = false;
+  replay.path = 0; replay.ctrl = 'appl'; replay.offPan = replay.offTilt = 0; replay.free = null; replay.lock = true;   // (Cam locked: on, see replayLock)
+  running = false; showRun();   // the bodies hold still
+  setMode('absolute');
+  // the reference body of each sample (Ovi, 2026-11-26: a log through several bodies was replayed all around the last
+  // one): runs of samples with the same body (q.ref; logs before: all around the log's body, or Pluto); the objects
+  // are built for the run of the sample shown, and again when it changes (replayRun)
+  const lb0 = data.body || 'Pluto';
+  // (logs before: the body from the sample's title, "Jupiter - pole view"; absolute space: the body before)
+  const tb = q => { const t = typeof q.title === 'string' ? q.title.split(' - ')[0] : ''; return BODIES.some(b => b.name === t) ? t : null; };
+  replay.runs = []; for (let k = 0; k < ss.length; k++) { const r = replay.runs[replay.runs.length - 1], nm = ss[k].ref || tb(ss[k]) || (r ? r.name : lb0); if (r && r.name === nm) r.b = k; else replay.runs.push({ name: nm, a: k, b: k }); }
+  replay.run = null; replayRun(0); replayPaths();
   // the observer: away from the path, looking at Pluto
-  const rmax = Math.max(...ss.map(q => Math.hypot(q.x, q.y, q.z))) / AU_KM, dir = unit([1, -1, .8]);
+  const r0 = replay.runs[0], rmax = Math.max(...ss.slice(r0.a, r0.b + 1).map(q => Math.hypot(q.x, q.y, q.z))) / AU_KM, dir = unit([1, -1, .8]);   // (the first body's samples)
   C.pos = add(P, dir.map(x => x * Math.max(3 * rmax, 20 * R)));
   const look = dir.map(x => -x); C.pan = Math.atan2(look[1], look[0]); C.tilt = Math.asin(look[2]); C.turn = C.roll = 0; C.leveling = false; C.levelSpeed = 0; C.head = null;
   $('rp-slider').max = ss.length - 1;
@@ -5866,6 +5978,7 @@ function closeReplay() {
   if (typeof replay.yr0 === 'number') timeTarget = replay.yr0;   // (and at its time again)
   if (replay.objs) { for (const a of replay.objs.axNames) a.el.remove(); }
   if (replay.objs) { replay.objs.g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); scene.remove(replay.objs.g); replay.objs = null; }
+  replayPathsClear();
 }
 // the head of the logged camera (Ovi, 2026-11-02; x and y swapped 2026-11-03): x the pan vector (+x the head plane's
 // forward), y the tilt axis (+y the left, so that x, y, z are right-handed as the other systems), z the pan axis (+z the
@@ -5915,6 +6028,7 @@ function replayHead(q, f, u, km, free) {
 }
 // the camera of sample i: position, the box turned like the camera, the two segments through its middle
 function showReplay() {
+  if (!replay.free) replayRun(replay.i);   // (the sample's reference body, see replayRun)
   const ss = replay.samples, i = replay.i, q = ss[i], o = replay.objs, s = o.s, fr = replay.free;
   const km = fr ? sub(fr.pos, P).map(x => x * AU_KM) : [q.x, q.y, q.z];   // the camera relative to Pluto (km)
   const [f, up, hp] = replayView(q, km), right = cross(f, up);
@@ -5926,15 +6040,19 @@ function showReplay() {
   // the pan segment / vector: the camera's pan in its head (Ovi, 2026-11-02: +y; 2026-11-03: +x; 2026-11-04: the head's
   // axes stay the automatic ones, the pan segment shows the pan turned from +x by the manual pan, the polar pan)
   const pv = hp ? hp.pv : hx;
+  // (the segments and the vectors placed at the camera, their points relative to it (Ovi, 2026-11-26, log
+  // new_test_appl_impl: written as whole coordinates, 32 bits on the GPU, 6 billion km from Pluto, their ends snapped
+  // by about half its radius: several axes seen)
+  o.segs.position.copy(c); o.vecs.position.copy(c);
   const a = o.segs.geometry.attributes.position, L = 1.4 * s, hs = toScene(pv), fs = toScene(f);
-  a.setXYZ(0, c.x - hs.x * L, c.y - hs.y * L, c.z - hs.z * L); a.setXYZ(1, c.x + hs.x * L, c.y + hs.y * L, c.z + hs.z * L);
-  a.setXYZ(2, c.x - fs.x * .7 * s, c.y - fs.y * .7 * s, c.z - fs.z * .7 * s); a.setXYZ(3, c.x + fs.x * 2.2 * s, c.y + fs.y * 2.2 * s, c.z + fs.z * 2.2 * s);
+  a.setXYZ(0, -hs.x * L, -hs.y * L, -hs.z * L); a.setXYZ(1, hs.x * L, hs.y * L, hs.z * L);
+  a.setXYZ(2, -fs.x * .7 * s, -fs.y * .7 * s, -fs.z * .7 * s); a.setXYZ(3, fs.x * 2.2 * s, fs.y * 2.2 * s, fs.z * 2.2 * s);
   a.needsUpdate = true;
   // the vectors: a line from the middle up to the base of the arrowhead, the head (a cone, pointing along +y) at the end
   const head = .25 * s, pos = [], ends = [[hs, .8 * L], [fs, .6 * 2.2 * s]];
   ends.forEach(([d, l], j) => {
-    const b = c.clone().addScaledVector(d, l - head);
-    pos.push(c.x, c.y, c.z, b.x, b.y, b.z);
+    const b = d.clone().multiplyScalar(l - head);
+    pos.push(0, 0, 0, b.x, b.y, b.z);
     o.heads[j].position.copy(c).addScaledVector(d, l - head / 2);
     o.heads[j].quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
   });
@@ -5953,6 +6071,7 @@ function showReplay() {
   $('rp-ctrl').textContent = 'Control: ' + replay.ctrl;
   $('rp-ctrl').classList.toggle('on', replay.ctrl === 'cam');
   $('rp-ctrl').disabled = replay.path === 0;
+  $('rp-lock').textContent = 'Cam locked: ' + (replay.lock ? 'on' : 'off'); $('rp-lock').classList.toggle('on', !!replay.lock);
   // with the camera free the log's time functions do nothing (Ovi, 2026-10-26)
   for (const id of ['rp-step-back', 'rp-play', 'rp-step-fwd', 'rp-dir', 'rp-speed', 'rp-slider', 'rp-add-note']) $(id).disabled = !!fr;
   $('rp-dir').textContent = replay.way > 0 ? 'Time: forward \u25B6' : 'Time: \u25C0 backward';
@@ -6061,6 +6180,34 @@ $('rp-path').addEventListener('click', e => {
   } else if (!replay.path) { replay.offPan = replay.offTilt = 0; replay.ctrl = 'appl'; replay.free = null; }
   showReplay(); toast('Cam path: ' + PATH_NAMES[replay.path]);
 });
+// Cam locked (Ovi, 2026-11-26: the main view stayed where the log was opened while the logged camera went away, to
+// other bodies): the logged camera in the middle of the screen, seen from the side: the main view's direction to it,
+// in the camera's head (x the pan vector, y the left, z up; replayHead), 30 degrees below the head's xy plane (looking
+// down at it) and -30 degrees from +x (towards -y): the main view's place, seen from the camera, is 30 degrees above its
+// head plane and 150 degrees from +x, towards -x, behind it (Ovi 2026-11-26: "150 deg means to the -x"; first taken
+// for the view's direction, which put the main view in front, at the lens) (LOCK_EL, LOCK_AZ); 10 of its lengths away (its box, 0.9 R of the body); the
+// picture's up: the head's z; on when a log is opened; every picture (replayLock)
+const LOCK_EL = 30 * DEG, LOCK_AZ = -30 * DEG;
+$('rp-lock').addEventListener('click', e => {
+  e.currentTarget.blur(); replay.lock = !replay.lock;
+  // (off: the main view back in absolute space's reference, its head leveled to the ecliptic (Ovi, 2026-11-26: it kept
+  // the logged camera's turn and its moves were not those of absolute space): the picture levels around the view
+  // direction, as entering absolute space (levelStep), the view direction kept)
+  if (!replay.lock) { C.head = null; C.turn = 0; C.levelSpeed = 0; C.leveling = Math.abs(wrapPi(C.roll)) > 1e-9; if (!C.leveling) C.roll = 0; }
+  showReplay(); toast('Cam locked: ' + (replay.lock ? 'on' : 'off'));
+});
+function replayLock() {
+  const fr = replay.free, q = replay.samples[replay.i];
+  const km = fr ? sub(fr.pos, P).map(x => x * AU_KM) : [q.x, q.y, q.z];
+  let f, up;
+  if (fr) { const c = Math.cos(fr.tilt); f = [c * Math.cos(fr.pan), c * Math.sin(fr.pan), Math.sin(fr.tilt)]; up = [-Math.sin(fr.tilt) * Math.cos(fr.pan), -Math.sin(fr.tilt) * Math.sin(fr.pan), c]; }
+  else [f, up] = replayView(q, km);
+  const [hx, hy, hz] = replayHead(q, f, up, km, fr), ce = Math.cos(LOCK_EL), se = Math.sin(LOCK_EL);
+  const v = [0, 1, 2].map(k => ce * (Math.cos(LOCK_AZ) * hx[k] + Math.sin(LOCK_AZ) * hy[k]) - se * hz[k]);   // (the main view's direction)
+  const w = sub(hz, v.map(x => x * dot(hz, v))), u = len(w) > 1e-9 ? unit(w) : up;
+  const d = 10 * .9 * REF.km;   // (km: 10 lengths of the camera's box, see replayBuild)
+  C.pos = add(P, km.map((x, k) => (x - v[k] * d) / AU_KM)); setView(v, u); C.leveling = false; C.turn = 0;
+}
 $('rp-ctrl').addEventListener('click', e => {
   e.currentTarget.blur();
   if (!replay.path) return;
@@ -6483,7 +6630,8 @@ function bodyScales(k, pxAngle, farAway, spreadMax = 1) {
   // over to the new view's along the way, on a log scale, not at once; C.homing.w: the share of the way)
   const hv = viewBlend && viewBlend.view, hw = hv ? viewBlend.w : 1;
   const sc = (b, a, V) => Math.max(drawnR(b, V) * U, camera.position.distanceTo(b.group.position) * Math.tan(farAway ? 0 : Math.max(a, k * lockMinAngle(b, V))));
-  const scale = (b, a) => { const n = sc(b, a); return hv && hw < 1 ? Math.exp(Math.log(sc(b, a, hv)) * (1 - hw) + Math.log(n) * hw) : n; };
+  // (b.ownScale: the new view's own size, without the view left's; it decides the light, see refInflated)
+  const scale = (b, a) => { const n = sc(b, a); b.ownScale = n; return hv && hw < 1 ? Math.exp(Math.log(sc(b, a, hv)) * (1 - hw) + Math.log(n) * hw) : n; };
   for (const pl of PLANETS) pl.group.scale.setScalar(scale(pl, minAngle));
   const moonMin = farAway ? 0 : Math.max(k * MOON_MIN_APPARENT_RADIUS, MIN_DOT_PX / 2 * pxAngle);
   MOON.group.scale.setScalar(scale(MOON, moonMin));
@@ -6702,6 +6850,9 @@ function step(now, draw) {
   // stays put
   // (the replay, Ovi 2026-11-06: the bodies where they were at the sample shown, logs with the bodies' clock (yr); a log
   // recorded while running was seen with the Sun elsewhere; closing it, back to the time before it: timeTarget)
+  // (the replay's sample first (Ovi, 2026-11-26, log new_test_appl_impl: taken after the bodies and the locked view, the
+  // camera's box was drawn one sample ahead of them: it wobbled on the screen in the fast moves)
+  if (replay.on) updateReplay(dt);
   const ry = replay.on ? replay.samples[replay.i] && replay.samples[replay.i].yr : timeTarget;
   // (the solar eclipse view: on at this time? its speed, and no step passing its start; REQ-03.2.42 - REQ-03.2.46)
   ECL.e = typeof ry === 'number' ? null : eclNow(trailT); ECL.on = !!ECL.e; ECL.kind = ECL.e && ECL.e.k; eclShow(ECL.e);
@@ -6726,6 +6877,7 @@ function step(now, draw) {
     if (replay.free) replay.free.pos = add(replay.free.pos, dP);
   }
   if (replay.on && replay.objs) replay.objs.g.position.copy(T(...P));   // (the logged path goes with the body)
+  if (replay.on) for (const pth of replay.paths || []) pth.g.position.copy(T(...pth.body.p));   // (each body's part of the path with its body)
   const pushed = keepOutside(C.pos, cam0, prev);
   if (pushed.some((x, i) => x !== C.pos[i])) { C.pos = pushed; if (C.mode === 'body') syncSpherical(); }
 
@@ -6743,13 +6895,17 @@ function step(now, draw) {
     // and the keys waited for it)
     if (C.leveling || leanSpeed) levelStep(dt);
   });
-  if (C.mode === 'body' && !C.homing) {
+  if (C.mode === 'body') {
     // the moves around Pluto keep 2 radii from Pluto; the other bodies are checked here, before the picture is drawn
+    // (also on the way to Home (Ovi, 2026-11-26): its path, a straight segment, could pass through a body; pushed out to
+    // 2 radii for that picture, the next one again on the path)
     const q = keepOutside(C.pos);
     if (q.some((x, i) => x !== C.pos[i])) { C.pos = q; syncSpherical(); }
   }
   // the moves and the mouse add up angles; keep them in [-180°, +180°] so they never grow, however long the camera turns
   // [REQ-01.1, REQ-02] (the picture's turn too, Ovi 2026-11-03: it was wrapped only where it was used)
+  if (replay.on && replay.objs && replay.lock) replayLock();   // (Cam locked: the main view follows the logged camera, after
+  // every move of its own)
   C.pan = wrapAngle(C.pan); C.tilt = wrapAngle(C.tilt); C.roll = wrapAngle(C.roll); C.lon = wrapPi(C.lon);
 
   // camera: screen top/bottom edges stay parallel to the ecliptic [REQ-02]; only right after switching to absolute mode
@@ -6805,7 +6961,10 @@ function step(now, draw) {
   updateMoonTrail(tFwd);   // (its gap and plume, see moonTrail)
   // the reference body, when shown larger than real (far away): fully lit and drawn over the axis lines (setInflated)
   // (not in the Moon / Earth locked views: there the reference body keeps its light and shadow, for its phases)
-  const inflated = !lockMinAngle(REF) && REF.group.scale.x > R * U * (1 + 1e-9);
+  // (Ovi 2026-11-26: leaving the Moon locked view for a Sun locked view the Earth / Moon was fully lit for a while: the
+  // larger size of the view left, going over to the new one's (viewBlend), counted as "larger than real"; now only the
+  // new view's own size counts)
+  const inflated = !lockMinAngle(REF) && Math.min(REF.group.scale.x, REF.ownScale ?? Infinity) > R * U * (1 + 1e-9);
   if (inflated !== refInflated || REF !== inflatedBody) {
     if (inflatedBody && inflatedBody !== REF) setInflated(inflatedBody, false);
     inflatedBody = REF; refInflated = inflated; setInflated(REF, inflated);
@@ -6856,7 +7015,6 @@ function step(now, draw) {
 
   updatePointer(f, u);
   updateCamVel(dt, st, camR0, camR1);
-  if (replay.on) updateReplay(dt);
   if (!draw) return;   // (a step inside a long picture: nothing drawn, nothing shown or logged)
   updateHud(now);
   if (camLog.on && !camLog.paused) recordSample(now);
@@ -6905,14 +7063,26 @@ function chooseRef(b, v) {
   forgetMoves(); resetMeridian();
   const left = viewNow();   // (the view left: its sizes go over to the new one's, see viewBlend)
   if (!b) { setMode('absolute'); return; }
-  const other = b !== REF;
+  const other = b !== REF, vk0 = C.mode === 'body' ? viewKey() : null;   // (the view before: none in absolute space)
   if (other) { homeFrom = REF; setRef(b); }
   setMode('body');
-  // the body's own speed (REF_SPEED), if it has one
-  if (REF_SPEED[b.name]) { simSpeed = SIM_SPEEDS.findIndex(s => s[1] === REF_SPEED[b.name]); showSpeed(); }
+  // the body's own speed (REF_SPEED), if it has one: with another body at the end of the way (Ovi, 2026-11-26:
+  // set at its start, the body left spun fast while it was still in the picture: Mercury at Pluto's 1 yr/s, 6 turns a
+  // second), else at once
+  // (and during the way to it the slower of the speed now and its own (Ovi, 2026-11-26: at Pluto's 1 yr/s until the middle
+  // of the flight, Venus went round much of its orbit and dragged the way's end, the camera made big loops in space))
+  homeSpeedNext = null;
+  if (REF_SPEED[b.name]) {
+    const k = SIM_SPEEDS.findIndex(s => s[1] === REF_SPEED[b.name]);
+    if (other) { homeSpeedNext = REF_SPEED[b.name]; if (k < simSpeed) { simSpeed = k; showSpeed(); } }
+    else { simSpeed = k; showSpeed(); }
+  }
   if (v && viewsFor(b).some(([k]) => k === v)) selectView(v);   // (only a view the body has)
+  if (v === 'other' && viewsFor(b).some(([k]) => k === v)) homeSpeedNext = null;   // (the Moon / Earth locked views: their own 1 d/s, set at once)
   if (!sameRules(left, viewNow())) viewBlend = { view: left, w: 0, t: 0, home: false };
-  if (other) startHome();
+  // (also a new view of the same body, or the body chosen from absolute space, goes to its Home (Ovi, 2026-11-26: the
+  // camera stayed in place and only the picture turned, not as with another body: every choice in the menu the same)
+  if (other || viewKey() !== vk0) startHome();
   toast(refTitle());
 }
 // The starting view (Ovi, 2026-11-25, in the reworked Sun locked view; before: 2026-11-11, the camera at (−5.73, −29.77,
